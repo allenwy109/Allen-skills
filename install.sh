@@ -1,18 +1,24 @@
 #!/usr/bin/env bash
-# 安装 Allen 的方法论 skill 系统，以及 zerox.lock 里固定版本的 zerox skill。
+# 安装 Allen 的方法论 skill 系统、运行时（_allen-runtime），以及 zerox.lock 里固定版本的 zerox skill。
 #
 # 用法：
 #   ./install.sh                     安装到 ~/.claude/skills（复制）
 #   ./install.sh --target DIR        安装到其他目录
 #   ./install.sh --link              用软链接代替复制（在本仓库里改 skill 立即生效）
-#   ./install.sh --no-zerox          只装本仓库的 skill
-#   ./install.sh --forge-deps        额外为 zerox-consulting-report-forge 安装 npm 依赖和字体
+#   ./install.sh --no-zerox          只装本仓库的 skill 和运行时
+#   ./install.sh --render-deps       额外安装出成品所需的依赖：LibreOffice 等系统工具、Python 虚拟环境、
+#                                    Playwright Chromium、报告引擎的 npm 依赖与字体，并生成能力探测任务
+#   ./install.sh --forge-deps        已弃用，等同 --render-deps
 #   ./install.sh --remove-old        删除旧版 skill（consulting-analysis 等三个旧名字）
-#   ./install.sh --force             覆盖目标目录里不是本脚本装的同名 skill
+#   ./install.sh --force             覆盖目标目录里不是本脚本装的同名 skill 或运行时
 #
 # 环境变量：
 #   ZEROX_REPO   改用其他 zerox 仓库地址（例如自己的 fork）
 #   CACHE_DIR    zerox 源码缓存位置，默认 ~/.cache/allen-skills
+#   ALLEN_VENV   Python 虚拟环境位置，默认 ~/.cache/allen-skills/venv
+#
+# 运行时（_allen-runtime）：复制模式下是 vendor/ 和 tools/ 的副本；--link 模式下是指向本仓库的软链接。
+# 复制模式重新安装会清掉运行时里的 npm 依赖和探测结果，之后需要重新运行 --render-deps。
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,6 +28,10 @@ WITH_ZEROX=1
 FORGE_DEPS=0
 REMOVE_OLD=0
 FORCE=0
+RENDER_DEPS=0
+RUNTIME_NAME="_allen-runtime"
+# 与 tools/lib/runtime.py 的 venv_python() 保持一致
+VENV="${ALLEN_VENV:-${XDG_CACHE_HOME:-$HOME/.cache}/allen-skills/venv}"
 MARKER=".installed-by-allen-skills"
 OLD_NAMES="consulting-analysis management-toolkit personal-effectiveness"
 
@@ -30,10 +40,11 @@ while [ $# -gt 0 ]; do
     --target) TARGET="$2"; shift 2 ;;
     --link) MODE="link"; shift ;;
     --no-zerox) WITH_ZEROX=0; shift ;;
-    --forge-deps) FORGE_DEPS=1; shift ;;
+    --render-deps) RENDER_DEPS=1; shift ;;
+    --forge-deps) echo "提示：--forge-deps 已弃用，请改用 --render-deps。" >&2; RENDER_DEPS=1; FORGE_DEPS=1; shift ;;
     --remove-old) REMOVE_OLD=1; shift ;;
     --force) FORCE=1; shift ;;
-    -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,21p' "$0"; exit 0 ;;
     *) echo "未知参数：$1" >&2; exit 2 ;;
   esac
 done
@@ -49,7 +60,7 @@ place() {
     if [ -L "$dest" ] || [ -f "$dest/$MARKER" ] || [ "$FORCE" = 1 ]; then
       rm -rf "$dest"
     else
-      skipped+=("$name（目标已存在且不是本脚本安装的，用 --force 覆盖）")
+      skipped+=("${name}（目标已存在且不是本脚本安装的，用 --force 覆盖）")
       return
     fi
   fi
@@ -63,12 +74,35 @@ place() {
   installed+=("$name")
 }
 
+# 安装运行时 TARGET/_allen-runtime
+place_runtime() {
+  local dest="${TARGET}/${RUNTIME_NAME}"
+  if [ -e "${dest}" ] || [ -L "${dest}" ]; then
+    if [ -L "${dest}" ] || [ -f "${dest}/${MARKER}" ] || [ "${FORCE}" = 1 ]; then
+      rm -rf "${dest}"
+    else
+      skipped+=("${RUNTIME_NAME}（目标已存在且不是本脚本安装的，用 --force 覆盖）")
+      return 0
+    fi
+  fi
+  if [ "${MODE}" = "link" ]; then
+    ln -s "${REPO_DIR}" "${dest}"
+  else
+    mkdir -p "${dest}"
+    rsync -a --exclude node_modules --exclude .font-venv --exclude __pycache__ \
+      --exclude .probe-task --exclude .probe.json "${REPO_DIR}/vendor" "${REPO_DIR}/tools" "${dest}/"
+    echo "source=${REPO_DIR}" > "${dest}/${MARKER}"
+  fi
+  installed+=("${RUNTIME_NAME}")
+}
+
 # 1. 本仓库的 skill：根目录下含 SKILL.md 的目录
 for d in "$REPO_DIR"/*/; do
   d="${d%/}"
   [ -f "$d/SKILL.md" ] || continue
   place "$d" "$(basename "$d")"
 done
+place_runtime
 
 # 2. zerox skill，按 zerox.lock 固定版本
 if [ "$WITH_ZEROX" = 1 ]; then
@@ -92,7 +126,7 @@ if [ "$WITH_ZEROX" = 1 ]; then
     if [ -f "$cache/$s/SKILL.md" ]; then
       place "$cache/$s" "$s"
     else
-      skipped+=("$s（zerox 该版本里没有这个 skill）")
+      skipped+=("${s}（zerox 该版本里没有这个 skill）")
     fi
   done
   if [ "$FORGE_DEPS" = 1 ] && [ -d "$TARGET/zerox-consulting-report-forge" ]; then
@@ -113,7 +147,7 @@ for o in $OLD_NAMES; do
   fi
 done
 
-echo "安装到：$TARGET（方式：$MODE）"
+echo "安装到：${TARGET}（方式：${MODE}）"
 echo "已安装 ${#installed[@]} 个：${installed[*]}"
 if [ ${#skipped[@]} -gt 0 ]; then
   echo "跳过："
