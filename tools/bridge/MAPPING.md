@@ -1,6 +1,6 @@
 # 转换映射表
 
-我们的格式（证据账、slides.json、图表 spec）到三个引擎输入的映射，是转换脚本的唯一依据（设计 §6.3）。每个引擎一节，随对应的输出 skill 一起写定并配测试。目前已写定：thinkcell（out-chart）。报告引擎和海报引擎的映射，分别随 out-report 和 out-poster 写定。
+我们的格式（证据账、slides.json、图表 spec）到三个引擎输入的映射，是转换脚本的唯一依据（设计 §6.3）。每个引擎一节，随对应的输出 skill 一起写定并配测试。目前已写定：thinkcell（out-chart）、onepager（out-poster）。报告引擎的映射随 out-report 写定。
 
 ## 公共规则（所有引擎）
 
@@ -27,3 +27,18 @@
 | 其余字段（`type`、`title`、`subtitle`、`unit`、`theme`、`palette`、`highlight`、`callouts`） | 原样 | `type`、`title`、`unit`、`data`、`source_ids` 必填 |
 
 测试：`tools/tests/test_bridge_thinkcell.py`（正向 5 例；反向 10 例：裸数字、缺失指标、未核实主张、无人引用的指标、不存在的指标、不存在的来源、缺来源、手写来源、缺标题、装饰写裸数字）；端到端测试在 `out-chart/scripts/tests/test_out_chart.py`。
+
+## onepager（`out-poster/scripts/out_poster.py`、`tools/bridge/poster_numbers.py`）
+
+onepager 没有"输入 → HTML"的渲染器，海报 HTML 由作者手写，所以这里不是逐字段转换，而是"给作者的事实清单 + 成品回查"。
+
+| 我们 | onepager | 规则 |
+|---|---|---|
+| 能进成品的主张（公共规则） | `source/<slug>-facts.json`（项目 source 目录） | 每条主张给出陈述、身份、核实状态、指标显示值和单位、来源说明 |
+| 事实或数据类、已核实或单一来源主张的指标 | BigNumber 候选（`bignum_candidates`） | E1 只能用候选；不足 2 个改 E2 |
+| 来源说明 | 页面上的来源文字；IR 和蓝图的 `source_refs` 写来源 ID | `project.py validate --require-sources` 检查 |
+| 海报 HTML 上的数字 | — | 回查：必须等于某个能进成品的指标的显示值；年份（1900–2100 的 4 位整数）和编号除外；`--allow` 显式放行的要写进验收 |
+| 非事实身份的指标 | 页面文字 | 数字前后 20 字内要有"估算、预测、假设、判断、建议、约、预计"之一 |
+| `bignum-value` 元素里的数字 | BigNumber | 只能用已核实或单一来源主张的指标 |
+
+测试：`tools/tests/test_poster_numbers.py`（5 例）；端到端测试在 `out-poster/scripts/tests/test_out_poster.py`（4 例）。
