@@ -1,0 +1,55 @@
+{
+ "version": "1.0.0",
+ "comment": "08_deliverables/acceptance.json 的结构（设计 §8.3）。只有它能判定交付物是否完成；状态由 tools/acceptance.py 按统一规则计算，不手填。规则见 core-review/references/output-standard.md。",
+ "upstream": "设计 §8.3；report-forge 的审查与打包记录；deep-research 的 checks.json",
+ "changes": ["新文件：上游各引擎各有各的完成判定，这里统一成一份"],
+ "enums": {
+  "deliverable_kind": {"values": ["report", "chart", "poster", "speaker_notes", "research_package", "diligence_bundle", "markdown"], "labels": {"report": "正式报告", "chart": "图表", "poster": "海报", "speaker_notes": "讲者备注", "research_package": "研究包", "diligence_bundle": "尽调附属交付物", "markdown": "Markdown 交付"}},
+  "check_result": {"values": ["passed", "warnings", "limited", "failed", "skipped"], "labels": {"passed": "通过", "warnings": "有警告", "limited": "有限完成", "failed": "失败", "skipped": "跳过（仅限夹具）"}},
+  "reviewer_type": {"values": ["independent", "self"], "labels": {"independent": "独立成品审查员", "self": "作者自审（未经独立审查）"}},
+  "issue_level": {"values": ["blocking", "major", "minor"], "labels": {"blocking": "阻塞", "major": "重要", "minor": "轻微"}},
+  "status": {"values": ["passed", "conditional", "failed"], "labels": {"passed": "通过", "conditional": "有条件通过", "failed": "不通过"}}
+ },
+ "root": {
+  "type": "object",
+  "fields": {
+   "task": {"type": "string", "required": true},
+   "fixture": {"type": "boolean", "required": true},
+   "updated_at": {"type": "datetime", "required": true},
+   "deliverables": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "required": true},
+    "kind": {"type": "string", "enum": "deliverable_kind", "required": true},
+    "title": {"type": "string", "required": true},
+    "files": {"type": "array", "min_items": 1, "required": true, "items": {"type": "object", "fields": {
+     "path": {"type": "string", "required": true},
+     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$", "required": true}}}},
+    "upstream_checks": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+     "name": {"type": "string", "required": true},
+     "result": {"type": "string", "enum": "check_result", "required": true},
+     "detail": {"type": "string"}}}},
+    "number_trace": {"type": "object", "required": true, "fields": {
+     "checked": {"type": "integer", "min": 0, "required": true},
+     "untraced": {"type": "array", "items": {"type": "string"}, "required": true}}},
+    "reviewer": {"type": "object", "fields": {
+     "type": {"type": "string", "enum": "reviewer_type", "required": true},
+     "reviewer": {"type": "string", "required": true},
+     "at": {"type": "datetime", "required": true},
+     "conclusion": {"type": "string", "required": true},
+     "issues": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+      "id": {"type": "string", "pattern": "^RV-[0-9]{4,}$", "required": true},
+      "level": {"type": "string", "enum": "issue_level", "required": true},
+      "text": {"type": "string", "required": true},
+      "resolved": {"type": "boolean", "required": true}}}}}},
+    "dispositions": {"type": "array", "items": {"type": "object", "fields": {
+     "source": {"type": "string", "required": true},
+     "warning": {"type": "string", "required": true},
+     "decision": {"type": "string", "required": true},
+     "reason": {"type": "string", "required": true}}}},
+    "downgraded": {"type": "boolean"},
+    "failures": {"type": "array", "items": {"type": "string"}},
+    "conditions": {"type": "array", "items": {"type": "string"}},
+    "status": {"type": "string", "enum": "status", "required": true}
+   }}}
+  }
+ }
+}
