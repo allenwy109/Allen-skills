@@ -6,14 +6,18 @@
 
 ## 安装
 
+这套 skill 可以在 Claude Code、Claude Code 网页版、claude.ai 聊天、Agent SDK 里用，但能力不同（联网核实、独立子代理审查、正式报告）。**先看 [INSTALL.md](INSTALL.md) 的对比表，再选在哪里用。**
+
+最常用的方式是 Claude Code：
+
 ```bash
 git clone https://github.com/allenwy109/Allen-skills.git
 cd Allen-skills
 ./install.sh                 # 装到 ~/.claude/skills，含固定版本的 zerox skill
-./install.sh --remove-old    # 从旧版升级时，顺便删掉 consulting-analysis 等三个旧 skill
+./install.sh --remove-old    # 从旧版升级时，删掉 consulting-analysis 等三个旧 skill
 ```
 
-常用参数：`--link`（软链接，改仓库立即生效）、`--no-zerox`（只装本仓库）、`--forge-deps`（为正式报告安装 Node 依赖和字体）、`--target DIR`。说明见 `./install.sh --help`。
+上传到 claude.ai 时，先运行 `python3 tools/build-zips.py` 打包，每个 skill 一个 zip。
 
 ## 怎么用
 
@@ -60,6 +64,7 @@ lib-*/
 
 ## 维护
 
+- `python3 tools/build-zips.py`：把每个 skill 打成 zip，用于上传 claude.ai。
 - `python3 tools/validate.py`：检查 skill 结构、跨 skill 引用、卡片必备小节、选法表格式。PR 上会自动跑。
 - [tests/method-selection-cases.md](tests/method-selection-cases.md)：12 道选方法测试题，改选法表或卡片后重跑。
 - 加新方法：在对应方法库加卡片（必备小节见 validate.py），在 method-index.md 登记，在 SKILL.md 选法表加一行。
