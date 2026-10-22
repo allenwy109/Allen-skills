@@ -891,7 +891,7 @@ scene-personal 的交付保持现状（个人计划，不出正式报告），�
 - 系统 Chrome 能否无头启动；Playwright Chromium 的 executable_path 是否存在；
 - LibreOffice 能否转换；Tesseract 是否有 chi_sim；
 - report-forge 能力探测是否已验证（`.probe.json`）；
-- thinkcell 浏览器测试的两个前提：必须设 `NODE_PATH` 指向 `_allen-runtime/vendor/report-forge/node_modules`（让脚本能加载 Node 版 playwright）；同时设 `TC_BROWSER_PATH=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`（否则它会去找没有安装的、与 Node playwright 版本对应的 Chromium）。两项都检查；
+- thinkcell 浏览器测试的两个前提：必须设 `NODE_PATH` 指向 `_allen-runtime/vendor/report-forge/node_modules`（让脚本能加载 Node 版 playwright）；同时设 `TC_BROWSER_PATH=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`（否则它会去找没有安装的、与 Node playwright 版本对应的 Chromium）；再设 `TC_PYTHON` 指向我们的虚拟环境 Python（否则它会去引擎目录下找 `.venv/bin/python` 生成测试图表）。前两项由 doctor 检查，TC_PYTHON 由 selftest 设置；
 - 磁盘剩余空间。
 
 每项输出"通过 / 缺失 / 版本不足"，以及具体的修复命令。
@@ -919,7 +919,7 @@ scene-personal 的交付保持现状（个人计划，不出正式报告），�
 | core-storyline | 按上游 47 个用例的全部场景重写；补上优化 1–10 的测试，包括"去掉数字必须报错"类反向用例 | `core-storyline/scripts/tests/` |
 | core-intake | 虚构公司 BP 各一份：文字版 PDF、扫描版 PDF、.docx、.pptx（含备注和表格）、加密 PDF、损坏文件；快照摘录比对 | `core-intake/scripts/tests/` |
 | 转换脚本 | 正向：证据账 + slides.json → 三种引擎输入，引擎校验器通过；待确认、被推翻主张的改写；judgment 的 cornerLabel。反向（必须拦截）：台账外数字、公式不闭合、unverified 以事实呈现、conflicting 无采信理由、字段缺失、决策型缺维持现状方案、arc=other 缺理由、引用 forecast 指标的图未声明预测样式 | `tools/bridge/tests/` |
-| 引擎 | report-forge：`npm test`、`npm run test:render`、`npm run test:upgrade-render`。thinkcell：`tests/run_tests.py`、unittest、`tests/check_html_browser.cjs`（同时设置 NODE_PATH 和 TC_BROWSER_PATH，见 §9）。onepager：`tests/` | selftest 调用 |
+| 引擎 | report-forge：`npm test`、`npm run test:render`、`npm run test:upgrade-render`。thinkcell：`tests/run_tests.py`、unittest、`tests/check_html_browser.cjs`（同时设置 NODE_PATH、TC_BROWSER_PATH 和 TC_PYTHON，见 §9）。onepager：`tests/` | selftest 调用 |
 | 输出验收 | acceptance.json 状态规则（每种 failed、conditional 条件都有用例）；数字回查；篡改复检；尽调专项的脚本部分 | `core-review/tests/` |
 | 端到端冒烟 | 一个虚构任务：文字要求 + 三份文件 → intake → 拆问题 → 证据账 → 综合 → 故事线 → 报告、图表、海报 → acceptance | `tools/selftest.sh --e2e` |
 | 选方法 | 保留现有 12 道题 | 手工 |

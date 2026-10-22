@@ -1809,7 +1809,7 @@ echo "== thinkcell-charts"
 copy_engine thinkcell-charts
 (cd "${WORK}/thinkcell-charts" && "${VENV_PY}" tests/run_tests.py)
 run_py_tests thinkcell-charts
-(cd "${WORK}/thinkcell-charts" && NODE_PATH="${RT}/vendor/report-forge/node_modules" TC_BROWSER_PATH="${CHROME}" node tests/check_html_browser.cjs)
+(cd "${WORK}/thinkcell-charts" && NODE_PATH="${RT}/vendor/report-forge/node_modules" TC_BROWSER_PATH="${CHROME}" TC_PYTHON="${VENV_PY}" node tests/check_html_browser.cjs)
 
 echo "== onepager"
 copy_engine onepager
