@@ -378,7 +378,8 @@ def apply_patches(vendor):
     vendor/ 在 git 仓库的子目录里时，git apply 会按仓库根目录解析路径，并悄悄跳过子目录外的改动。"""
     applied = []
     for patch in sorted((pathlib.Path(vendor) / "patches").glob("*.patch")):
-        subprocess.run(["patch", "-p1", "-N", "-t", "-s", "-i", str(patch)], cwd=vendor, check=True)
+        # -r - ：打不上时不留下 .rej 文件；失败后修好补丁，重新运行 sync 即可恢复
+        subprocess.run(["patch", "-p1", "-N", "-t", "-s", "-r", "-", "-i", str(patch)], cwd=vendor, check=True)
         applied.append({"name": patch.name, "sha256": sha256(patch)})
     return applied
 
@@ -986,7 +987,7 @@ render_deps() {
 在"# 2. zerox skill"那一段之前，加：
 
 ```bash
-if [ "$RENDER_DEPS" = 1 ]; then
+if [ "${RENDER_DEPS}" = 1 ]; then
   render_deps
 fi
 ```
@@ -1187,6 +1188,11 @@ class DoctorTest(unittest.TestCase):
                 self.assertEqual(r["status"], status)
                 self.assertTrue(r["fix"])
 
+    def test_real_soffice_convert_with_missing_binary(self):
+        ok, detail = doctor.Env().soffice_convert("/nonexistent/soffice")
+        self.assertFalse(ok)
+        self.assertTrue(detail)
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -1263,7 +1269,9 @@ class Env:
         with tempfile.TemporaryDirectory() as tmp:
             src = pathlib.Path(tmp) / "t.txt"
             src.write_text("doctor\n", encoding="utf-8")
-            code, out = self.run([soffice, "--headless", "--convert-to", "pdf", "--outdir", tmp, str(src)], timeout=180)
+            # 用独立的临时配置目录，避免和用户正开着的 LibreOffice 抢配置
+            profile = "-env:UserInstallation=" + (pathlib.Path(tmp) / "profile").as_uri()
+            code, out = self.run([soffice, profile, "--headless", "--convert-to", "pdf", "--outdir", tmp, str(src)], timeout=180)
             ok = code == 0 and (pathlib.Path(tmp) / "t.pdf").is_file()
             return ok, "转换成功" if ok else out.strip()[-200:]
 
@@ -1455,7 +1463,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: 运行测试，确认通过**
 
 Run: `python3 -m unittest tools.tests.test_doctor -v`
-Expected: 8 个测试全部 `ok`（其中一个含 16 个子用例）。
+Expected: 9 个测试全部 `ok`（其中一个含 16 个子用例）。
 
 - [ ] **Step 5: 在本机实际运行一次（只读，不安装任何东西）**
 
@@ -1812,7 +1820,7 @@ echo "自检全部通过"
 
 Run: `chmod +x tools/selftest.sh && tools/selftest.sh --quick`
 Expected：
-- 单元测试全部 `OK`（44 个：vendor_sync 13、runtime 10、install 6、doctor 8、record_probe 4、validate 3）；
+- 单元测试全部 `OK`（45 个：vendor_sync 13、runtime 10、install 6、doctor 9、record_probe 4、validate 3）；
 - validate 输出 `错误 0 个`；
 - 最后一行 `已跳过引擎测试（--quick）`。
 
