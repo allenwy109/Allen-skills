@@ -1,7 +1,7 @@
 # 设计：吸纳 zerox 能力，补齐研究、尽调、故事线与成品输出
 
 - 日期：2026-10-22
-- 版本：v3（按两轮独立审查修订，审查记录见 `2026-10-22-zerox-absorption-review.md`）
+- 版本：v3.1（按三轮独立审查修订，审查记录见 `2026-10-22-zerox-absorption-review.md`）
 - 状态：待用户审
 - 范围：本仓库（Allen-skills）的后台能力。前端应用（不同系统提示词组合成的产品）不在本次范围。
 
@@ -67,7 +67,7 @@ zerox 的 skill 被直接安装时，描述会和 router 抢着触发；report-f
 | 新增 | tools/lib、tools/bridge、tools/doctor.py、tools/vendor_sync.py、tools/selftest.sh、vendor/ | §3、§6、§9 |
 | 改动 | core-evidence | SKILL.md：台账改为统一证据账（§3），核实关口改用 §3.4 的表（冲突处理规则不变）。`references/source-tiers.md` 改写为统一来源评价标准（§3.3）。`assets/evidence-ledger-template.md` 改为说明文档。与 core-research 的分工写入 SKILL.md |
 | 改动 | core-synthesis | 取消一页及条数上限（§7）；输入改为 `03_evidence/`；引用写法改为 §3.6；"交付层（zerox）"改为"core-storyline 与输出层" |
-| 改动 | core-review | SKILL.md：新增成品审查员（第 5 个角色）、深度对应的角色表。新增 `references/output-standard.md`（§8.3）。`references/reviewer-prompts.md`：新增成品审查员提示词；把 `03_evidence.md` 改为 `03_evidence/`；决策者视角在 L2 起改读最终成品（report.pdf），L1 仍读回答正文。`assets/review-log-template.md`：问题编号改为 `RV-NN`，增加成品审查员一节 |
+| 改动 | core-review | SKILL.md：新增成品审查员（第 5 个角色）、深度对应的角色表。新增 `references/output-standard.md`（§8.3）。`references/reviewer-prompts.md`：新增成品审查员提示词；把 `03_evidence.md` 改为 `03_evidence/`；决策者视角（只在 L3 开）改读最终成品 report.pdf。`assets/review-log-template.md`：问题编号改为 `RV-0001`，增加成品审查员一节 |
 | 改动 | router | SKILL.md：新的深度表（§7.2）；接入 core-intake 的先后顺序（§4.1）；任务文件夹树改为 §3.1。`assets/brief-template.md`：交付物选项改写；新增"用户要求（原文）"一节。`references/system-prompts.md`：路径和交付措辞随之改 |
 | 改动 | scene-company、scene-topic、scene-bp-review、scene-personal | 接入 core-intake、新能力和输出层；路径 `03_evidence.md` → `03_evidence/`、`07_deliverables/` → `08_deliverables/`；引用 `[E-xxxx]` 等改为 §3.6；呈现措辞按 §7.1 |
 | 改动 | lib-consulting、lib-management | 删除"一页正文""一页格式"措辞（§7.1） |
@@ -147,7 +147,7 @@ L1 快答不建任务文件夹。L1 需要读用户文件时，见 §4.1；L1 �
 | risks | 风险与红旗：性质、严重度、影响、可能性、时间范围、替代解释、缓解措施、残余风险、关闭条件、负责角色、证据 | due-diligence risk-register |
 | scorecard | 评分（默认关闭）：权重、维度、关键维度、分数、置信度、依据 | due-diligence scorecard |
 | search_log | 检索记录（同时渲染为 search-logs/*.md） | deep-research 检索日志 + due-diligence search-log |
-| reviews | 人工复核记录：类型（研究复核、只读复述、视觉复核、三视图预览、成品审查）、复核人、时间、结论、内容指纹 | deep-research review.json + due-diligence 人工复核（上游没有结构化回填，本设计补上） |
+| reviews | 人工复核记录：类型、复核人、时间、覆盖对象（主张 ID、页、文件）、结论、checks 子结构（每项 passed + evidence，用于导出研究包 review.json 的 4 项检查）、内容指纹。类型的完整清单（只在 schema 定义）：research_review（研究复核）、reading_recap（只读复述）、visual_review（视觉复核）、visual_review_disposition（visual_review 提示的处置）、view_preview（三视图预览）、deliverable_review（成品审查）、user_confirmation（用户确认）、diligence_manual（尽调 22 条人工清单） | deep-research review.json + due-diligence 人工复核（上游没有结构化回填，本设计补上） |
 
 数据表沿用 deep-research 的 CSV 两层结构（提取层 / 整理层，带完整血缘），放在 `03_evidence/data/`。它是数值记录的真源；metrics 通过 record_id 引用其中的记录。
 
@@ -196,17 +196,21 @@ ID 一经分配不复用、不重编号；采集失败留下的空号不补。
 | `access`（来源的完整度） | full / partial / summary / snippet_only / metadata_only / blocked / unreadable | 合并 deep-research 的 5 级完整度与 due-diligence 的 access。统一使用下划线 |
 | `origin` | user / web / model_memory / derived | 出处 |
 
-规则：关键结论需要 ≥2 个相互独立的来源，或 1 个 tier=primary 且 grade∈{S, A} 的来源。C、D 级只当线索。access 不是 full 或 partial 的来源，不能单独支撑关键结论。
+规则：关键结论所依赖的主张必须达到 verified（判定标准见 §3.4，§3.4 是这条规则唯一的展开）。C、D 级只当线索。access 不是 full 或 partial 的来源，不能单独支撑关键结论。
 
 ### 3.4 核实关口（规则真源：core-evidence §6，以本表替换原表；枚举值真源：schema）
 
 主张的 `verification` 枚举：verified / single_source / conflicting / unverified / refuted。判定标准：
 
-- **verified**：≥2 个相互独立的来源支持，或 1 个 tier=primary 且 grade∈{S, A} 的来源支持；或者 origin=user 的主张经用户确认（见下）。
-- **single_source**：只有 1 个其他来源支持。
+下文"合格来源"指 grade∈{S, A, B} 且 access∈{full, partial} 的来源（§3.3：C、D 级只当线索，低完整度的来源不能单独支撑结论）。
+
+- **verified**：≥2 个相互独立的合格来源支持；或 1 个 tier=primary、grade∈{S, A}、access∈{full, partial} 的来源支持；或者是用户材料主张并经用户确认（见下）。
+- **single_source**：只有 1 个合格来源支持，且不满足 verified。
 - **conflicting**：有相互矛盾的证据（conflicts 表有对应记录）。
-- **unverified**：尚无足够支持，包括只有模型记忆（origin=model_memory）的主张。
-- **refuted**：有 contradicts 证据，且置信度为高或中。
+- **unverified**：没有合格来源支持，包括只有模型记忆（origin=model_memory 的来源）或只有 C、D 级来源的主张。
+- **refuted**：有 contradicts 证据，且这些反证本身满足 verified 的来源要求。
+
+"用户材料主张"指：一条主张的全部 supports 证据都来自 origin=user 的来源。
 
 `affects_conclusion=true` 的主张在综合前逐条过关：
 
@@ -218,7 +222,7 @@ ID 一经分配不复用、不重编号；采集失败留下的空号不补。
 | unverified | 结论改写为"如果……则……"，并列入"需要先确认的问题" |
 | refuted | 不得作为支撑；只能作为"被推翻的说法"出现 |
 
-用户材料里的说法（origin=user）初始为 unverified。用户材料本身就是权威出处的主张（例如用户自己的内部经营数据），由用户确认后改为 verified，并在 reviews 表写一条 `type=user_confirmation`（谁、何时、确认了哪些主张）；成品中标"用户提供"。BP 等第三方材料里的说法不适用这一条，必须按上面的标准核实。due-diligence 的 pending / verified / disputed / unsupported / refuted 依次映射为 unverified / verified / conflicting / unverified / refuted。
+用户材料主张初始为 unverified。用户材料本身就是权威出处的主张（例如用户自己的内部经营数据），由用户确认后改为 verified，并在 reviews 表写一条 `type=user_confirmation`（谁、何时、覆盖了哪些主张）；成品中标"用户提供"。BP 等第三方材料里的说法不适用这一条，必须按上面的标准核实。due-diligence 的 pending / verified / disputed / unsupported / refuted 依次映射为 unverified / verified / conflicting / unverified / refuted。
 
 ### 3.5 主张身份（真源：claims.kind）
 
@@ -338,8 +342,8 @@ DD 的【待核实】不是身份，用 `verification=unverified` 表示。【�
 
 封包由 `research seal` 完成，顺序如下：
 
-1. **选范围**：从 `03r_research/report.md` 的参考来源和数据关联出发，收集被引用的来源，以及它们传递依赖的证据、数据记录、输入记录、方法文件和原件。依赖必须闭合，缺一项就报错。
-2. **在暂存目录组装**：`08_deliverables/research-package/.staging-<包ID>/`，按上游 v2 布局：
+1. **选范围**：收入本次研究各研究线的全部来源（读过且相关的，无论是否被引用）、全部证据、全部检索日志、反面证据、用户材料，以及报告用到的数据记录、输入记录、方法文件和原件。这对应上游"必存 6 类"。依赖必须闭合，缺一项就报错。只有用户明确要求精简时，才只收被引用的来源和检索日志，并在 README 写明"按用户要求精简"。
+2. **在暂存目录组装**：`03r_research/.staging-<包ID>/`（与 08_deliverables 在同一磁盘上，便于第 7 步原子移动），按上游 v2 布局：
    - package.json、README.md、report.md、sources.md（13 列，由证据账生成）；
    - raw/sources/（快照：在副本里把评价字段补进快照头，凑齐上游要求的 20 个必填字段；任务文件夹里的原快照不动）、raw/files/、raw/user-provided/；
    - data/（数据记录的 method 路径从 `03_evidence/analysis/` 重写为包内的 `analysis/`）、analysis/；
@@ -348,7 +352,9 @@ DD 的【待核实】不是身份，用 `verification=unverified` 表示。【�
 4. **人工复核**：复核人在暂存目录的副本上实际复核，结果写入 reviews 表，再导出为 `qa/review.json`。导出时用 `--review-digest` 计算当前副本的内容指纹，写入 reviewed_digest。
 5. **写清单**：`research check --write-manifest`，生成 README 统计区、qa/checks.json、manifest-sha256.txt。
 6. **最终验证**：`research check --final`。
-7. **发布**：暂存目录原子改名为 `<包ID>/`，再在包外生成 `<包ID>.zip`。
+7. **发布**：暂存目录原子移动为 `08_deliverables/research-package/<包ID>/`，再在包外生成 `<包ID>.zip`。
+
+`research check` 接受两种输入：任务文件夹（读证据账，用于 L2 和封包前的检查），以及研究包（读上游 v2 布局，用于第 3、6 步）。两种输入执行同一套检查规则。
 
 - 任何一步失败都不发布，暂存目录保留供诊断，已发布的包不受影响。
 - 封包后的副本不可改。要修订就新建 `<包ID>-r2`，package.json 写 supersedes。
@@ -404,24 +410,53 @@ DD 的【待核实】不是身份，用 `verification=unverified` 表示。【�
 **报告怎么出（改动）**：上游的 HTML 渲染器不再单独维护，尽调报告和其他报告走**同一条链路**：内容稿 → core-storyline 拆页 → out-report 渲染。上游的内容契约不丢，做法是：
 
 1. **写内容**：core-diligence 仍按上游契约产出 `03d_diligence/report-content.json`。`diligence check-content` 执行上游 report_model 的全部校验：11 主题覆盖与状态、13 种内容块及跨块规则、图型真实性、图片规则、业务图规则。
-2. **转成母版**：`tools/bridge/diligence_to_manuscript.py` 把通过校验的内容机械转成 `07_storyline/04_manuscript.md`，并为其中每条事实、数据、观点、风险生成卡片（关联已有主张）。这里不改写结论。
-3. **拆页**：core-storyline 以"仅拆页"模式（上游已有这种模式）从阶段 5 开始，故事线模式用"尽调结论"，产出带完整引擎字段的 slides.json，并做阶段 6 审计。这样 storyline check、A 级卡片检查对尽调报告同样有效，proves、adds、density 这些需要判断的字段也由故事线阶段写出，不靠转换脚本硬凑。
+2. **转成母版**：`tools/bridge/diligence_to_manuscript.py` 把通过校验的内容机械转成故事线的输入，不改写结论：
+   - `04_manuscript.md`（母版）和 `04_manuscript_clean.md`（清洁版）；
+   - `00_story-brief.md`（取自 project 表的目的、受众、基准日）；`01_materials_index.md`（取自 sources）；
+   - `03_storyline.md`：只写结构树，按 11 个解释主题组织，并按目的选择故事线模式（见下）；
+   - 卡片：为每条事实、数据、观点、风险生成卡片，关联已有主张。
+     - 只引用了证据、还没有主张的内容块，先补登主张（kind 按证据属性定）再生成卡片。
+     - value_tier 按主张的 materiality 定：critical、major → A；minor → B；只作背景的内容 → C。
+     - "含义"取主张的 inference；inference 为空时取该主题 explanation 正文的首句。
+   - 块到页的追溯表 `block_map.json`：记录 report-content 的每个内容块 ID 和主题。
+3. **拆页**：core-storyline 以"仅拆页"模式（上游已有这种模式）从阶段 5 开始，产出带完整引擎字段的 slides.json，并做阶段 6 审计。上游"仅拆页"要求先诊断结构、给重构建议；在这里诊断只记录，不改结论。
+   - `storyline check --mode split-only` 适用：00、01、03 文件由转换生成，所以照常检查存在性。storyline check、A 级卡片检查对尽调报告同样有效。proves、adds、density 这些需要判断的字段，由故事线阶段写出，不靠转换脚本硬凑。
+   - **拆页后的契约复核**：拆页可能合并、重排页面，或把内容移进备用页和附录。所以 `diligence check-content --after-split` 用 block_map.json 和 slides.json 重新核对：
+     - 每个内容块都落到了页上；11 个主题仍各至少出现一次；
+     - 公司时间线仍与 identity 同章，且至少 2 个事件；人物卡不与 identity 同章；
+     - 其余跨块规则全部在拆页结果上重跑。
+
+   **故事线模式按目的选择**：
+   - purpose=company_research：结构按上游推荐的阅读顺序（身份与沿革 → 创始人与团队 → 产品与客户 → 营收与盈利 → 营销 → 竞争 → 风险与未知），用"行业研究"式的论证，arc=evidence-to-view，不做投资判断（上游规定公司研究不评分、不下投资结论）。
+   - 专项目的（investment、acquisition、partnership、credit、supplier、competitor）：用"尽调结论"模式，arc=uncertainty-to-bet。
 4. **渲染**：out-report。各内容块的呈现方式：
 
-   | 上游内容块 | report-forge 中的做法 |
-   |---|---|
-   | timeline | `layout: custom` + 自绘 SVG，semanticType=flow（有数量时用 trend） |
-   | people（人物卡） | `layout: custom` + HTML 卡片，semanticType=qualitative |
-   | diagram（业务模式图） | 优先用已登记的 `diagram.process`、`diagram.mechanism`、`kit.processFlow`；不够用时自绘 SVG，semanticType=flow 或 network |
-   | image（真实图片） | data: URI 内嵌，保留来源、取得日期、权利说明和图注 |
-   | chart、metrics、table、matrix | 用 report-forge 对应的形式；每张图附可查看的原始数据表（放在附录页，用 html.table） |
-   | text、bullets、callout、explanation | 正文页组件 |
+   | 上游内容块 | visual.form | layout | semanticType |
+   |---|---|---|---|
+   | timeline | `svg.custom` | custom | flow（有数量时 trend） |
+   | people（人物卡） | `html.text`（需要图形时 `svg.custom`） | custom | qualitative |
+   | process（含 business_model 用途） | `diagram.process` 或 `kit.processFlow`；sequence 带箭头和编号，conceptual 不带 | 目录布局或 custom | flow |
+   | diagram（业务模式图、关系图） | 优先 `diagram.mechanism`；不够用时 `svg.custom` | 目录布局或 custom | flow 或 network |
+   | image（真实图片） | `html.text` 内嵌 data: URI，保留来源、取得日期、权利说明和图注 | 目录布局或 custom | qualitative |
+   | chart、metrics、table、matrix | report-forge 对应的形式；每张图附可查看的原始数据表（附录页，`html.table`） | 目录布局 | 按图型 |
+   | text、bullets、callout、explanation | 正文页组件 | 目录布局 | — |
 
-5. **渲染后的图型规则**：上游渲染器原来自动保证的规则，现在由模型手写 SVG 实现，所以必须在成品上核对。规则清单写进 output-standard.md 的尽调专项（§8.3），包括：
-   - 预测用虚线或空心点；区间不画中点；比例图的灰色轨道注明"只是量尺"；
-   - 推断或未知的节点和边用虚线；资金流按颜色区分并配图例；注明"线宽不表示数量"；
-   - conceptual 流程注明"排列不表示已核实的顺序"；堆叠图、瀑布图带免责说明；
-   - 证据附录只列正文用到的证据。
+   上游规定 process 和 diagram 都可以满足"必须有业务模式图"。
+
+5. **渲染后的图型规则**：上游渲染器原来自动保证的规则，现在由模型手写 SVG 实现，所以必须在成品上核对。下面是完整清单，写进 output-standard.md 的尽调专项（§8.3）：
+   1. 每张图有元信息行：单位、期间、主体、属性（实际 / 预测 / 估算）。
+   2. 数值轴有零基线；截轴必须注明。
+   3. null 显示为"未披露"，不画成 0。
+   4. 预测用虚线或空心点，与实际区分。
+   5. 区间只画上下界，不画中点。
+   6. 比例图的灰色轨道注明"只是量尺"，不暗示互补类别。
+   7. 堆叠图各期分类一致、不缺类；堆叠图和瀑布图带免责说明；瀑布图首尾闭合。
+   8. 业务图、关系图里，推断或未知的节点和边用虚线；资金流按颜色区分并配图例；注明"线宽不表示数量"。
+   9. conceptual 流程注明"排列不表示已核实的顺序"；关系图注明"布局不表示层级或顺序"。
+   10. 关系图配关系清单和编号徽章。
+   11. 矩阵逐格写依据，不用空白、问号或颜色暗示优劣。
+   12. 每张图可以展开查看原始数据表。
+   13. 证据附录只列正文用到的证据。
 
    能从蓝图机械判断的（例如引用了 forecast 指标的图，visual 里必须声明预测样式），由转换前检查执行；只能看图判断的，由成品审查员逐项核对。
 6. **视图上的取舍**：上游有桌面、移动、打印三种视图；report-forge 是 16:9 阅读版式加 PDF，没有移动端视图。本设计接受这一点：交付桌面 HTML 和 PDF，不做移动版。这一条写进 §14 请用户确认。
@@ -481,7 +516,7 @@ DD 的【待核实】不是身份，用 `verification=unverified` 表示。【�
 **与统一证据账的衔接**：
 
 - 材料索引直接使用证据账的来源 ID（U001、M004……），定位写法统一为"来源 ID + 定位"（`M004 p12`、`U001 §2.1`、`U001 表2`）。不再单独编 S01 这套编号。
-- 卡片的真源是 cards.jsonl；`storyline check` 通过 runtime.py 找到任务的 `03_evidence/ledger/cards.jsonl` 读取，并读 `07_storyline/` 下的其余文件。
+- 卡片的真源是 cards.jsonl；`storyline check <任务文件夹>` 从任务文件夹参数定位 `03_evidence/ledger/cards.jsonl` 和 `07_storyline/` 下的其余文件。
 - A/B 级卡片中，类型为数据、事实、观点、洞察、风险、建议的，必须关联一条主张（`claim_id`）；其余卡片（C 级，以及案例、引语、问题、约束、方法、背景类）可以不关联。
 - **性质与可信度**：
   - 关联了主张的卡片，"性质"由主张的 kind 推出，"可信度"取主张的 confidence，卡片上不再单独填写。kind → 性质：fact、data → 事实；estimate、forecast、judgment、recommendation → 推断；third_party_view → 观点；assumption → 假设。
@@ -503,7 +538,8 @@ DD 的【待核实】不是身份，用 `verification=unverified` 表示。【�
 | 文献综述 | 行业研究（按"共识→争议→空白"排支撑点） | evidence-to-view | 同上 |
 | 政策法规 | 行业研究（按"条文→生效→影响→待确认"排支撑点） | evidence-to-view | 需向专业人士确认的问题 |
 | 事实核查 | 行业研究（按"评级→证据链→口径"排支撑点） | evidence-to-view | 什么证据会改变评级 |
-| 尽调结论、BP 评审（含 core-diligence 的报告，§5.2） | 尽调结论 | uncertainty-to-bet | 风险与红旗；补齐路径 |
+| 公司研究（core-diligence，purpose=company_research，§5.2） | 行业研究式论证，章节按上游阅读顺序 | evidence-to-view | 风险与未知；补齐路径；不做投资判断 |
+| 尽调结论（core-diligence 专项目的）、BP 评审 | 尽调结论 | uncertainty-to-bet | 风险与红旗；补齐路径 |
 | 进展汇报 | 进展汇报 | other（arcReason 必填） | 请求 |
 | 复盘 | 复盘 | other（arcReason 必填） | 要改的机制 |
 
@@ -593,7 +629,7 @@ tools/vendor_sync.py    拉取指定 commit → 校验 → 重新打补丁 → �
 6. 统一验收（§8.3）。
 
 **不能以事实呈现的主张，在成品里怎么合法出现**：证据账里的主张保持原样（kind 和 verification 都不改），只在转换脚本输出给引擎时改写：
-- unverified 的关键主张 → 引擎侧 kind=assumption、verification=not_applicable，statement 加"待确认："前缀，放进"需要先确认的问题"页。
+- unverified 的关键主张（affects_conclusion=true）→ 引擎侧 kind=assumption、verification=not_applicable，statement 加"待确认："前缀，放进"需要先确认的问题"页。非关键的 unverified 主张不进入成品。
 - refuted → 引擎侧 kind=assumption、verification=not_applicable，statement 写成"曾认为……，已被推翻"，limitation 写反证来源，放进"被推翻的说法"页。
 - 缺口：进风险页，或附录的"补齐路径"。
 
@@ -608,7 +644,7 @@ tools/vendor_sync.py    拉取指定 commit → 校验 → 重新打补丁 → �
 2. 写入 task 字段（见下），以及转换后的 deck-blueprint.json。
 3. `report.cjs plan-update <task> --request activate.json`：激活执行清单。三项固定约束（chart-diversity、layout-diversity、module-fill）独立展示，不得跳过。
 4. 完成整册图表与版式规划和模块填充规划，分别用 `plan-update` 提交 chart-plan、layout-plan、module-fill-plan，被接收后才能进入下一步。请求文件的格式以引擎的执行清单协议为准，由我们的包装脚本生成。
-5. `deck_blueprint.cjs <蓝图> --task <task> --ready`（ready 校验）。
+5. `deck_blueprint.cjs <蓝图> --task <task> --ready`（ready 校验）。这一步和第 6 步的 `verify_blueprint_pages.cjs` 都是只读校验，不写生产记录，引擎也没有对应的统一入口子命令，所以直接调用；会写生产记录的步骤一律走 `report.cjs`。
 6. `report.cjs compile <task>`。compile 返回派生 task（绑定本轮页面），**之后各步都用这个派生 task**。需要单独核对时：`verify_blueprint_pages.cjs <蓝图> <pages.json> --task <派生task>`，pages.json 的路径从 compile 的返回值取（位于 `.forge/runs/<ID>/`）。
 7. 作者编写 `pages.html`、`page.css`。静态片段只用内联 SVG 和 data: 资源，不用脚本、canvas、外部资源。
 8. `report.cjs assemble <派生task> --pages pages.html --css page.css`
@@ -625,7 +661,7 @@ tools/vendor_sync.py    拉取指定 commit → 校验 → 重新打补丁 → �
       - narrativeReadings（逐正文页实际读到的收束句）；
       - 每页的截图证据（evidence 的 path 和 sha256）；
       - qualityChecks 三项整册审查（chart-diversity、layout-diversity、module-fill）。
-    - panelRefs、relationRefs 等 ID 由 review-pack 草稿预先填好，审查员只填观察结果，不需要读蓝图。
+    - panelRefs、relationRefs 等 ID 列在 review-pack.json 的组合检查清单和叙事检查清单里。审查员把它们写进 coverage，并填写实际所见，不需要读蓝图。每条 narrativeReadings 的 observedTakeaway 至少 6 个字。
     - 字段以引擎的审查合同（review_contract）为准。告警的处置用 `report.cjs dispositions` 记录。
 13. `report.cjs aggregate <派生task> --audit <audit.json> --reviews '["author.json","independent.json"]'`
 14. `report.cjs snapshot <派生task> --audit … --review <review.json>`：冻结审查快照，供以后修订复用。
@@ -666,7 +702,7 @@ onepager 没有"输入 → HTML"的渲染器，HTML 由模型照着骨架模板�
 2. 内容理解，产出内容蓝图 `blueprint.json`，写进项目目录。可用的主张按 §3.4 的关口表判定，和报告的规则相同。
 3. 配置不再逐项询问用户，按场景给推荐配置，并在回复里说明，用户可以只改其中一项。
    - 企业诊断默认：A2 横向、B7 数据新闻、C2 中密度、T3 信息图、E1、署名由调用方指定；
-   - BigNumber（E1）只能用 verified 或 single_source 的指标，不足 2 个时改为 E2。
+   - BigNumber（E1）只能用所属主张为 verified 或 single_source 的指标，不足 2 个时改为 E2。这一条有意比 §3.4 严：醒目的大数字不用有争议的值。
 4. 内容重构与图表规划，产出 `onepager.ir.json`，写进项目目录。T4 必须写设计意图声明；技术类内容执行语言门控。
 5. 按骨架模板生成 HTML。
 6. `quality_check.py <html> --style … --size … [--no-bignum] --format json`、`render_check.py <html> --size … --format json`。WARNING 必须写保留理由。
@@ -682,7 +718,7 @@ onepager 没有"输入 → HTML"的渲染器，HTML 由模型照着骨架模板�
 | 我们 | report-forge |
 |---|---|
 | claims.kind：fact、data → fact；estimate → estimate；forecast → forecast；assumption → assumption；recommendation → recommendation；judgment → recommendation（statement 以"我们判断……"开头，所在页的 cornerLabel 标"判断"，以此在成品中与建议区分，MAPPING.md 配测试）；third_party_view → fact（statement 写成"某机构认为……"） | claims.kind |
-| verification：origin=user 且 reviews 表有 user_confirmation 记录 → provided；其余 verified、single_source → source_checked；unverified 的关键主张、refuted → 按 §6.2 改写为 kind=assumption、not_applicable；conflicting 已写采信理由 → source_checked（正文并列写出两种说法）；conflicting 未写采信理由 → 不得进入 | claims.verification |
+| verification：用户材料主张（§3.4）且 reviews 表有覆盖它的 user_confirmation 记录 → provided；其余 verified、single_source → source_checked；unverified 的关键主张、refuted → 按 §6.2 改写为 kind=assumption、not_applicable；conflicting 已写采信理由 → source_checked（正文并列写出两种说法）；conflicting 未写采信理由 → 不得进入 | claims.verification |
 | 来源 ID + 原件路径 + 定位 | sources `{label, locator}` |
 | 主张字段 period、population、unit、denominator、calculation、inference、limitation | 同名字段 |
 | metrics（value 或 formula） | metrics |
@@ -734,6 +770,8 @@ onepager 没有"输入 → HTML"的渲染器，HTML 由模型照着骨架模板�
 
 用户明确要求时，L2 也可以封包研究包。
 
+注：表中的研究线数量（L2 为 2–4 条，L3 为 5 条以上）沿用 deep-research 阶段 0 对各级的工作量描述；什么问题属于哪一级，仍由 router 按问题范围判定。
+
 scene-personal 的交付保持现状（个人计划，不出正式报告），除非用户要求。
 
 ## 8. 审查与统一输出标准
@@ -770,12 +808,17 @@ scene-personal 的交付保持现状（个人计划，不出正式报告），�
    - 研究：`research check`（封包时为 `--final`）；尽调：research_gate、report_status、declared_complete 与 `diligence check-content --final`；故事线：`storyline check`；
    - 各引擎自检：report-forge 的 qa acceptance 与 aggregate，thinkcell 的 tc_validate，onepager 的 quality_check、render_check、project validate。
    - 结果写入 acceptance.json 的 `upstream_checks`。它们是前置条件，不能单独宣称"完成"。
+   - 各检查的"通过"标准：脚本类检查零错误即通过。尽调状态中：research_gate∈{complete, partial, not_applicable}、report_status∈{complete, limited} 视为通过，其中 partial 和 limited 会让最终状态最高只到 conditional；research_gate=incomplete 或 report_status=draft 视为失败。
+   - `skipped` 只允许出现在 `fixture=true` 的验收记录里（实施第 4 步的夹具）；正式任务出现 skipped，按失败处理。
+   - 警告的处置：report-forge 的警告用它自己的 `dispositions` 记录；其余检查（ledger、storyline、research、diligence、thinkcell、onepager）的警告，处置记入 acceptance.json 的 `dispositions[]`（警告来源、处置、理由）。
 4. **视觉验收**：
    - 无溢出、截断、遮挡，无没有用途的大块空白；字号可读；
    - 图表不误读（截轴、比例、颜色语义）；
    - 图表和版式的多样性按 report-forge 的整册多样性验收执行。
 5. **成品审查员结论**（见下）。
-6. **完整性**：A 级卡片关联的主张在成品中出现；备用页、讲者备注（speaker-notes）、附录、来源清单齐全；尽调交付物齐全（§5.2）。
+6. **完整性**：
+   - out-report：A 级卡片关联的主张在成品中出现；备用页、讲者备注（speaker-notes）、附录、来源清单齐全；尽调交付物齐全（§5.2）。
+   - out-chart、out-poster：来源和署名齐全。
 7. **未被篡改**：按 §6.4 复检通过。
 8. **尽调专项**（只对尽调类交付物）：
    - 22 条人工清单都有记录（§5.2）；visual_review 提示的处置记录完整；
@@ -848,7 +891,7 @@ scene-personal 的交付保持现状（个人计划，不出正式报告），�
 - 系统 Chrome 能否无头启动；Playwright Chromium 的 executable_path 是否存在；
 - LibreOffice 能否转换；Tesseract 是否有 chi_sim；
 - report-forge 能力探测是否已验证（`.probe.json`）；
-- thinkcell 浏览器测试能否加载 Node 版 playwright（通过 `NODE_PATH` 指向 `_allen-runtime/vendor/report-forge/node_modules`，或用 `TC_BROWSER_PATH` 指向系统 Chrome）；
+- thinkcell 浏览器测试的两个前提：必须设 `NODE_PATH` 指向 `_allen-runtime/vendor/report-forge/node_modules`（让脚本能加载 Node 版 playwright）；同时设 `TC_BROWSER_PATH=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`（否则它会去找没有安装的、与 Node playwright 版本对应的 Chromium）。两项都检查；
 - 磁盘剩余空间。
 
 每项输出"通过 / 缺失 / 版本不足"，以及具体的修复命令。
@@ -872,11 +915,11 @@ scene-personal 的交付保持现状（个人计划，不出正式报告），�
 |---|---|---|
 | 公共模块 | ledger 读写、事务、patch、merge、check（含 §3 的全部校验）、render、export；runtime 路径解析；schema 自检 | `tools/lib/tests/` |
 | core-research | 按上游 24 个用例的全部场景重写；补上清单 D 节列出的未覆盖分支（符号链接、哈希不一致、未登记附件、列不一致、boolean/NaN、整理层填了来源、method 不在 analysis/、提取层出现 derived、README 标记异常、checks.json 过期、manifest 格式错误等）；capture 的网络、嗅探、PDF、超限、截断、编码用本地 HTTP 服务测试；seal 的依赖闭合、原子发布（失败不留半个包）、复核过期（改动后指纹不符）、已封包拒绝再封、修订副本；lite、init/resume/revise | `core-research/scripts/tests/` |
-| core-diligence | 从零写，覆盖清单 H 节末尾"重写至少应覆盖"的全部项：控制图、截止日隔离、bridge、研报三指针与同日多份、三种完成状态、财务比率（含新增）、评分门槛、检索计划裁剪、report-content 全部校验（原上游渲染器的 report_model 约束、媒体安全规则迁到 `diligence check-content` 测试）；22 条人工清单的记录检查；`diligence_to_manuscript` 的转换（每类内容块都有夹具）。HTML 篡改检测迁到 out-report 测试；渲染后图型规则中能机械判断的部分，在 `tools/bridge/tests/` 测试 | `core-diligence/scripts/tests/` |
+| core-diligence | 从零写，覆盖清单 H 节末尾"重写至少应覆盖"的全部项：控制图、截止日隔离、bridge、研报三指针与同日多份、三种完成状态、财务比率（含新增）、评分门槛、检索计划裁剪、report-content 全部校验（原上游渲染器的 report_model 约束、媒体安全规则迁到 `diligence check-content` 测试）；22 条人工清单的记录检查；`diligence_to_manuscript` 的转换（每类内容块都有夹具；只有证据的块补登主张；value_tier 和"含义"的生成规则）；`check-content --after-split` 的拆页后复核（块丢失、主题缺失、时间线与人物卡的同章规则）；按目的选择故事线模式。HTML 篡改检测迁到 out-report 测试；渲染后图型规则中能机械判断的部分，在 `tools/bridge/tests/` 测试 | `core-diligence/scripts/tests/` |
 | core-storyline | 按上游 47 个用例的全部场景重写；补上优化 1–10 的测试，包括"去掉数字必须报错"类反向用例 | `core-storyline/scripts/tests/` |
 | core-intake | 虚构公司 BP 各一份：文字版 PDF、扫描版 PDF、.docx、.pptx（含备注和表格）、加密 PDF、损坏文件；快照摘录比对 | `core-intake/scripts/tests/` |
 | 转换脚本 | 正向：证据账 + slides.json → 三种引擎输入，引擎校验器通过；待确认、被推翻主张的改写；judgment 的 cornerLabel。反向（必须拦截）：台账外数字、公式不闭合、unverified 以事实呈现、conflicting 无采信理由、字段缺失、决策型缺维持现状方案、arc=other 缺理由、引用 forecast 指标的图未声明预测样式 | `tools/bridge/tests/` |
-| 引擎 | report-forge：`npm test`、`npm run test:render`、`npm run test:upgrade-render`。thinkcell：`tests/run_tests.py`、unittest、`tests/check_html_browser.cjs`（设置 NODE_PATH 或 TC_BROWSER_PATH）。onepager：`tests/` | selftest 调用 |
+| 引擎 | report-forge：`npm test`、`npm run test:render`、`npm run test:upgrade-render`。thinkcell：`tests/run_tests.py`、unittest、`tests/check_html_browser.cjs`（同时设置 NODE_PATH 和 TC_BROWSER_PATH，见 §9）。onepager：`tests/` | selftest 调用 |
 | 输出验收 | acceptance.json 状态规则（每种 failed、conditional 条件都有用例）；数字回查；篡改复检；尽调专项的脚本部分 | `core-review/tests/` |
 | 端到端冒烟 | 一个虚构任务：文字要求 + 三份文件 → intake → 拆问题 → 证据账 → 综合 → 故事线 → 报告、图表、海报 → acceptance | `tools/selftest.sh --e2e` |
 | 选方法 | 保留现有 12 道题 | 手工 |
