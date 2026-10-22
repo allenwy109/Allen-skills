@@ -1,0 +1,10 @@
+{
+ "repo": "https://github.com/ZeroxZhang/zerox-skills.git",
+ "commit": "ee1f980c8dd7c53408e1a05a084229e6ec03c660",
+ "generated": ["node_modules/", ".font-venv/", "__pycache__/", ".pytest_cache/", ".venv/", "renders/", "*.DS_Store", "*.pyc"],
+ "engines": {
+  "report-forge": {"upstream": "zerox-consulting-report-forge", "exclude": ["docs/showcase/"]},
+  "thinkcell-charts": {"upstream": "zerox-thinkcell-charts", "exclude": []},
+  "onepager": {"upstream": "zerox-onepager", "exclude": ["Onepager_产品横纵分析报告.*", "onepager-A4-B9-T4-20260531.*"]}
+ }
+}

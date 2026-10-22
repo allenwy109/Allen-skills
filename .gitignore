@@ -1,1 +1,6 @@
 dist/
+vendor/*/node_modules/
+vendor/*/.font-venv/
+__pycache__/
+.probe-task/
+.probe.json
