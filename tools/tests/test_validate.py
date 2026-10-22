@@ -38,6 +38,25 @@ class ValidateTest(unittest.TestCase):
             self.assertEqual(p.returncode, 1)
             self.assertIn("vendor：缺少", p.stdout)
 
+    def test_unknown_token_in_core_evidence_docs_fails(self):
+        with tempfile.TemporaryDirectory() as t:
+            copy = pathlib.Path(t) / "repo"
+            copy_repo(copy)
+            with open(copy / "core-evidence" / "references" / "source-tiers.md", "a", encoding="utf-8") as f:
+                f.write("\n多余的 `foo_bar` 词\n")
+            p = self.run_validate(copy)
+            self.assertEqual(p.returncode, 1)
+            self.assertIn("`foo_bar` 不是 ledger schema 里的字段、表名或枚举值", p.stdout)
+
+    def test_broken_schema_fails(self):
+        with tempfile.TemporaryDirectory() as t:
+            copy = pathlib.Path(t) / "repo"
+            copy_repo(copy)
+            f = copy / "tools" / "lib" / "schema" / "sidecar.schema.json"
+            f.write_text(f.read_text(encoding="utf-8").replace('"enum": "confirmation_stage"', '"enum": "nope"'), encoding="utf-8")
+            p = self.run_validate(copy)
+            self.assertEqual(p.returncode, 1)
+            self.assertIn("引用了不存在的枚举 nope", p.stdout)
 
 if __name__ == "__main__":
     unittest.main()

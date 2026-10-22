@@ -8,6 +8,7 @@
 3. 每张方法卡片都有必备的几节，且在本库的 method-index.md 里被登记。
 4. 方法库 SKILL.md 的选法表是四列（情况、首选、前提、换用）。
 5. vendor/ 下的引擎与 vendor.lock 一致，且没有残留的 SKILL.md。
+6. tools/lib/schema/ 下的 schema 文件通过自检；core-evidence 文档里用反引号写出的字段名和枚举值都在 ledger schema 里。
 发现错误时以非零状态退出。
 """
 import pathlib
@@ -81,6 +82,25 @@ if vendor_dir.is_dir():
 
     for e in vendor_sync.check(vendor_dir):
         errors.append("vendor：" + e)
+
+schema_dir = ROOT / "tools" / "lib" / "schema"
+if schema_dir.is_dir():
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from tools.lib import schema_check
+
+    for f in sorted(schema_dir.glob("*.schema.json")):
+        for e in schema_check.self_check(schema_check.load(f)):
+            errors.append(f"{f.relative_to(ROOT)}：{e}")
+    ledger_schema = schema_check.load("ledger.schema.json")
+    vocabulary = {v for e in ledger_schema["enums"].values() for v in e["values"]}
+    vocabulary |= {k for t in ledger_schema["tables"].values() for k in t["fields"]}
+    vocabulary |= set(ledger_schema["tables"])
+    vocabulary |= {"init", "check", "render", "merge"}  # ledger.py 的子命令
+    for doc in [ROOT / "core-evidence" / "SKILL.md", *sorted((ROOT / "core-evidence" / "references").glob("*.md"))]:
+        for token in re.findall(r"`([a-z][a-z_]*)`", doc.read_text(encoding="utf-8")):
+            if token not in vocabulary:
+                errors.append(f"{doc.relative_to(ROOT)}：`{token}` 不是 ledger schema 里的字段、表名或枚举值")
 
 for w in warnings:
     print("提示：" + w)
