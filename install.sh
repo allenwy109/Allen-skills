@@ -96,6 +96,54 @@ place_runtime() {
   installed+=("${RUNTIME_NAME}")
 }
 
+# 安装出成品所需的依赖（设计 §9）
+render_deps() {
+  local rt="${TARGET}/${RUNTIME_NAME}"
+  if [ ! -d "${rt}/vendor/report-forge" ]; then
+    echo "错误：没有找到 ${rt}/vendor/report-forge，无法安装渲染依赖。" >&2
+    return 1
+  fi
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "错误：需要 Homebrew（https://brew.sh）。" >&2
+    return 1
+  fi
+  echo "[1/5] 系统工具（Homebrew）：poppler、tesseract、tesseract-lang、pandoc、LibreOffice ……"
+  for f in poppler tesseract tesseract-lang pandoc; do
+    brew list --formula "${f}" >/dev/null 2>&1 || brew install "${f}"
+  done
+  [ -d /Applications/LibreOffice.app ] || brew install --cask libreoffice
+
+  echo "[2/5] Python 虚拟环境：${VENV} ……"
+  local py=""
+  for c in python3.13 python3.12 python3.11 python3.10 python3; do
+    if command -v "${c}" >/dev/null 2>&1 && "${c}" -c 'import sys; sys.exit(0 if sys.version_info[:2] >= (3, 10) else 1)'; then
+      py="${c}"; break
+    fi
+  done
+  if [ -z "${py}" ]; then
+    echo "错误：需要 Python 3.10 或更高版本。" >&2
+    return 1
+  fi
+  [ -x "${VENV}/bin/python" ] || "${py}" -m venv "${VENV}"
+  "${VENV}/bin/python" -m pip install -q --upgrade pip
+  "${VENV}/bin/python" -m pip install -q -r "${rt}/tools/requirements-render.txt"
+
+  echo "[3/5] Playwright Chromium（海报截图用）……"
+  "${VENV}/bin/python" -m playwright install chromium
+
+  echo "[4/5] 报告引擎的 npm 依赖与字体环境 ……"
+  (cd "${rt}/vendor/report-forge" && npm ci && npm run setup-fonts)
+
+  echo "[5/5] 报告引擎能力探测任务 ……"
+  rm -rf "${rt}/.probe-task"
+  (cd "${rt}/vendor/report-forge" && node scripts/probe_capabilities.cjs "${rt}/.probe-task")
+  echo "下一步（必须由 Claude 在会话里完成看图）："
+  echo "  1. 打开 ${rt}/.probe-task/vision-challenge.png，按引擎要求把看到的内容写成 response.json："
+  echo '     {"code":"图中六字符","shape_left_to_right":["颜色 形状","颜色 形状","颜色 形状"]}'
+  echo "  2. 运行 python3 ${rt}/tools/record_probe.py --response <response.json>"
+  echo "  3. 运行 python3 ${rt}/tools/doctor.py 确认全部通过"
+}
+
 # 1. 本仓库的 skill：根目录下含 SKILL.md 的目录
 for d in "$REPO_DIR"/*/; do
   d="${d%/}"
@@ -103,6 +151,10 @@ for d in "$REPO_DIR"/*/; do
   place "$d" "$(basename "$d")"
 done
 place_runtime
+
+if [ "${RENDER_DEPS}" = 1 ]; then
+  render_deps
+fi
 
 # 2. zerox skill，按 zerox.lock 固定版本
 if [ "$WITH_ZEROX" = 1 ]; then

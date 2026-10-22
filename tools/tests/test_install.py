@@ -58,6 +58,12 @@ class InstallRuntimeTest(unittest.TestCase):
         self.assertIn("--render-deps", p.stdout)
         self.assertIn("--forge-deps", p.stdout)
 
+    def test_render_deps_without_homebrew_fails_clearly(self):
+        env = {"PATH": "/usr/bin:/bin", "HOME": self.tmp.name, "LC_ALL": "en_US.UTF-8"}
+        p = subprocess.run(["bash", str(ROOT / "install.sh"), "--no-zerox", "--render-deps", "--target", str(self.target)],
+                           capture_output=True, text=True, env=env)
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn("需要 Homebrew", p.stderr)
 
 if __name__ == "__main__":
     unittest.main()
