@@ -7,6 +7,7 @@
 2. SKILL.md 和 references 里出现的 ../<skill>/ 引用，都指向本仓库的 skill 或 zerox.lock 里登记的 zerox skill。
 3. 每张方法卡片都有必备的几节，且在本库的 method-index.md 里被登记。
 4. 方法库 SKILL.md 的选法表是四列（情况、首选、前提、换用）。
+5. vendor/ 下的引擎与 vendor.lock 一致，且没有残留的 SKILL.md。
 发现错误时以非零状态退出。
 """
 import pathlib
@@ -71,6 +72,15 @@ for lib in [s for s in skills if s.name.startswith("lib-")]:
         cols = [c.strip() for c in header.split("|")]
         if len(cols) != 4 or cols[2] != "前提" or cols[3] != "换用":
             errors.append(f"{lib.name}/SKILL.md：选法表不是“情况 | 首选 | 前提 | 换用”四列：{header.strip()}")
+
+vendor_dir = ROOT / "vendor"
+if vendor_dir.is_dir():
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from tools import vendor_sync
+
+    for e in vendor_sync.check(vendor_dir):
+        errors.append("vendor：" + e)
 
 for w in warnings:
     print("提示：" + w)
