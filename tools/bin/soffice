@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+"""soffice 包装：引擎（如 thinkcell 的 tc_render）直接调用 PATH 里的 soffice 时，
+把本目录放在 PATH 最前面，就会用带中文字体的临时配置运行真正的 LibreOffice（设计 §6.2；见 tools/lib/office.py）。"""
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
+from tools.lib import office  # noqa: E402
+
+sys.exit(office.passthrough(sys.argv[1:]))

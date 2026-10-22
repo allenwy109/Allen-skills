@@ -4,6 +4,7 @@ macOS 上无头运行的 LibreOffice 看不到系统字体，只能用它自带�
 解决办法：每次转换都用一个临时配置目录，在 user/fonts 下软链接一款系统中文字体。
 这样不改动用户自己的 LibreOffice 设置，并发转换也不会争用同一个配置目录。
 """
+import os
 import pathlib
 import shutil
 import subprocess
@@ -25,10 +26,15 @@ class OfficeError(Exception):
     pass
 
 
+SHIM_DIR = pathlib.Path(__file__).resolve().parents[1] / "bin"
+
+
 def soffice_path():
+    """真正的 LibreOffice 可执行文件；跳过 tools/bin 下的同名包装脚本，避免自己调用自己。"""
     if pathlib.Path(runtime.SOFFICE_APP).exists():
         return runtime.SOFFICE_APP
-    found = shutil.which("soffice")
+    dirs = [d for d in os.environ.get("PATH", "").split(os.pathsep) if d and pathlib.Path(d).resolve() != SHIM_DIR]
+    found = shutil.which("soffice", path=os.pathsep.join(dirs))
     if not found:
         raise OfficeError("找不到 LibreOffice（soffice），请运行 ./install.sh --render-deps")
     return found
@@ -65,3 +71,14 @@ def convert(src, to, outdir, timeout=300, soffice=None):
     if p.returncode != 0 or not out.is_file():
         raise OfficeError(f"LibreOffice 转换失败：{src.name} → {ext}：{(p.stdout + p.stderr).strip()[-300:]}")
     return out
+
+
+def passthrough(args):
+    """以带中文字体的临时配置运行真正的 soffice（供 tools/bin/soffice 包装脚本使用），返回退出码。"""
+    font, _ = cjk_font()
+    with tempfile.TemporaryDirectory() as profile:
+        if font:
+            fonts = pathlib.Path(profile) / "user" / "fonts"
+            fonts.mkdir(parents=True)
+            (fonts / pathlib.Path(font).name).symlink_to(font)
+        return subprocess.run([soffice_path(), "-env:UserInstallation=" + pathlib.Path(profile).as_uri(), *args]).returncode
