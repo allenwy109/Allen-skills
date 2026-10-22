@@ -356,5 +356,18 @@ class RenderAndCliTest(Base):
         self.assertEqual(self.cli("merge", "Z").returncode, 2)
 
 
+class RuleConstantsTest(unittest.TestCase):
+    """ledger.py 规则里写到的枚举值必须都在 schema 里（设计 §8.2：枚举来自 schema）。"""
+
+    def test_constants_are_schema_values(self):
+        enums = L.schema_check.load("ledger.schema.json")["enums"]
+        values = lambda name: set(enums[name]["values"])
+        self.assertLessEqual(L.CONTROL_TYPES | {"joint_control"}, values("relation_type"))
+        self.assertLessEqual(L.CLAIM_CARD_TYPES, values("card_type"))
+        self.assertLessEqual(L.DELIVERABLE_PLACEMENTS | {"not_used"}, values("placement"))
+        self.assertLessEqual(L.UNREADABLE_ACCESS, values("access"))
+        self.assertLessEqual(set(L.KIND_ATTRIBUTES), values("claim_kind"))
+        self.assertLessEqual(set().union(*L.KIND_ATTRIBUTES.values()), values("attribute"))
+
 if __name__ == "__main__":
     unittest.main()
