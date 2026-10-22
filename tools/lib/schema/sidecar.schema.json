@@ -1,0 +1,29 @@
+{
+ "version": "1.0.0",
+ "comment": "07_storyline/sidecar.json 的结构（设计 §5.3 优化 10）：讲者备注、备用页、确认点状态。报告引擎里没有位置安放的内容放在这里，out-report 据此生成 speaker-notes 和备用页。",
+ "upstream": "storyline 的讲者备注、备用页清单、确认点（inventory/storyline.md A、E 节）",
+ "changes": ["新文件：上游把这些内容写在 06_slides.md 和故事板里，没有机器可读的形式"],
+ "enums": {
+  "confirmation_stage": {"values": ["brief", "storyline", "manuscript"], "labels": {"brief": "阶段 0 简报", "storyline": "阶段 3 选主线", "manuscript": "阶段 4 审稿"}},
+  "confirmation_status": {"values": ["pending", "confirmed", "auto_adopted"], "labels": {"pending": "待确认", "confirmed": "用户已确认", "auto_adopted": "自动采用推荐"}}
+ },
+ "root": {
+  "type": "object",
+  "fields": {
+   "speaker_notes": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+    "page": {"type": "integer", "min": 1, "required": true},
+    "text": {"type": "string", "required": true}}}},
+   "backup_pages": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+    "page": {"type": "integer", "min": 1, "required": true},
+    "question": {"type": "string", "required": true},
+    "trigger": {"type": "string", "required": true},
+    "return_path": {"type": "string", "required": true},
+    "card_ids": {"type": "array", "items": {"type": "string", "pattern": "^card-[0-9]{4,}$"}}}}},
+   "confirmation_points": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+    "stage": {"type": "string", "enum": "confirmation_stage", "required": true},
+    "status": {"type": "string", "enum": "confirmation_status", "required": true},
+    "at": {"type": "datetime"},
+    "note": {"type": "string"}}}}
+  }
+ }
+}
