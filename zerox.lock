@@ -1,0 +1,13 @@
+# 第三方 skill：ZeroxZhang/zerox-skills
+# install.sh 读取本文件，按固定版本安装，不把代码复制进本仓库。
+# 想改用自己的 fork：运行时设置环境变量 ZEROX_REPO，例如
+#   ZEROX_REPO=https://github.com/allenwy109/zerox-skills.git ./install.sh
+# 升级：确认新版本可用后，改 ZEROX_COMMIT 并提交。
+
+ZEROX_REPO_DEFAULT=https://github.com/ZeroxZhang/zerox-skills.git
+ZEROX_COMMIT=ee1f980c8dd7c53408e1a05a084229e6ec03c660   # 2026-10-20
+
+# 本系统用到的 zerox skill（空格分隔）
+# 许可：consulting-report-forge、thinkcell-charts 为 Apache-2.0；
+#       deep-research、due-diligence、storyline、onepager 上游没有许可文件，只安装使用，不再分发。
+ZEROX_SKILLS="zerox-deep-research zerox-due-diligence zerox-storyline zerox-consulting-report-forge zerox-thinkcell-charts zerox-onepager"

@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""把本仓库的每个 skill 打成一个 zip，用于上传到 claude.ai（网页、桌面、手机 App）。
+
+用法：python3 tools/build-zips.py [输出目录，默认 dist/]
+每个 zip 里是一个以 skill 名命名的文件夹，里面有 SKILL.md 和它的 references、assets。
+zerox 的 skill 不打包（上游部分没有许可文件，也依赖本机的 Node 和 Chrome）。
+"""
+import pathlib
+import sys
+import zipfile
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+out = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "dist"
+out.mkdir(parents=True, exist_ok=True)
+
+count = 0
+for skill_md in sorted(ROOT.glob("*/SKILL.md")):
+    skill = skill_md.parent
+    target = out / f"{skill.name}.zip"
+    with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in sorted(skill.rglob("*")):
+            if f.is_file() and not f.name.startswith("."):
+                z.write(f, pathlib.Path(skill.name) / f.relative_to(skill))
+    count += 1
+    print(f"{target.relative_to(ROOT) if target.is_relative_to(ROOT) else target}")
+print(f"共 {count} 个 zip，输出到 {out}")
