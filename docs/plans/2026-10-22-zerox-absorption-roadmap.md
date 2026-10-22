@@ -6,7 +6,7 @@
 
 | # | 计划文件 | 设计章节 | 依赖 | 完成标志（设计 §12） | 状态 |
 |---|---|---|---|---|---|
-| 1 | `2026-10-22-plan-1-runtime.md` | §6.1、§9 | 无 | doctor 全部通过；三个引擎自带测试通过；能力探测通过 | 已写 |
+| 1 | `2026-10-22-plan-1-runtime.md` | §6.1、§9 | 无 | doctor 全部通过；三个引擎自带测试通过；能力探测通过 | 已完成（审查记录：`2026-10-22-plan-1-review.md`） |
 | 2 | `plan-2-ledger.md` | §3、§5.3 slides.json 扩展 | 1（runtime.py） | ledger、slides、sidecar 三个 schema 定稿；ledger.py 单元测试通过；core-evidence 改读新台账 | 待写 |
 | 3 | `plan-3-intake.md` | §4 | 2 | 四份测试材料都能处理成标准结构，并登记进证据账 | 待写 |
 | 4 | `plan-4-output.md` | §6、§8.3 | 1、2 | 用手写的 slides.json 和夹具证据账出三种成品；acceptance 只允许 storyline 相关检查为 skipped | 待写 |
