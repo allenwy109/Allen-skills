@@ -1,0 +1,21 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 检查 skill 结构
+        run: python3 tools/validate.py
+      - name: 检查安装脚本语法
+        run: bash -n install.sh
+      - name: 试装（不含 zerox）
+        run: ./install.sh --no-zerox --target "$RUNNER_TEMP/skills" && test -f "$RUNNER_TEMP/skills/router/SKILL.md"

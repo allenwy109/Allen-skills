@@ -1,29 +1,65 @@
-# Allen 的 Skills
+# Allen 的方法论 Skills
 
-这个仓库收集我的 Claude skills，每个 skill 一个目录。
+一套用 Claude skill 搭起来的分析系统：给它一家企业、一个话题、一份商业计划书或一个个人问题，它会拆问题、选对方法、联网核实关键事实、用独立的审查者挑毛病，最后交付一页结论或正式报告。
+
+整体设计见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
 ## 安装
 
-把需要的 skill 目录复制到 `~/.claude/skills/` 下即可，例如：
-
 ```bash
-cp -R consulting-analysis ~/.claude/skills/
+git clone https://github.com/allenwy109/Allen-skills.git
+cd Allen-skills
+./install.sh                 # 装到 ~/.claude/skills，含固定版本的 zerox skill
+./install.sh --remove-old    # 从旧版升级时，顺便删掉 consulting-analysis 等三个旧 skill
 ```
+
+常用参数：`--link`（软链接，改仓库立即生效）、`--no-zerox`（只装本仓库）、`--forge-deps`（为正式报告安装 Node 依赖和字体）、`--target DIR`。说明见 `./install.sh --help`。
+
+## 怎么用
+
+直接说要做什么即可，router 会判断场景：
+
+- “帮我分析一下 XX 公司，我们在考虑和它合作。”
+- “研究一下 2026 年国内储能行业，值不值得进？”
+- “评审这份 BP。”（附文件）
+- “我总是拖延，怎么办？”
+
+只想用一个方法时，直接点名：“用 SWOT 分析一下……”。想要正式报告时加一句“出正式报告”或“深入分析”。
 
 ## 目录
 
-| Skill | 用途 |
-|---|---|
-| [consulting-analysis](consulting-analysis/) | 站在管理咨询顾问的角度诊断企业：战略、行业竞争、增长、业务组合、利润、定价、并购、组织诊断等，并写成结构化汇报。28 张方法卡片。 |
-| [management-toolkit](management-toolkit/) | 企业内部管理：目标设定、计划分工、持续改进、根因分析、复盘、带团队、组织变革、会议讨论。24 张方法卡片。 |
-| [personal-effectiveness](personal-effectiveness/) | 个人效率与自我提升：时间与优先级、拖延与专注、习惯、决策、学习、情绪与精力、职业发展、个人表达。21 张方法卡片。 |
+| 层 | Skill | 用途 |
+|---|---|---|
+| 入口 | [router](router/) | 判断场景和投入深度，建任务文件夹；附各场景的系统提示词模板 |
+| 场景 | [scene-company](scene-company/) | 给一家企业：诊断、合作、投资、内部管理 |
+| 场景 | [scene-topic](scene-topic/) | 给一个话题或行业：研究并给出判断 |
+| 场景 | [scene-bp-review](scene-bp-review/) | 给一份商业计划书：核实说法、找漏洞、出评审意见 |
+| 场景 | [scene-personal](scene-personal/) | 个人问题：时间、拖延、习惯、学习、决策、职业 |
+| 能力 | [core-framing](core-framing/) | 拆问题：主导问题、子问题、关键事实清单 |
+| 能力 | [core-method-select](core-method-select/) | 选方法：画像、前提检查、预演产出、回退 |
+| 能力 | [core-evidence](core-evidence/) | 检索与核实：来源分级、时效表、证据台账、核实关口 |
+| 能力 | [core-synthesis](core-synthesis/) | 综合：冲突与依赖、路线图、事前验尸、一页结论 |
+| 质量 | [core-review](core-review/) | 独立子代理审查：事实核查员、红队、方法审查员、决策者视角 |
+| 方法库 | [lib-consulting](lib-consulting/) | 管理咨询方法，28 张卡片 |
+| 方法库 | [lib-management](lib-management/) | 企业内部管理方法，24 张卡片 |
+| 方法库 | [lib-personal](lib-personal/) | 个人效率方法，21 张卡片 |
 
-每个 skill 的结构：
+方法库的结构：
 
 ```
-<skill>/
-├── SKILL.md                    选法入口：什么问题用什么方法
+lib-*/
+├── SKILL.md                    选法表：情况 | 首选 | 前提 | 换用
 └── references/
     ├── method-index.md         方法清单：适用、不适用、出处
-    └── methods/                方法卡片：步骤、模板、常见误用
+    └── methods/                方法卡片：前提与不能推出什么、换用、步骤、模板、常见误用
 ```
+
+## 第三方 skill
+
+正式报告、深度研究和公司尽调用的是 [ZeroxZhang/zerox-skills](https://github.com/ZeroxZhang/zerox-skills)。`install.sh` 按 [zerox.lock](zerox.lock) 固定的版本从上游安装，**不把它的代码复制进本仓库**：其中 deep-research、due-diligence、storyline、onepager 上游没有许可文件，只能安装使用，不能再分发。想改用自己的 fork，设置 `ZEROX_REPO` 即可。
+
+## 维护
+
+- `python3 tools/validate.py`：检查 skill 结构、跨 skill 引用、卡片必备小节、选法表格式。PR 上会自动跑。
+- [tests/method-selection-cases.md](tests/method-selection-cases.md)：12 道选方法测试题，改选法表或卡片后重跑。
+- 加新方法：在对应方法库加卡片（必备小节见 validate.py），在 method-index.md 登记，在 SKILL.md 选法表加一行。
