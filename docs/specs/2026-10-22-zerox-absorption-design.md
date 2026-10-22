@@ -599,7 +599,7 @@ vendor/
 ├── onepager/           zerox-onepager，同上
 ├── patches/            NNNN-<说明>.patch，每个补丁写明原因
 └── vendor.lock         上游仓库、commit、每个文件的 sha256
-tools/vendor_sync.py    拉取指定 commit → 校验 → 重新打补丁 → 跑引擎自带测试
+tools/vendor_sync.py    拉取指定 commit → 复制 → 重新打补丁 → 重写 vendor.lock；之后运行 tools/selftest.sh 跑引擎自带测试
 ```
 
 - 起始版本：zerox-skills `ee1f980c8dd7c53408e1a05a084229e6ec03c660`（2026-10-20），即现 zerox.lock 固定的版本。
@@ -913,7 +913,7 @@ scene-personal 的交付保持现状（个人计划，不出正式报告），�
 
 | 层 | 内容 | 位置 |
 |---|---|---|
-| 公共模块 | ledger 读写、事务、patch、merge、check（含 §3 的全部校验）、render、export；runtime 路径解析；schema 自检 | `tools/lib/tests/` |
+| 公共模块 | ledger 读写、事务、patch、merge、check（含 §3 的全部校验）、render、export；runtime 路径解析；schema 自检 | `tools/tests/` |
 | core-research | 按上游 24 个用例的全部场景重写；补上清单 D 节列出的未覆盖分支（符号链接、哈希不一致、未登记附件、列不一致、boolean/NaN、整理层填了来源、method 不在 analysis/、提取层出现 derived、README 标记异常、checks.json 过期、manifest 格式错误等）；capture 的网络、嗅探、PDF、超限、截断、编码用本地 HTTP 服务测试；seal 的依赖闭合、原子发布（失败不留半个包）、复核过期（改动后指纹不符）、已封包拒绝再封、修订副本；lite、init/resume/revise | `core-research/scripts/tests/` |
 | core-diligence | 从零写，覆盖清单 H 节末尾"重写至少应覆盖"的全部项：控制图、截止日隔离、bridge、研报三指针与同日多份、三种完成状态、财务比率（含新增）、评分门槛、检索计划裁剪、report-content 全部校验（原上游渲染器的 report_model 约束、媒体安全规则迁到 `diligence check-content` 测试）；22 条人工清单的记录检查；`diligence_to_manuscript` 的转换（每类内容块都有夹具；只有证据的块补登主张；value_tier 和"含义"的生成规则）；`check-content --after-split` 的拆页后复核（块丢失、主题缺失、时间线与人物卡的同章规则）；按目的选择故事线模式。HTML 篡改检测迁到 out-report 测试；渲染后图型规则中能机械判断的部分，在 `tools/bridge/tests/` 测试 | `core-diligence/scripts/tests/` |
 | core-storyline | 按上游 47 个用例的全部场景重写；补上优化 1–10 的测试，包括"去掉数字必须报错"类反向用例 | `core-storyline/scripts/tests/` |
@@ -956,7 +956,7 @@ scene-personal 的交付保持现状（个人计划，不出正式报告），�
 | 尽调报告不做移动版 | 改走 report-forge 后，没有上游的移动端视图；交付桌面 HTML 和 PDF | 用户已确认：不做移动版 |
 | L2 默认出正式报告 | 按 D4，L2 起默认交付 out-report，耗时变长（§13） | 用户已确认：接受更长耗时 |
 | 磁盘空间 | 剩余约 36 GB，本次约增加 2 GB | 安装前 doctor 提示剩余空间 |
-| 上游变化 | 上游升级时补丁可能冲突 | vendor_sync 跑引擎测试兜底；升级是可选动作 |
+| 上游变化 | 上游升级时补丁可能冲突 | 升级后用 tools/selftest.sh 跑引擎测试兜底；升级是可选动作 |
 | 无许可部分的边界 | 能力清单是我们自己的描述；实现只依据清单和公开常识，不打开上游文件复制文字或代码 | 开发阶段的符合性审查检查有无与上游文本高度相似的段落 |
 | 清单本身的准确性 | 清单由子代理通读上游生成，可能有遗漏或误读 | 设计阶段的真实性、完整性审查已回到上游原文件核对；实施时有疑问的条目再回原文件确认 |
 | claude.ai 上传 | out-* 依赖本机引擎，claude.ai 聊天环境里用不了 | build-zips 排除 out-*；INSTALL.md 写明 claude.ai 只支持到 Markdown 交付 |
