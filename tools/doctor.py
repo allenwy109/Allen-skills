@@ -19,7 +19,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from tools import vendor_sync  # noqa: E402
-from tools.lib import runtime  # noqa: E402
+from tools.lib import office, runtime  # noqa: E402
 
 CHROME = runtime.CHROME
 SOFFICE_APP = runtime.SOFFICE_APP
@@ -57,16 +57,21 @@ class Env:
         return str(runtime.venv_python())
 
     def soffice_convert(self, soffice):
-        """实际用 LibreOffice 把一个文本文件转成 PDF，返回 (是否成功, 说明)。"""
+        """用 LibreOffice 把一段中文转成 PDF，并确认 PDF 里用上了中文字体。返回 (是否通过, 说明)。"""
+        font, expected = office.cjk_font()
+        if not font:
+            return False, "找不到系统中文字体（冬青黑体、华文黑体或 Noto Sans CJK），中文会渲染不出来"
         with tempfile.TemporaryDirectory() as tmp:
             src = pathlib.Path(tmp) / "t.txt"
-            src.write_text("doctor\n", encoding="utf-8")
-            # 用独立的临时配置目录，避免和用户正开着的 LibreOffice 抢配置
-            profile = "-env:UserInstallation=" + (pathlib.Path(tmp) / "profile").as_uri()
-            code, out = self.run([soffice, profile, "--headless", "--convert-to", "pdf", "--outdir", tmp, str(src)], timeout=180)
-            ok = code == 0 and (pathlib.Path(tmp) / "t.pdf").is_file()
-            return ok, "转换成功" if ok else out.strip()[-200:]
-
+            src.write_text("星河数据科技 2025 年营业收入 3200 万元\n", encoding="utf-8")
+            try:
+                pdf = office.convert(src, "pdf", tmp, timeout=180, soffice=soffice)
+            except office.OfficeError as err:
+                return False, str(err)
+            _, out = self.run(["pdffonts", str(pdf)])
+            if expected not in out:
+                return False, f"转换成功，但 PDF 里没有用上中文字体 {expected}，中文会丢失"
+            return True, f"转换成功，中文字体：{expected}"
 
 def version(text):
     m = re.search(r"(\d+)\.(\d+)", text or "")
@@ -150,7 +155,7 @@ def check_pandoc(e, rt):
 
 
 def check_soffice(e, rt):
-    name = "LibreOffice（能实际转换文件）"
+    name = "LibreOffice（能转换文件并渲染中文）"
     path = SOFFICE_APP if e.exists(SOFFICE_APP) else e.which("soffice")
     if not path:
         return result(name, MISSING, "找不到 soffice", "brew install --cask libreoffice")

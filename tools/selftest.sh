@@ -1,17 +1,27 @@
 #!/usr/bin/env bash
 # 自检（设计 §11）：单元测试、仓库结构、三个引擎自带的测试。
 # 用法：tools/selftest.sh [--quick]
-#   --quick  只跑单元测试和结构检查（不需要渲染依赖）
+#   --quick  只跑单元测试、skill 测试和结构检查；skill 测试缺外部工具时允许跳过
 # 引擎测试在临时副本里运行，不会在 vendor/ 下留下产物；需要先完成 ./install.sh --render-deps。
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+QUICK=0
+[ "${1:-}" = "--quick" ] && QUICK=1
+# 完整自检时，skill 测试缺外部工具直接算失败（--quick 和 CI 允许跳过）
+[ "${QUICK}" = 0 ] && export ALLEN_REQUIRE_TOOLS=1
+
 echo "== 单元测试"
 python3 -m unittest discover -s tools/tests -t .
+for d in */scripts/tests; do
+  [ -d "${d}" ] || continue
+  echo "== ${d}"
+  python3 -m unittest discover -s "${d}" -t "${d}"
+done
 echo "== 仓库结构"
 python3 tools/validate.py
-if [ "${1:-}" = "--quick" ]; then
+if [ "${QUICK}" = 1 ]; then
   echo "已跳过引擎测试（--quick）"
   exit 0
 fi
