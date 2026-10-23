@@ -45,6 +45,16 @@ class PosterNumbersTest(unittest.TestCase):
         bad = '<div class="bignum-item"><div class="bignum-value">2025</div></div>'
         self.assertIn("不是任何能进成品的指标", self.check(bad)["untraced"][0])
 
+    def test_report_mode_checks_only_unbound_body_text(self):
+        body = ('<section data-page-role="cover"><p>2026-10-23 · v1</p></section>'
+                '<section data-page-id="p02"><h1 data-content-key="title">增长 999%</h1>'
+                '<svg><text>2024</text><text data-content-key="metric:m-0001">1800 万元</text></svg>'
+                '<p>手写说明：毛利 555 万元</p></section>')
+        r = P.check(self.tmp.name, page(body), report=True)
+        self.assertEqual(r["checked"], 1)                       # 只有手写说明里的 555；年份不计数
+        self.assertEqual(len(r["untraced"]), 1)
+        self.assertIn("555", r["untraced"][0])
+
 
 if __name__ == "__main__":
     unittest.main()

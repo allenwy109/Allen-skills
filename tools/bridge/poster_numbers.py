@@ -8,6 +8,8 @@ onepager 的 HTML 由模型照模板手写，转换脚本拦不住手写阶段�
 - 指标所属主张是估算、预测等非事实身份时，这个数字前后 20 个字之内必须注明身份（估算、预测、假设、判断、建议、约）；
 - BigNumber 的大数字（上游模板里 class 为 bignum-value 的元素）只能用所属主张为 verified 或 single_source 的指标；
   BigNumber 里的标签（bignum-label）按普通文字处理。
+- 报告（out-report）用 report=True：只查正文页（data-page-id 的 section）里没有内容绑定（data-content-key）的文字。
+  绑定的文字由报告引擎对照蓝图核对；作者手写的说明、图注、坐标标签不经过引擎，要在这里回查。
 
 用法：python3 tools/bridge/poster_numbers.py <任务文件夹> <海报.html> [--allow 3 --allow 18]
 输出 JSON：{checked, untraced, years}；有追溯不到的数字时以 1 退出。
@@ -32,33 +34,40 @@ IDENTITY_WORDS = ("估算", "预测", "假设", "判断", "建议", "约", "预�
 BIGNUM_KINDS = {"verified", "single_source"}
 
 
-class _Text(HTMLParser):
-    """收集可见文字，并标记哪些片段是 BigNumber 的大数字（class 含 bignum-value）。"""
+VOID = ("br", "img", "meta", "link", "hr", "input")
 
-    def __init__(self):
+
+class _Text(HTMLParser):
+    """收集可见文字，并标记哪些片段是 BigNumber 的大数字（class 含 bignum-value）。
+    report=True 时只收正文页里、不在内容绑定节点内的文字。"""
+
+    def __init__(self, report=False):
         super().__init__(convert_charrefs=True)
-        self.parts, self.stack, self.skip = [], [], 0
+        self.parts, self.stack, self.skip, self.report = [], [], 0, report
 
     def handle_starttag(self, tag, attrs):
         if tag in ("style", "script", "template"):
             self.skip += 1
-        cls = dict(attrs).get("class") or ""
-        if tag not in ("br", "img", "meta", "link", "hr", "input"):
-            self.stack.append("bignum-value" in cls.split())
+        a = dict(attrs)
+        if tag not in VOID:
+            self.stack.append(("bignum-value" in (a.get("class") or "").split(), "data-page-id" in a, "data-content-key" in a))
 
     def handle_endtag(self, tag):
         if tag in ("style", "script", "template"):
             self.skip = max(0, self.skip - 1)
-        if tag not in ("br", "img", "meta", "link", "hr", "input") and self.stack:
+        if tag not in VOID and self.stack:
             self.stack.pop()
 
     def handle_data(self, data):
-        if not self.skip and data.strip():
-            self.parts.append((data, any(self.stack)))
+        if self.skip or not data.strip():
+            return
+        if self.report and (not any(s[1] for s in self.stack) or any(s[2] for s in self.stack)):
+            return
+        self.parts.append((data, any(s[0] for s in self.stack)))
 
 
-def visible_parts(text):
-    p = _Text()
+def visible_parts(text, report=False):
+    p = _Text(report)
     p.feed(text)
     return [(html.unescape(t), big) for t, big in p.parts]
 
@@ -85,11 +94,11 @@ def presentable_values(task):
     return out
 
 
-def check(task, html_text, allow=()):
+def check(task, html_text, allow=(), report=False):
     values = presentable_values(task)
     allow = {a.replace(",", "") for a in allow}
     checked, untraced, years = 0, [], []
-    for text, in_bignum in visible_parts(html_text):
+    for text, in_bignum in visible_parts(html_text, report):
         clean = ID_PATTERN.sub(" ", text)
         for m in NUMBER.finditer(clean):
             raw = m.group(0)
