@@ -32,3 +32,10 @@
 - 完整自检通过：单元 145、core-diligence 44、core-intake 16、core-research 39、core-storyline 32、out-chart 5、out-poster 4、out-report 5；validate 0 个错误（20 个 skill）；三个引擎自带测试全部通过（含打补丁后的 thinkcell 70 项）。
 - 端到端冒烟 `tools/selftest.sh --e2e`：5 个通过。
 - 安装到 `~/.claude/skills`：见下一节。
+
+## 安装
+
+- 安装前把 `~/.claude/skills` 整个备份到 `~/.claude/skills-backup-20261023`（含三个旧 skill 和 content-design）。
+- `./install.sh --remove-old`：装入 20 个 skill 和 `_allen-runtime`；删除已被 lib-* 取代的 consulting-analysis、management-toolkit、personal-effectiveness；content-design 不是本脚本装的，保留未动；原本没有 zerox-*。
+- `./install.sh --render-deps`：装 npm 依赖与字体、生成能力探测任务；看图验证后 `record_probe.py` 通过。
+- 安装后的运行时 `doctor.py` 13 项全部通过；新 skill 已出现在 Claude Code 的可用 skill 列表里。
