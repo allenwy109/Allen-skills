@@ -12,7 +12,7 @@
 | 4 | `plan-4a-acceptance-chart.md`、`plan-4b-poster.md`、`plan-4c-report.md` | §6、§8.3 | 1、2 | 用手写的 slides.json 和夹具证据账出三种成品；acceptance 只允许 storyline 相关检查为 skipped。thinkcell 中文缺字已在 4a 用 soffice 包装脚本解决 | 完成（4a、4b、4c） |
 | 5 | `2026-10-23-plan-5-storyline.md` | §5.3 | 2、4 | 对照清单逐条完成；用真实流程重跑第 4 步的任务，acceptance 为 passed | 已完成（审查记录：`2026-10-23-plan-5-review.md`） |
 | 6 | `2026-10-23-plan-6-research.md` | §5.1 | 2 | 对照清单逐条完成；研究包能封包并通过 --final | 已完成（审查记录：`2026-10-23-plan-6-review.md`） |
-| 7 | `plan-7-diligence.md` | §5.2 | 2、4、5 | 对照清单逐条完成；一个虚构公司的尽调任务走完报告链路，acceptance 为 passed | 待写 |
+| 7 | `2026-10-23-plan-7-diligence.md` | §5.2 | 2、4、5 | 对照清单逐条完成；一个虚构公司的尽调任务走完报告链路，acceptance 为 passed | 已完成（审查记录：`2026-10-23-plan-7-review.md`） |
 | 8 | `plan-8-wiring.md` | §2.1、§7、§11 端到端 | 1–7 | 端到端冒烟通过；validate.py、CI 通过；不再安装 zerox；安装到 `~/.claude/skills` | 待写 |
 
 第 6 步只依赖第 2 步，可以和第 4、5 步并行。其余按顺序执行。
