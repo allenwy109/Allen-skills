@@ -5,21 +5,27 @@
 旧版是三个大而全的 skill，每个都复制了一遍完整流程。问题有两个：选方法靠“问法像哪一行”，不检查前提；整个流程没有事实核实。新版按功能拆开，流程只写一份，选方法和核实各成一个 skill，并加了独立审查。
 
 ```
-入口        router：判断场景，定深度（L1 快答 / L2 标准 / L3 深度），建任务文件夹
+入口        router：判断场景，定深度（L1 快答 / L2 标准 / L3 深度；深度的唯一标准），建任务文件夹
+             │
+接收        core-intake：用户附的 PDF / Word / PPT → 逐页全文、页面图片、表格，登记进证据账
              │
 场景层      scene-company   scene-topic   scene-bp-review   scene-personal
              │  只编排：按什么顺序调哪些能力、交付什么、哪些关口必须过
              │
-能力层      core-framing → core-method-select → （按卡片分析）→ core-synthesis
-                               │                   │
-                               │               core-evidence（检索与核实，全程可调）
-                               │
-质量层                     core-review（独立子代理审查）
+能力层      core-framing → core-method-select → （按卡片分析）→ core-synthesis → core-storyline
+                                                   │
+                                                   ├ core-evidence（核实；来源评价和核实关口的唯一标准）
+                                                   ├ core-research（开放研究、研究包）
+                                                   └ core-diligence（公司研究与尽调）
+             │
+质量层      core-review（5 个审查角色，含成品审查员；统一输出标准）
              │
 方法库      lib-consulting   lib-management   lib-personal（卡片 + 选法表，不带流程）
              │
-交付与研究  zerox-storyline、zerox-consulting-report-forge、zerox-thinkcell-charts、zerox-onepager
-            zerox-deep-research、zerox-due-diligence（install.sh 安装，固定版本）
+输出层      out-report（HTML + PDF）  out-chart（PPTX + PNG + HTML）  out-poster（PNG + HTML）
+             │
+引擎        vendor/report-forge  vendor/thinkcell-charts  vendor/onepager（Apache-2.0，固定版本，只经 out-* 调用）
+公共        tools/lib（统一证据账、schema、运行时路径）  tools/bridge（三个转换脚本）  tools/acceptance.py
 ```
 
 ## 三条边界
@@ -41,17 +47,28 @@ skill 之间不靠对话记忆传递，而是通过任务文件夹里的固定�
 
 ```
 work/<日期>-<主题>/
-├── 00_brief.md          router
+├── 00_brief.md          router（含"用户要求（原文）"）
 ├── 01_issue-tree.md     core-framing
 ├── 02_method-plan.md    core-method-select
-├── 03_evidence.md       core-evidence（编号 E1、E2……；zerox 的来源编号原样保留）
+├── 03_evidence/         统一证据账：ledger/*.jsonl 是事实的唯一真源，raw/ 存来源快照和用户材料
+├── 03r_research/        core-research 工作文件
+├── 03d_diligence/       core-diligence 工作文件
 ├── 04_analysis/         按卡片做的分析
 ├── 05_review-log.md     core-review
 ├── 06_synthesis.md      core-synthesis
-└── 07_deliverables/     交付物
+├── 07_storyline/        core-storyline 的稿件、slides.json；引擎过程目录 forge-work/、poster-work/
+└── 08_deliverables/     只放交付物：report/、charts/、poster/、research-package/、diligence/、acceptance.json
 ```
 
-L1 快答不建文件夹，内容直接写在回答里。
+L1 快答不建文件夹，内容直接写在回答里。完整的目录树在 router 第 3 节。
+
+## 一个事实从哪里来、到哪里去
+
+1. 来源（网页快照、用户文件）进 `03_evidence/raw/`，登记为 sources；摘录登记为 evidence；判断登记为 claims，指向支撑它的证据；数字登记为 metrics。
+2. 分析和综合引用主张 `[cl-0003]` 或原文定位 `[M004 p12]`。
+3. 故事线把主张组织成卡片 `card-0012`，稿件里写 `〔card-0012｜M004 p12〕`。
+4. 转换脚本把 slides.json 翻成引擎输入，数字一律写成 `{{metric:m-0001}}` 由引擎绑定；台账外的数字、未核实却以事实呈现的说法会被拦下。
+5. 成品登记进 `08_deliverables/acceptance.json`，前置检查（故事线检查、研究包 `--final`、尽调检查、引擎验收）全部通过、成品审查员独立审查后，才判定"已完成"。
 
 ## 审查
 
@@ -60,15 +77,21 @@ L1 快答不建文件夹，内容直接写在回答里。
 | 事实核查员 | 影响结论的事实，独立联网重查 | 开 | 开 |
 | 红队 | 最强反对理由、其他解释、维持现状基准、强词 | 开 | 开 |
 | 方法审查员 | 方法是否选对、前提是否满足、常见误用 | — | 开 |
-| 决策者视角 | 一页内能否看懂、能否执行 | — | 开 |
+| 决策者视角 | 只读最终报告：首屏能否读到答案；行动是否具体；是否回答主导问题 | — | 开 |
+| 成品审查员 | 只看最终交付物：身份是否如实、视觉问题、中文显示、内容齐全；结论写进 acceptance.json | 开 | 开 |
 
 审查者必须是没参与写作的独立子代理。没有子代理能力的环境降级为按清单自审，并在报告里写明“未经独立审查”。
 
-## 第三方依赖
+## 防止绕过
 
-zerox skill 按 `zerox.lock` 的固定 commit 安装。场景 skill 只通过交接文件使用它们（把我们核实过的内容交给它们排版），不依赖它们的内部实现；zerox 升级或替换时只改交接那一层。未安装时，各场景降级为 Markdown 交付。
+- 正式报告、图表、海报只能经 out-* 出：vendor 引擎目录里没有 SKILL.md，不会被单独触发；场景只指向 core-storyline 和 out-*。
+- 引擎的生产记录只能经 report.cjs 统一入口写，否则过不了引擎的验收和打包门禁。
+- 只有 acceptance.json 能判定"已完成"，它会重新计算前置检查和成品哈希；成品被改动后状态自动失效。
+- `validate.py` 拦下对不存在的 skill（包括已移除的 zerox-*）的引用；`install.sh --remove-old` 清理以前装的 zerox-*，避免旧 skill 被重复触发。
 
-正式报告（zerox-consulting-report-forge）需要 Node.js 20+、Python 3.10+、Chrome 或 Playwright Chromium、Poppler；上游只在 macOS 上完整验证过。
+## 依赖
+
+三个引擎按 `vendor/vendor.lock` 的固定 commit 和文件哈希放在仓库里，补丁在 `vendor/patches/`，`tools/vendor_sync.py check` 和 validate.py 会核对。出成品要 `install.sh --render-deps` 装好的依赖（Node.js 20+、Python 3.10+ 虚拟环境、Google Chrome、Playwright Chromium、Poppler、Tesseract、Pandoc、LibreOffice），`tools/doctor.py` 全部通过才能出；目前只在 macOS 上验证过。依赖不全时，场景先交综合和故事线稿件，并写明正式报告尚未生成。
 
 ## 后续计划
 

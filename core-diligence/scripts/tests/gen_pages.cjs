@@ -20,6 +20,11 @@ const html = pages.map(p => {
       const svg = bars || '<line x1="40" x2="460" y1="150" y2="150" stroke="#1f3a5f" stroke-width="3"/><circle cx="120" cy="150" r="10" fill="#1f3a5f"/><circle cx="380" cy="150" r="10" fill="#1f3a5f"/><text x="120" y="190" text-anchor="middle" font-size="18">成立</text><text x="380" y="190" text-anchor="middle" font-size="18">首款产品</text>';
       parts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 300" width="520" height="300" role="img" aria-label="${panel.visual || '图示'}">${bars ? '<line x1="40" x2="500" y1="260" y2="260" stroke="#9aa5b1"/>' : ''}${svg}</svg>`);
     }
+    if (panel.form === 'html.kpi') {
+      const ms = metrics.filter(m => !placed.has('metric:' + m.id));
+      ms.forEach(m => placed.add('metric:' + m.id));
+      parts.push(`<div class="kpi-card"><div class="kpi-label">${panel.visual || '关键指标'}</div><div class="kpi-value">${ms.map(m => b(p, 'metric:' + m.id, {tag: 'span'})).join(' ')}</div></div>`);
+    }
     for (const cid of panel.claimRefs || []) {
       if (placed.has('claim:' + cid)) continue;
       placed.add('claim:' + cid); placed.add('limitation:' + cid);

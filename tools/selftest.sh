@@ -1,16 +1,30 @@
 #!/usr/bin/env bash
 # 自检（设计 §11）：单元测试、仓库结构、三个引擎自带的测试。
-# 用法：tools/selftest.sh [--quick]
+# 用法：tools/selftest.sh [--quick | --e2e]
 #   --quick  只跑单元测试、skill 测试和结构检查；skill 测试缺外部工具时允许跳过
+#   --e2e    只跑端到端冒烟（tools/e2e/）：文字要求 + 三份文件 → 接收 → 证据账 → 故事线 → 报告、图表、海报 → 验收
 # 引擎测试在临时副本里运行，不会在 vendor/ 下留下产物；需要先完成 ./install.sh --render-deps。
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 QUICK=0
+E2E=0
 [ "${1:-}" = "--quick" ] && QUICK=1
+[ "${1:-}" = "--e2e" ] && E2E=1
 # 完整自检时，skill 测试缺外部工具直接算失败（--quick 和 CI 允许跳过）
 [ "${QUICK}" = 0 ] && export ALLEN_REQUIRE_TOOLS=1
+
+if [ "${E2E}" = 1 ]; then
+  python3 tools/doctor.py >/dev/null || { echo "错误：doctor 没有全部通过，先运行 python3 tools/doctor.py 查看" >&2; exit 1; }
+  export PATH="/Applications/LibreOffice.app/Contents/MacOS:${PATH}"
+  echo "== 端到端冒烟"
+  python3 -m unittest discover -s tools/e2e -t . 2>&1 | tee "${TMPDIR:-/tmp}/allen-e2e.log"
+  [ "${PIPESTATUS[0]}" = 0 ] || exit 1
+  if grep -q "skipped" "${TMPDIR:-/tmp}/allen-e2e.log"; then echo "错误：端到端冒烟被跳过，说明有依赖不可用" >&2; exit 1; fi
+  echo "端到端冒烟通过"
+  exit 0
+fi
 
 echo "== 单元测试"
 python3 -m unittest discover -s tools/tests -t .

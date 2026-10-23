@@ -1,14 +1,14 @@
 # 安装与使用
 
-这套 skill 可以在五种地方用。它们装法不同，能力也不同：联网核实、独立子代理审查、正式报告（zerox）这三项，不是每个地方都有。
+这套 skill 可以在五种地方用。它们装法不同，能力也不同：联网核实、独立子代理审查、正式报告这三项，不是每个地方都有。
 
 ## 先选在哪里用
 
-| 在哪里用 | 怎么装 | 联网核实 | 独立子代理审查 | 正式报告（zerox HTML/PDF） | 适合 |
+| 在哪里用 | 怎么装 | 联网核实 | 独立子代理审查 | 正式报告（HTML/PDF）、图表、海报 | 适合 |
 |---|---|---|---|---|---|
-| **Claude Code**（终端、桌面 App、VS Code / JetBrains 插件） | `./install.sh` 装到 `~/.claude/skills` | 有 | 有 | 可以（需 Node 20+、Chrome、Poppler） | **主力推荐**：L2、L3 全流程 |
-| **Claude Code 网页版**（claude.ai/code，云端运行） | 云端环境的 setup script 里运行 `install.sh` | 取决于环境的网络设置 | 有 | 云端默认镜像有 Node、Chromium、Poppler，未实际跑过 | 不开电脑也能跑、按项目管理 |
-| **claude.ai 聊天**（网页、桌面、手机 App） | 每个 skill 打成 zip，在设置里逐个上传 | 有网页搜索；skill 内脚本的联网受设置限制 | **没有**，自动降级为自审 | 不建议 | L1 快答、个人问题、快速看 BP |
+| **Claude Code**（终端、桌面 App、VS Code / JetBrains 插件） | `./install.sh` 装到 `~/.claude/skills` | 有 | 有 | 可以（先运行 `install.sh --render-deps`；macOS 需 Homebrew） | **主力推荐**：L2、L3 全流程 |
+| **Claude Code 网页版**（claude.ai/code，云端运行） | 云端环境的 setup script 里运行 `install.sh` | 取决于环境的网络设置 | 有 | `--render-deps` 目前只支持 macOS（Homebrew），云端 Linux 需另行准备依赖，未实际跑过 | 不开电脑也能跑、按项目管理 |
+| **claude.ai 聊天**（网页、桌面、手机 App） | 每个 skill 打成 zip，在设置里逐个上传 | 有网页搜索；skill 内脚本的联网受设置限制 | **没有**，自动降级为自审 | 不能（out-* 不打包；core-* 的脚本也跑不了） | L1 快答、个人问题、快速看 BP |
 | **Agent SDK**（以后封装成自己的应用） | `install.sh --target <项目>/.claude/skills` | 有（放行搜索工具） | 有 | 可以 | 把某个场景做成固定入口或产品 |
 | **Claude API**（Messages API + Skills API） | 通过 `/v1/skills` 上传 | skill 运行环境**不能联网** | 需自己实现 | 不能 | 不推荐 |
 
@@ -30,24 +30,20 @@ cd Allen-skills
 ./install.sh
 ```
 
-默认把 13 个本仓库 skill 和 6 个 zerox skill 复制到 `~/.claude/skills/`，对所有项目生效。常用参数：
+默认把本仓库的 20 个 skill 和运行时 `_allen-runtime`（vendor 引擎 + tools）复制到 `~/.claude/skills/`，对所有项目生效。不再安装 zerox 的 skill。常用参数：
 
 | 参数 | 作用 |
 |---|---|
 | `--link` | 用软链接代替复制，在仓库里改 skill 立即生效（自己维护时用） |
-| `--no-zerox` | 只装本仓库的 skill |
-| `--forge-deps` | 为正式报告安装 Node 依赖和字体（需要 Node.js 20+、Python 3.10+、Chrome 或 Playwright Chromium、Poppler） |
-| `--remove-old` | 删除旧版的 consulting-analysis、management-toolkit、personal-effectiveness |
+| `--render-deps` | 安装出成品所需的依赖：Homebrew 装 Poppler、Tesseract（含中文）、Pandoc、LibreOffice；Python 虚拟环境（默认 `~/.cache/allen-skills/venv`，可用 `ALLEN_VENV` 改）；Playwright Chromium；报告引擎的 npm 依赖与字体；最后生成能力探测任务。需要 Node.js 20+、Python 3.10+、Google Chrome |
+| `--forge-deps` | 已弃用，等同 `--render-deps` |
+| `--remove-old` | 删除旧版的 consulting-analysis、management-toolkit、personal-effectiveness，以及本脚本以前装的 `zerox-*`（只删带安装标记的目录或指向安装缓存的软链接，别人自己的同名目录保留） |
 | `--target DIR` | 装到别的目录，例如某个项目的 `.claude/skills` |
 | `--force` | 覆盖目标目录里不是本脚本装的同名 skill |
 
-更新：`git pull && ./install.sh`。
+更新：`git pull && ./install.sh`。复制模式重新安装会清掉运行时里的 npm 依赖和探测结果，要出成品时再运行一次 `--render-deps`。
 
-zerox 默认从上游仓库按 `zerox.lock` 固定的版本下载。改用自己的 fork：
-
-```bash
-ZEROX_REPO=https://github.com/allenwy109/zerox-skills.git ./install.sh
-```
+`--render-deps` 结束时会提示一步看图验证：在 Claude Code 里让 Claude 打开探测图片、写下看到的内容，再运行 `record_probe.py`。之后运行 `python3 ~/.claude/skills/_allen-runtime/tools/doctor.py`，全部"通过"才能出正式报告。
 
 装好后打开 Claude Code，直接说要做什么即可（见文末“怎么用”）。
 
@@ -63,8 +59,8 @@ ZEROX_REPO=https://github.com/allenwy109/zerox-skills.git ./install.sh
    /tmp/Allen-skills/install.sh
    ```
 
-   需要正式报告时，第二行改为 `/tmp/Allen-skills/install.sh --forge-deps`（会多花一两分钟装依赖）。
-3. 网络设置要允许访问 GitHub（下载 skill 和 zerox）；做联网核实还要允许访问一般网站。
+   正式报告需要的依赖（`--render-deps`）目前只支持 macOS；云端要出成品，需在 setup script 里自行安装 Poppler、Tesseract、Pandoc、LibreOffice、Chrome 和 Node 依赖，再用 `doctor.py` 检查。
+3. 网络设置要允许访问 GitHub（下载本仓库）；做联网核实还要允许访问一般网站。
 
 这条路目前**还没有实际跑过**。
 
@@ -75,15 +71,15 @@ ZEROX_REPO=https://github.com/allenwy109/zerox-skills.git ./install.sh
 1. 打包：
 
    ```bash
-   python3 tools/build-zips.py      # 在 dist/ 下生成 13 个 zip，每个 skill 一个
+   python3 tools/build-zips.py      # 在 dist/ 下每个 skill 一个 zip（out-* 不打包）
    ```
 
-2. 在 claude.ai 的设置（Settings → Features / Capabilities 的 Skills 部分）里逐个上传 zip。至少上传：`router`、`core-framing`、`core-method-select`、`core-evidence`、`core-synthesis`、`core-review`、三个 `lib-*`，以及要用的 `scene-*`。
+2. 在 claude.ai 的设置（Settings → Features / Capabilities 的 Skills 部分）里逐个上传 zip。至少上传：`router`、`core-intake`、`core-framing`、`core-method-select`、`core-evidence`、`core-synthesis`、`core-review`、三个 `lib-*`，以及要用的 `scene-*`。
 
 限制：
 
 - 没有子代理，core-review 会降级为自审。
-- zerox 的正式报告依赖本机的 Node 和 Chrome，不建议在这里用；交付 Markdown 即可。
+- 正式报告、图表、海报依赖本机的渲染引擎，这里出不了；core-* 的脚本依赖运行时，也不能运行，只能按文档手工走流程。适合 L1 快答，交付 Markdown。
 - 跨 skill 引用能否生效还没有验证，建议先用一个简单问题试一下：看它是否按 core-method-select 的步骤输出方法计划。
 
 ## 4. Agent SDK（自建应用）
@@ -127,13 +123,14 @@ options = ClaudeAgentOptions(
 | 只用一个方法 | “用 SWOT 分析一下……”“这个问题该用什么框架？” |
 | 只核实 | “帮我核实一下这篇文章里的数据。” |
 
-深度：默认 L2（完整流程、两个审查者）。说“简单说说”是 L1；说“深入分析”“出正式报告”是 L3（四个审查者，交给 zerox 出 HTML/PDF）。
+深度：默认 L2（完整流程、3 个审查者：事实核查员、红队、成品审查员；交正式报告）。说“简单说说”是 L1（对话里直接回答）；说“深入分析”是 L3（5 个审查者，研究和尽调做得更深，研究包封包）。深度的唯一标准在 router 第 2 节。
 
-L2、L3 会在当前目录下建 `work/<日期>-<主题>/` 文件夹，里面是每一步的交接文件和最终交付物。
+L2、L3 会在当前目录下建 `work/<日期>-<主题>/` 文件夹，里面是每一步的交接文件；交付物在 `08_deliverables/`，是否完成以 `08_deliverables/acceptance.json` 为准。
 
 ## 检查安装是否成功
 
-- Claude Code：问一句“列出你能用的 skill”，应该能看到 `router`、`core-*`、`lib-*`、`scene-*`。
-- 维护者：`python3 tools/validate.py` 检查仓库结构。
+- Claude Code：问一句“列出你能用的 skill”，应该能看到 `router`、`core-*`、`lib-*`、`scene-*`、`out-*`。
+- 出成品的依赖：`python3 ~/.claude/skills/_allen-runtime/tools/doctor.py`。
+- 维护者：`python3 tools/validate.py` 检查仓库结构；`tools/selftest.sh` 跑全部测试。
 
 参考：[Agent Skills 概览](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/)、[Agent SDK 中的 skills](https://code.claude.com/docs/en/agent-sdk/skills)。
