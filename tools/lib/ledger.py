@@ -374,6 +374,24 @@ class Ledger:
             for k in ("supersedes", "duplicate_of", "upstream_source_id"):
                 if s.get(k) and s.get(k) == s.get("id"):
                     out.append(issue("error", "sources", s["id"], f"{k} 不能指向自己"))
+        out += self._snapshot_checks(data["sources"])
+        return out
+
+    def _snapshot_checks(self, sources):
+        """采集元数据以快照头为真源（设计 §3.2）：sources 表的同名字段必须与快照头一致。"""
+        from tools.lib import snapshot
+        out = []
+        for s in sources:
+            if not s.get("snapshot"):
+                continue
+            try:
+                meta, _ = snapshot.read(self.evidence_dir / s["snapshot"])
+            except (OSError, UnicodeError, snapshot.SnapshotError) as e:
+                out.append(issue("error", "sources", s["id"], f"快照无法读取：{e}"))
+                continue
+            for k in snapshot.fields():
+                if meta.get(k) != s.get(k) and not (meta.get(k) in (None, []) and s.get(k) in (None, [])):
+                    out.append(issue("error", "sources", s["id"], f"{k} 与快照头不一致（快照是真源，改证据账去对齐）"))
         return out
 
     @staticmethod

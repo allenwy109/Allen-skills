@@ -324,6 +324,19 @@ class CheckTest(Base):
         self.assertFalse(L.has_cycle([]))
 
 
+class SnapshotConsistencyTest(Base):
+    def test_snapshot_header_is_the_source_of_truth(self):
+        from tools.lib import snapshot
+        row = source(snapshot="raw/sources/M001-a.md")
+        snapshot.write(self.led.evidence_dir / "raw/sources/M001-a.md", {"id": "M001", **{k: row.get(k) for k in snapshot.fields() if k != "id"}}, "正文")
+        self.led.add("sources", row, line="M")
+        self.assertNotIn("快照头", self.messages())
+        self.led.patch("sources", "M001", {"title": "改过的标题"})
+        self.assertIn("sources:M001:title 与快照头不一致", self.messages())
+        self.led.patch("sources", "M001", {"title": "年报", "snapshot": "raw/sources/M001-missing.md"})
+        self.assertIn("快照无法读取", self.messages())
+
+
 class RenderAndCliTest(Base):
     def test_render_outputs(self):
         self.basic()
