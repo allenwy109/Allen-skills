@@ -57,7 +57,7 @@ MODE_RULES = {
     "progress_report": ("other", ["请求"]),
     "retrospective": ("other", ["要改的机制"]),
 }
-STAGE_FILES = [("00_brief.md",), ("01_materials_index.md",), ("02_info_cards.md",), ("03_storyline.md",),
+STAGE_FILES = [("00_story-brief.md",), ("01_materials_index.md",), ("02_info_cards.md",), ("03_storyline.md",),
                ("04_manuscript.md", "04_manuscript_clean.md"), ("05_storyboard.md", "06_slides.md", "slides.json", "sidecar.json"),
                ("07_audit_report.md",)]
 BRIEF_ITEMS = ("受众", "目的", "场景", "语言风格", "保密", "外部知识", "验收标准")
@@ -67,6 +67,7 @@ CLICHES = ("赋能", "抓手", "闭环", "打通", "拉通", "颗粒度", "沉�
 PLACED_FIELDS = ("正文", "可视化建议", "讲者备注")
 
 CARD_ID = re.compile(r"card-\d{4,}")
+IDS = re.compile(r"\b(?:[A-Z]{1,4}-\d{3,}|(?:cl|m|ev|card)-\d{4,}|[ABD-Z]\d{3,4})\b")   # 主体、主张、证据、来源等编号不当数字
 CITE = re.compile(r"〔([^〔〕]*)〕")
 INFER = re.compile(r"[（(]推断[｜|][^）)]*[）)]")
 BRACKET = re.compile(r"【[^】]*】")
@@ -324,10 +325,10 @@ def check_numbers(text, where, lib, errors, warnings, stats, skip_uncited=False)
     for lineno, line in enumerate(text.splitlines(), 1):
         if line.lstrip().startswith(("#", "|", ">")):
             continue
-        for sentence in re.split(r"(?<=[。！？；])", line):
+        for sentence in re.split(r"(?<=[。！？])", line):
             cites = CITE.findall(sentence)
             ids = [i for c in cites for i in CARD_ID.findall(c)]
-            body = BRACKET.sub(" ", INFER.sub(" ", CITE.sub(" ", sentence)))
+            body = IDS.sub(" ", BRACKET.sub(" ", INFER.sub(" ", CITE.sub(" ", sentence))))
             basis = "依据" in sentence
             for pos, raw, unit, datalike in numbers_in(body, cited=bool(ids)):
                 if not datalike:
@@ -442,11 +443,11 @@ def check(task, stage=6, numbers=True):
         errors.append(_issue("missing-file", "证据账里没有卡片（03_evidence/ledger/cards.jsonl）"))
 
     # 阶段 0：简报
-    brief = read(s / "00_brief.md")
+    brief = read(s / "00_story-brief.md")
     if brief is not None:
         for item in BRIEF_ITEMS:
             if item not in brief:
-                errors.append(_issue("brief", f"00_brief.md 缺少「{item}」：简报 7 项要齐，没说的推断并标「假设」"))
+                errors.append(_issue("brief", f"00_story-brief.md 缺少「{item}」：简报 7 项要齐，没说的推断并标「假设」"))
 
     # 阶段 1：材料索引
     index = read(s / "01_materials_index.md")

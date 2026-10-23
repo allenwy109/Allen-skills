@@ -75,7 +75,7 @@ class PackageTest(Base):
         self.assertEqual(r["errors"], [])
 
     def test_brief_materials_and_confirmation(self):
-        self.edit("00_brief.md", "| 保密 | 内部使用 |\n", "")
+        self.edit("00_story-brief.md", "| 保密 | 内部使用 |\n", "")
         self.edit("01_materials_index.md", "读完（含附录）", "已读前 20 页")
         self.edit("01_materials_index.md", "| M001 |", "| M009 |")
         side = json.loads((self.s / "sidecar.json").read_text(encoding="utf-8"))
@@ -272,7 +272,7 @@ class CliTest(Base):
         self.assertIn("P02 收入两年增长 77.8%，规模仍小", titles.stdout)
         ok = subprocess.run(cmd + ["check", str(self.task), "--json"], capture_output=True, text=True)
         self.assertTrue(json.loads(ok.stdout)["passed"])
-        self.edit("00_brief.md", "| 受众 |", "| 读者 |")
+        self.edit("00_story-brief.md", "| 受众 |", "| 读者 |")
         self.assertEqual(subprocess.run(cmd + ["check", str(self.task)], capture_output=True, text=True).returncode, 1)
 
     def test_impact(self):

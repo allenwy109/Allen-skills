@@ -115,7 +115,7 @@ def report_sidecar():
 STORYLINE = pathlib.Path(__file__).resolve().parents[2] / "core-storyline" / "scripts" / "storyline.py"
 
 STORY_FILES = {
-    "00_brief.md": """# 简报
+    "00_story-brief.md": """# 简报
 
 | 项 | 内容 |
 |---|---|

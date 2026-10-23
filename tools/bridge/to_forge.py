@@ -347,6 +347,21 @@ def _body_problems(s, where):
         for p in panels:
             if p.get("slot") not in SLOTS:
                 out.append(f"{where} panel {p['id']} 的 slot 须为 {'/'.join(sorted(SLOTS))}（自定义布局）")
+    for p in panels:
+        if len(p["reason"].strip()) < 12:
+            out.append(f"{where} panel {p['id']} 的选型理由至少 12 个字：具体说明这个形式怎样呈现本页的证据关系")
+        if len(p["purpose"].strip()) < 8:
+            out.append(f"{where} panel {p['id']} 的用途至少 8 个字：这件展品让读者看出什么")
+    if len(s["adds"].strip()) < 12:
+        out.append(f"{where} adds 至少 12 个字：读者读完本页比上一页多知道什么")
+    if len(s["density"]["space_intent"].strip()) < 12:
+        out.append(f"{where} density.space_intent 至少 12 个字")
+    for u in s["density"]["evidence_units"]:
+        if len(u["purpose"].strip()) < 8:
+            out.append(f"{where} 证据单元的用途至少 8 个字：{u['purpose']}")
+    for r in s.get("relations") or []:
+        if len(r["reason"].strip()) < 12:
+            out.append(f"{where} relation {r['id']} 的理由至少 12 个字：这些展品为何必须一起看")
     if len(panels) > 1 and not s.get("relations"):
         out.append(f"{where} 有多个 panel，须用 relations 说明它们如何共同支持本页结论")
     for r in s.get("relations") or []:
