@@ -1,8 +1,8 @@
 {
- "version": "1.0.0",
+ "version": "1.1.0",
  "comment": "07_storyline/slides.json 的结构（设计 §5.3）。在 storyline 上游 slides.json 的基础上，增加报告引擎需要的逐页字段。哪些页必须填哪些字段，由 storyline check 按页面角色检查（计划 5），这里只管结构。",
  "upstream": "storyline 的 slides-schema（inventory/storyline.md E 节）；report-forge deck-blueprint 的 slides 字段（inventory/storyline.md H 节）",
- "changes": ["card_ids 的格式由 C001 改为 card-0001", "页面类型补充 risk 和 close", "新增 page_role、story_beat、proves、adds、claim_refs、metric_refs、density、visual_intent、chart_spec_file（交给 out-chart 的图表 spec，存为 07_storyline/charts/*.json）、block_ids", "deck 新增 story_mode、arc、arc_reason、decision、ratio"],
+ "changes": ["card_ids 的格式由 C001 改为 card-0001", "页面类型补充 risk 和 close", "新增 page_role、story_beat、proves、adds、claim_refs、metric_refs、density、visual_intent、chart_spec_file（交给 out-chart 的图表 spec，存为 07_storyline/charts/*.json）、block_ids", "deck 新增 story_mode、arc、arc_reason、decision、ratio", "1.1.0：补充报告引擎 narrative-focus-1 要求的字段——deck 新增 brief、answer_claim_refs、cover；页面新增 subtitle（口径副标题）、panels、relations、anchor_panel（组合证据）；evidence_role 补充 evidence"],
  "enums": {
   "deck_kind": {"values": ["presentation", "reading"], "labels": {"presentation": "演讲型", "reading": "阅读型"}},
   "closing_type": {"values": ["recommendation", "next_steps", "decision_request"], "labels": {"recommendation": "建议", "next_steps": "下一步", "decision_request": "请求决策"}},
@@ -14,7 +14,9 @@
   "story_beat": {"values": ["context", "tension", "diagnosis", "insight", "choice", "action", "risk", "close"], "labels": {"context": "情境", "tension": "冲突", "diagnosis": "诊断", "insight": "洞察", "choice": "选择", "action": "行动", "risk": "风险", "close": "收尾"}},
   "chart_relationship": {"values": ["component", "item_ranking", "time_series", "frequency_distribution", "correlation"], "labels": {"component": "成分", "item_ranking": "项目排序", "time_series": "时间序列", "frequency_distribution": "频率分布", "correlation": "相关性"}},
   "density_profile": {"values": ["dense", "balanced", "sparse"], "labels": {"dense": "密", "balanced": "均衡", "sparse": "疏"}},
-  "evidence_role": {"values": ["primary", "support", "context", "implication"], "labels": {"primary": "主展品", "support": "支持", "context": "背景", "implication": "含义"}}
+  "evidence_role": {"values": ["primary", "support", "context", "evidence", "implication"], "labels": {"primary": "主展品", "support": "支持", "context": "背景", "evidence": "证据", "implication": "含义"}},
+  "brief_purpose": {"values": ["diagnosis", "decision", "research"], "labels": {"diagnosis": "诊断", "decision": "决策", "research": "研究"}},
+  "relation_kind": {"values": ["compare", "decompose", "sequence", "complement", "overview-detail", "boundary", "other"], "labels": {"compare": "对照", "decompose": "拆解", "sequence": "递进", "complement": "互补", "overview-detail": "总览与细节", "boundary": "边界", "other": "其他"}}
  },
  "root": {
   "type": "object",
@@ -36,7 +38,26 @@
      "arc_reason": {"type": "string"},
      "ratio": {"type": "string", "enum": "ratio"},
      "generated_from": {"type": "string"},
-     "confidentiality": {"type": "string"}
+     "confidentiality": {"type": "string"},
+     "brief": {"type": "object", "fields": {
+      "question": {"type": "string", "required": true},
+      "purpose": {"type": "string", "enum": "brief_purpose", "required": true},
+      "scope": {"type": "string", "required": true},
+      "period": {"type": "string", "required": true},
+      "baseline": {"type": "string", "required": true},
+      "constraints": {"type": "string", "required": true},
+      "success_criteria": {"type": "string", "required": true}}},
+     "answer_claim_refs": {"type": "array", "items": {"type": "string", "pattern": "^cl-[0-9]{4,}$"}},
+     "cover": {"type": "object", "fields": {
+      "subtitle": {"type": "string"},
+      "producer": {"type": "string"},
+      "date": {"type": "date"},
+      "version": {"type": "string"},
+      "project": {"type": "string"},
+      "client": {"type": "string"},
+      "access": {"type": "string"},
+      "statement": {"type": "string"},
+      "closing_text": {"type": "string"}}}
     }
    },
    "slides": {
@@ -83,7 +104,30 @@
        "repetition_reason": {"type": "string"},
        "semantic_type": {"type": "string"}}},
       "chart_spec_file": {"type": "string", "pattern": "^charts/[A-Za-z0-9_.-]+\\.json$"},
-      "block_ids": {"type": "array", "items": {"type": "string"}}
+      "block_ids": {"type": "array", "items": {"type": "string"}},
+      "subtitle": {"type": "string"},
+      "anchor_panel": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+      "panels": {"type": "array", "items": {"type": "object", "fields": {
+       "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$", "required": true},
+       "purpose": {"type": "string", "required": true},
+       "claim_refs": {"type": "array", "items": {"type": "string", "pattern": "^cl-[0-9]{4,}$"}, "min_items": 1, "required": true},
+       "form": {"type": "string", "required": true},
+       "relationship": {"type": "string", "required": true},
+       "reason": {"type": "string", "required": true},
+       "alternative": {"type": "string"},
+       "tradeoff": {"type": "string"},
+       "capacity": {"type": "map", "values": {"type": "integer", "min": 0}},
+       "semantic_type": {"type": "string"},
+       "visual": {"type": "string"},
+       "source_ids": {"type": "array", "items": {"type": "string"}},
+       "slot": {"type": "string"},
+       "role": {"type": "string", "enum": "evidence_role", "required": true},
+       "span": {"type": "number", "min": 0}}}},
+      "relations": {"type": "array", "items": {"type": "object", "fields": {
+       "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$", "required": true},
+       "kind": {"type": "string", "enum": "relation_kind", "required": true},
+       "panel_refs": {"type": "array", "items": {"type": "string"}, "min_items": 2, "required": true},
+       "reason": {"type": "string", "required": true}}}}
      }
     }
    }
