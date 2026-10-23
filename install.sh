@@ -171,7 +171,7 @@ render_deps() {
   echo "[2/5] Python 虚拟环境：${VENV} ……"
   local py=""
   for c in python3.13 python3.12 python3.11 python3.10 python3; do
-    if command -v "${c}" >/dev/null 2>&1 && "${c}" -c 'import sys; sys.exit(0 if sys.version_info[:2] >= (3, 10) else 1)'; then
+    if command -v "${c}" >/dev/null 2>&1 && "${c}" -c 'import ensurepip, sys; sys.exit(0 if sys.version_info[:2] >= (3, 10) else 1)'; then
       py="${c}"; break
     fi
   done
@@ -187,7 +187,7 @@ render_deps() {
   "${VENV}/bin/python" -m playwright install chromium
 
   echo "[4/5] 报告引擎的 npm 依赖与字体环境 ……"
-  (cd "${rt}/vendor/report-forge" && npm ci && npx playwright install chromium && npm run setup-fonts)
+  (cd "${rt}/vendor/report-forge" && npm ci && npx playwright install chromium && FONT_PYTHON="${py}" npm run setup-fonts)
 
   echo "[5/5] 报告引擎能力探测任务 ……"
   rm -rf "${rt}/.probe-task"

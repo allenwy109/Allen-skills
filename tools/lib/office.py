@@ -17,8 +17,9 @@ CJK_FONTS = {
     "/System/Library/Fonts/Hiragino Sans GB.ttc": "HiraginoSansGB",
     "/System/Library/Fonts/STHeiti Medium.ttc": "STHeiti",
     "/System/Library/Fonts/STHeiti Light.ttc": "STHeiti",
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc": "NotoSansCJK",
-    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc": "NotoSansCJK",
+    # LibreOffice 的纯文本导入器可能选择同字体族的 Mono 字体；两者在 PDF 中都以 NotoSans 开头。
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc": "NotoSans",
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc": "NotoSans",
 }
 
 

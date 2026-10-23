@@ -74,6 +74,11 @@ class InstallRuntimeTest(unittest.TestCase):
         self.assertNotEqual(p.returncode, 0)
         self.assertIn("需要 Homebrew", p.stderr)
 
+    def test_render_deps_requires_python_with_ensurepip(self):
+        script = (ROOT / "install.sh").read_text(encoding="utf-8")
+        self.assertIn("import ensurepip, sys", script)
+        self.assertIn('FONT_PYTHON="${py}" npm run setup-fonts', script)
+
     def test_codex_uses_codex_home(self):
         codex_home = pathlib.Path(self.tmp.name) / "codex-home"
         env = dict(os.environ, CODEX_HOME=str(codex_home))

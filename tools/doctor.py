@@ -123,10 +123,19 @@ def check_chrome(e, rt):
     name = "Chrome/Chromium 无头启动（报告引擎）"
     if not e.exists(CHROME):
         return result(name, MISSING, CHROME, "安装 Google Chrome 或 Chromium，或设置 ALLEN_CHROME")
-    code, out = e.run([CHROME, "--headless=new", "--disable-gpu", "--dump-dom", "about:blank"], timeout=60)
+    if runtime.chrome_channel() == "chromium":
+        node_modules = runtime.engine_path(rt, "report-forge") / "node_modules"
+        if not e.exists(str(node_modules / "playwright")):
+            return result(name, MISSING, "Chromium 环境需要报告引擎的 Playwright", f"cd {node_modules.parent} && npm ci && npx playwright install chromium")
+        script = ("const {chromium}=require('playwright');"
+                  "(async()=>{const b=await chromium.launch({channel:'chromium',headless:true});"
+                  "console.log(b.version());await b.close()})().catch(e=>{console.error(e);process.exit(1)})")
+        code, out = e.run(["node", "-e", script], timeout=60, env=dict(os.environ, NODE_PATH=str(node_modules)))
+    else:
+        code, out = e.run([CHROME, "--headless=new", "--disable-gpu", "--dump-dom", "about:blank"], timeout=60)
     if code != 0:
         return result(name, MISSING, out.strip()[-200:], "确认 Chrome/Chromium 能无头启动，必要时设置 ALLEN_CHROME")
-    return result(name, PASS, CHROME)
+    return result(name, PASS, f"{CHROME}（{runtime.chrome_channel()}）")
 
 
 def check_poppler(e, rt):

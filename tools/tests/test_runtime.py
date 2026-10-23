@@ -52,6 +52,7 @@ class EngineAndVenvTest(unittest.TestCase):
 
     def test_chrome_channel_distinguishes_chromium(self):
         self.assertEqual(runtime.chrome_channel("/usr/bin/chromium"), "chromium")
+        self.assertEqual(runtime.chrome_channel("/home/u/.cache/ms-playwright/chromium-123/chrome-linux/chrome"), "chromium")
         self.assertEqual(runtime.chrome_channel("/opt/google/chrome/chrome"), "chrome")
 
     def test_engine_dir(self):

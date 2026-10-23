@@ -290,8 +290,9 @@ def missing_tools(*tools):
     except office.OfficeError:
         need.append("soffice")
     if runtime.chrome_channel() == "chromium":
+        node_modules = runtime.engine_path(runtime.runtime_root(), "report-forge") / "node_modules"
         p = subprocess.run(["node", "-e", "const p=require('playwright').chromium.executablePath();require('fs').accessSync(p);"],
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, env=dict(os.environ, NODE_PATH=str(node_modules)))
         if p.returncode:
             need.append("Playwright Chromium")
     elif not pathlib.Path(runtime.CHROME).is_file():

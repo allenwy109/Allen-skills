@@ -29,9 +29,16 @@ def _executable(env_name, candidates):
     return candidates[0]
 
 
+def _playwright_chromium():
+    """返回用户缓存中最新的 Playwright Chromium；没有时返回空字符串。"""
+    cache = pathlib.Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or pathlib.Path.home() / ".cache" / "ms-playwright")
+    found = sorted(cache.glob("chromium-*/chrome-linux*/chrome"), reverse=True)
+    return str(found[0]) if found else ""
+
+
 CHROME = _executable("ALLEN_CHROME", (
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "google-chrome", "google-chrome-stable", "chromium", "chromium-browser",
+    "google-chrome", "google-chrome-stable", _playwright_chromium(), "chromium", "chromium-browser",
 ))
 SOFFICE_APP = _executable("ALLEN_SOFFICE", (
     "/Applications/LibreOffice.app/Contents/MacOS/soffice", "soffice", "libreoffice",
@@ -40,8 +47,8 @@ SOFFICE_APP = _executable("ALLEN_SOFFICE", (
 
 def chrome_channel(path=None):
     """Playwright 的系统浏览器渠道；Linux Chromium 使用单独下载的 chromium 渠道。"""
-    name = pathlib.Path(path or CHROME).name.lower()
-    return "chromium" if "chromium" in name else "chrome"
+    location = str(path or CHROME).lower()
+    return "chromium" if "chromium" in location else "chrome"
 
 
 class RuntimeNotFound(RuntimeError):
