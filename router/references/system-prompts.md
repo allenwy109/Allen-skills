@@ -1,6 +1,6 @@
 # 场景系统提示词模板
 
-把某个场景封装成独立应用（Claude 项目、Agent SDK 应用、固定入口）时使用。提示词只做三件事：说明角色、指向场景 skill、写明不可跳过的规则。具体流程全部留在 skill 里，避免两处不一致。
+把某个场景封装成独立应用（Claude 项目、Codex 项目、Agent SDK 应用、固定入口）时使用。提示词只做三件事：说明角色、指向场景 skill、写明不可跳过的规则。具体流程全部留在 skill 里，避免两处不一致。
 
 使用前提：本仓库的 skill 已经用 `install.sh` 安装到同一个 skills 目录；要出正式报告、图表、海报，还要装渲染依赖（`install.sh --render-deps`，见 INSTALL.md）。
 

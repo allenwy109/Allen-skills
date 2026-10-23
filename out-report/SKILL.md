@@ -133,3 +133,13 @@ out_report finish <任务> [--slug main]
 - 中断后：`out_report step <任务> resume`（只读，看待办、阻塞和需要重新核实的项），`step next` 看下一步。
 - 引擎遇到残留锁会明确报错；确认原进程已退出后，按引擎文档用 `report.cjs recover-lock` 处理。
 - 修订：改 slides.json 或证据账 → refresh → 重新提交受影响的清单项 → 从 compile 往下重走。已完成的审查快照可以用引擎的 `reuse` 准备继承草稿，变化的页仍要重新审查。
+
+## 8. 四个应用的双交付
+
+从 allen-company、allen-capital、allen-ecosystem 或 allen-bp-review 进入时，报告完成后还要运行：
+
+```bash
+python3 <运行时>/tools/package_support.py <任务文件夹>
+```
+
+它生成 `08_deliverables/supporting-package.zip` 并登记为独立验收条目。主报告和支撑文件包都经过成品审查后，app_runtime 才允许完成任务。

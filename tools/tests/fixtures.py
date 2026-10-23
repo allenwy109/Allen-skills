@@ -2,8 +2,9 @@
 import os
 import pathlib
 import shutil
+import subprocess
 
-from tools.lib import office
+from tools.lib import office, runtime
 from tools.lib.ledger import Ledger
 
 
@@ -288,6 +289,13 @@ def missing_tools(*tools):
         office.soffice_path()
     except office.OfficeError:
         need.append("soffice")
+    if runtime.chrome_channel() == "chromium":
+        p = subprocess.run(["node", "-e", "const p=require('playwright').chromium.executablePath();require('fs').accessSync(p);"],
+                           capture_output=True, text=True)
+        if p.returncode:
+            need.append("Playwright Chromium")
+    elif not pathlib.Path(runtime.CHROME).is_file():
+        need.append("Google Chrome")
     return need
 
 

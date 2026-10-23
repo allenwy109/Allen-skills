@@ -65,8 +65,9 @@ L2 起都交正式报告。正式报告、图表、海报只走本系统的 core
 
 1. **故事线**：`../core-storyline/` 协作模式，从 `06_synthesis.md`、`04_analysis/` 和证据账整理卡片、主线、内容稿和 slides.json。只用已经核实过的内容，不补新事实。用了 core-diligence 时，尽调报告先用 `<运行时>/tools/bridge/diligence_to_manuscript.py` 转成母版，再按"仅拆页"从阶段 5 开始（见 core-diligence 第 6 节）。
 2. **正式报告**：`../out-report/`，产出 `08_deliverables/report/`（HTML + PDF）和讲者备注。
-3. **按需**：单张可编辑图表用 `../out-chart/`（`08_deliverables/charts/`）；一页海报用 `../out-poster/`（`08_deliverables/poster/`）。
-4. 用了 core-diligence 时，底稿、台账、计算底稿、资料请求清单、访谈提纲放进 `08_deliverables/diligence/`；资料请求清单发出前要用户授权。
-5. 成品审查员审完成品，结论写进 acceptance.json。
+3. **应用支撑包**：从 allen-company、allen-capital 或 allen-ecosystem 进入时，运行 `<运行时>/tools/package_support.py <任务文件夹>`，产出 `08_deliverables/supporting-package.zip`。默认不收录用户原件和内部企业名单。
+4. **按需**：单张可编辑图表用 `../out-chart/`（`08_deliverables/charts/`）；一页海报用 `../out-poster/`（`08_deliverables/poster/`）。
+5. 用了 core-diligence 时，底稿、台账、计算底稿、资料请求清单、访谈提纲进入支撑包；资料请求清单发出前要用户授权。
+6. 成品审查员分别审查主报告和支撑文件包，结论写进 acceptance.json。
 
 渲染依赖没装好（`<运行时>/tools/doctor.py` 不通过）时，告诉用户运行 `install.sh --render-deps`，先交 `06_synthesis.md` 和故事线稿件，并在回复里写明正式报告尚未生成；不要用其他方式拼一份报告冒充。

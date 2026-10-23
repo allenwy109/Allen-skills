@@ -46,6 +46,14 @@ class RuntimeRootTest(unittest.TestCase):
 
 
 class EngineAndVenvTest(unittest.TestCase):
+    def test_platform_executables_are_strings(self):
+        self.assertTrue(runtime.CHROME)
+        self.assertTrue(runtime.SOFFICE_APP)
+
+    def test_chrome_channel_distinguishes_chromium(self):
+        self.assertEqual(runtime.chrome_channel("/usr/bin/chromium"), "chromium")
+        self.assertEqual(runtime.chrome_channel("/opt/google/chrome/chrome"), "chrome")
+
     def test_engine_dir(self):
         with tempfile.TemporaryDirectory() as t:
             rt = make_runtime(pathlib.Path(t))

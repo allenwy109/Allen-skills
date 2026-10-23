@@ -1,27 +1,38 @@
 # Allen 的方法论 Skills
 
-一套用 Claude skill 搭起来的分析系统：给它一家企业、一个话题、一份商业计划书或一个个人问题，它会拆问题、选对方法、联网核实关键事实、用独立的审查者挑毛病，最后经故事线整理，交付带图表和版式的正式报告（HTML + PDF），按需加可编辑图表和海报。用户可以直接附 PDF、Word、PPT。
+一套可在 Claude Code 和 Codex 中使用的 Agent Skills 分析系统：给它一家企业、一个话题、一份商业计划书或一个个人问题，它会拆问题、选对方法、联网核实关键事实、用独立的审查者挑毛病，最后经故事线整理。四个企业应用固定交付一份主报告（HTML + PDF）和一份支撑文件包（ZIP）。用户可以直接附 PDF、Word、PPT。
 
 整体设计见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
 ## 安装
 
-这套 skill 可以在 Claude Code、Claude Code 网页版、claude.ai 聊天、Agent SDK 里用，但能力不同（联网核实、独立子代理审查、正式报告）。**先看 [INSTALL.md](INSTALL.md) 的对比表，再选在哪里用。**
+这套 skill 可以在 Claude Code、Codex、claude.ai 聊天、Agent SDK 里用，但能力不同（联网核实、独立子代理审查、正式报告）。**先看 [INSTALL.md](INSTALL.md) 的对比表，再选在哪里用。**
 
-最常用的方式是 Claude Code：
+Claude Code 和 Codex 的安装方式：
 
 ```bash
 git clone https://github.com/allenwy109/Allen-skills.git
 cd Allen-skills
-./install.sh                 # 装到 ~/.claude/skills（skill + 运行时 _allen-runtime）
-./install.sh --render-deps   # 出正式报告、图表、海报所需的依赖（macOS，需 Homebrew）
+./install.sh --claude        # Claude Code：~/.claude/skills
+./install.sh --codex         # Codex：~/.codex/skills
+./install.sh --both          # 两边都装
+./install.sh --codex --render-deps  # 额外准备正式报告、图表、海报的依赖
 ```
 
 上传到 claude.ai 时，先运行 `python3 tools/build-zips.py` 打包，每个 skill 一个 zip（out-* 依赖本机引擎，不打包）。
 
 ## 怎么用
 
-直接说要做什么即可，router 会判断场景：
+四个企业应用可以明确调用，命令后直接写要求并附文件：
+
+| 应用 | Claude Code | Codex | 处理重点 |
+|---|---|---|---|
+| 了解企业 | `/allen-company` | `/prompts:allen-company` 或 `$allen-company` | 企业全景、团队与人才价值 |
+| 资本市场对接与表现 | `/allen-capital` | `/prompts:allen-capital` 或 `$allen-capital` | 融资阶段、资本匹配、我方参与方式 |
+| 上下游机会 | `/allen-ecosystem` | `/prompts:allen-ecosystem` 或 `$allen-ecosystem` | 客户、供应商、渠道、技术与交付伙伴 |
+| 评审 BP | `/allen-bp-review` | `/prompts:allen-bp-review` 或 `$allen-bp-review` | 证据、内容、故事线和逐页修改 |
+
+也可以直接说要做什么，由 router 判断：
 
 - “帮我分析一下 XX 公司，我们在考虑和它合作。”
 - “研究一下 2026 年国内储能行业，值不值得进？”
@@ -34,6 +45,10 @@ cd Allen-skills
 
 | 层 | Skill | 用途 |
 |---|---|---|
+| 应用 | [allen-company](allen-company/) | 了解企业，含团队和人才价值 |
+| 应用 | [allen-capital](allen-capital/) | 判断资本市场对接、融资表现与参与方式 |
+| 应用 | [allen-ecosystem](allen-ecosystem/) | 分析上下游和产业协同机会 |
+| 应用 | [allen-bp-review](allen-bp-review/) | 评审 BP 的证据、内容、故事线和页面表达 |
 | 入口 | [router](router/) | 判断场景和投入深度，建任务文件夹；附各场景的系统提示词模板 |
 | 场景 | [scene-company](scene-company/) | 给一家企业：诊断、合作、投资、内部管理 |
 | 场景 | [scene-topic](scene-topic/) | 给一个话题或行业：研究并给出判断 |
@@ -71,7 +86,7 @@ lib-*/
 
 研究、尽调、故事线三项能力（core-research、core-diligence、core-storyline）是参照上游的能力说明用自己的话和代码重写的，没有复制上游文字和代码。
 
-`tools/` 是公共运行时：统一证据账（`tools/lib/ledger.py`，字段只在 `tools/lib/schema/` 里定义）、三个转换脚本（`tools/bridge/`）、统一验收（`tools/acceptance.py`）、环境检查（`tools/doctor.py`）。安装后它和 vendor 一起放在 `~/.claude/skills/_allen-runtime`。
+`tools/` 是公共运行时：统一证据账（`tools/lib/ledger.py`，字段只在 `tools/lib/schema/` 里定义）、应用状态机（`tools/app_runtime.py`）、支撑包生成器（`tools/package_support.py`）、统一验收（`tools/acceptance.py`）、环境检查（`tools/doctor.py`）。安装后它和 vendor 一起放在对应平台的 skills 目录下：Claude Code 是 `~/.claude/skills/_allen-runtime`，Codex 是 `~/.codex/skills/_allen-runtime`。
 
 ## 维护
 

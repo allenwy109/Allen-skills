@@ -5,7 +5,9 @@
 按功能拆开：流程只写一份（在场景里），选方法、核实、研究、尽调、故事线各成一个能力 skill，事实只记在一个证据账里，成品只经输出层出，最后由独立审查和统一验收把关。
 
 ```
-入口        router：判断场景，定深度（L1 快答 / L2 标准 / L3 深度；深度的唯一标准），建任务文件夹
+应用入口    allen-company   allen-capital   allen-ecosystem   allen-bp-review
+             │  锁定系统提示词和场景；app_runtime 状态机防止只摘要后退出
+通用入口    router：没有明确点名应用时判断场景，定深度，建任务文件夹
              │
 接收        core-intake：用户附的 PDF / Word / PPT → 逐页全文、页面图片、表格，登记进证据账
              │
@@ -25,7 +27,7 @@
 输出层      out-report（HTML + PDF）  out-chart（PPTX + PNG + HTML）  out-poster（PNG + HTML）
              │
 引擎        vendor/report-forge  vendor/thinkcell-charts  vendor/onepager（Apache-2.0，固定版本，只经 out-* 调用）
-公共        tools/lib（统一证据账、schema、运行时路径）  tools/bridge（三个转换脚本）  tools/acceptance.py
+公共        tools/lib（统一证据账、schema、运行时路径）  tools/app_runtime.py  tools/package_support.py  tools/acceptance.py
 ```
 
 ## 三条边界
@@ -57,7 +59,7 @@ work/<日期>-<主题>/
 ├── 05_review-log.md     core-review
 ├── 06_synthesis.md      core-synthesis
 ├── 07_storyline/        core-storyline 的稿件、slides.json；引擎过程目录 forge-work/、poster-work/
-└── 08_deliverables/     只放交付物：report/、charts/、poster/、research-package/、diligence/、acceptance.json
+└── 08_deliverables/     主报告 report/、supporting-package.zip、按需附属交付物、acceptance.json
 ```
 
 L1 快答不建文件夹，内容直接写在回答里。完整的目录树在 router 第 3 节。
@@ -68,7 +70,7 @@ L1 快答不建文件夹，内容直接写在回答里。完整的目录树在 r
 2. 分析和综合引用主张 `[cl-0003]` 或原文定位 `[M004 p12]`。
 3. 故事线把主张组织成卡片 `card-0012`，稿件里写 `〔card-0012｜M004 p12〕`。
 4. 转换脚本把 slides.json 翻成引擎输入，数字一律写成 `{{metric:m-0001}}` 由引擎绑定；台账外的数字、未核实却以事实呈现的说法会被拦下。
-5. 成品登记进 `08_deliverables/acceptance.json`，前置检查（故事线检查、研究包 `--final`、尽调检查、引擎验收）全部通过、成品审查员独立审查后，才判定"已完成"。
+5. 主报告和支撑文件包分别登记进 `08_deliverables/acceptance.json`；两者的前置检查与成品审查都通过后，应用状态机才允许判定“已完成”。
 
 ## 审查
 
@@ -87,11 +89,12 @@ L1 快答不建文件夹，内容直接写在回答里。完整的目录树在 r
 - 正式报告、图表、海报只能经 out-* 出：vendor 引擎目录里没有 SKILL.md，不会被单独触发；场景只指向 core-storyline 和 out-*。
 - 引擎的生产记录只能经 report.cjs 统一入口写，否则过不了引擎的验收和打包门禁。
 - 只有 acceptance.json 能判定"已完成"，它会重新计算前置检查和成品哈希；成品被改动后状态自动失效。
+- 四个应用入口必须经 app_runtime 逐阶段推进；缺少阶段文件、主报告或支撑文件包时不能提前结束。
 - `validate.py` 拦下对不存在的 skill 的引用，场景只能指向本系统的 skill。
 
 ## 依赖
 
-三个引擎按 `vendor/vendor.lock` 的固定 commit 和文件哈希放在仓库里，补丁在 `vendor/patches/`，`tools/vendor_sync.py check` 和 validate.py 会核对。出成品要 `install.sh --render-deps` 装好的依赖（Node.js 20+、Python 3.10+ 虚拟环境、Google Chrome、Playwright Chromium、Poppler、Tesseract、Pandoc、LibreOffice），`tools/doctor.py` 全部通过才能出；目前只在 macOS 上验证过。依赖不全时，场景先交综合和故事线稿件，并写明正式报告尚未生成。
+三个引擎按 `vendor/vendor.lock` 的固定 commit 和文件哈希放在仓库里，补丁在 `vendor/patches/`，`tools/vendor_sync.py check` 和 validate.py 会核对。出成品要 `install.sh --render-deps` 装好的依赖（Node.js 20+、Python 3.10+ 虚拟环境、Chrome/Chromium、Playwright Chromium、Poppler、Tesseract、Pandoc、LibreOffice），`tools/doctor.py` 全部通过才能出。安装器支持 macOS，并能在 Linux 上检查系统依赖、继续安装 Python 与 Node 依赖。依赖不全时，场景先交综合和故事线稿件，并写明正式报告尚未生成。
 
 ## 后续计划
 

@@ -5,6 +5,19 @@ description: 方法论系统的总入口。判断用户给的是一家企业、�
 
 # 总入口
 
+## 四个固定应用入口优先
+
+用户的目的明确落在下表时，直接进入对应应用，不再把材料类型当作场景。BP、公司简介、团队介绍、产品资料和官网都可以成为任一应用的输入。
+
+| 用户要做的事 | 应用 |
+|---|---|
+| 全面了解企业，含团队和人才价值 | `../allen-company/SKILL.md` |
+| 判断资本对接价值、融资表现或我方是否参与 | `../allen-capital/SKILL.md` |
+| 找客户、供应商、渠道、技术和交付伙伴 | `../allen-ecosystem/SKILL.md` |
+| 评价 BP 或路演材料写得是否可信、清楚、有说服力 | `../allen-bp-review/SKILL.md` |
+
+应用入口锁定后按它的系统提示词和 app_runtime 执行，不返回 router 重选。用户没有明确目的、任务不属于这四类时，再使用下方通用场景判断。
+
 ## 0. 用户给了文件时，先接收材料
 
 用户附了 PDF、Word 或 PPT（例如 BP、企业介绍）时，判断场景之前先做三步：
@@ -38,7 +51,7 @@ description: 方法论系统的总入口。判断用户给的是一家企业、�
 | core-research | 不用（用 core-evidence） | 话题场景必用，2–4 条研究线，只跑 `research check`，不封包 | 话题场景必用，5 条以上研究线、多轮迭代，并封包；企业、BP 场景在某个子问题是开放研究时也用 |
 | core-diligence | 不用 | Quick（按场景里的调用条件） | Standard；用户要求"深入"时用 Deep |
 | core-storyline | 不用 | 协作模式 | 协作模式 |
-| 交付 | 对话里直接回答 | 正式报告（out-report，HTML + PDF）；按需加图表（out-chart）、海报（out-poster）；用了 core-diligence 时加尽调附属交付物 | 同 L2，用了 core-research 时加研究包 |
+| 交付 | 对话里直接回答 | 四个企业应用交主报告（HTML + PDF）和支撑文件包（ZIP）；其他场景按需加图表、海报和附属交付物 | 同 L2，用了 core-research 时可另加研究包 |
 
 - 用户指定的级别优先。用户明确要求时，L2 也可以封包研究包。
 - 研究线数量只是工作量的参照；问题属于哪一级，按问题范围判断。
@@ -66,7 +79,7 @@ work/<YYYY-MM-DD>-<主题短名>/
 ├── 05_review-log.md     core-review
 ├── 06_synthesis.md      core-synthesis
 ├── 07_storyline/        core-storyline 的稿件和 slides.json；引擎过程目录 forge-work/、poster-work/ 也在这里
-└── 08_deliverables/     只放交付物：report/、charts/、poster/、research-package/、diligence/、acceptance.json
+└── 08_deliverables/     主报告 report/、supporting-package.zip、按需附属交付物、acceptance.json
 ```
 
 只有 `08_deliverables/acceptance.json` 能判定"已完成"（由 `<运行时>/tools/acceptance.py` 维护，规则见 `../core-review/references/output-standard.md`）。
@@ -79,4 +92,4 @@ work/<YYYY-MM-DD>-<主题短名>/
 
 ## 系统提示词
 
-要把某个场景封装成独立应用（例如一个只做 BP 评审的 Claude 项目）时，用 `references/system-prompts.md` 里的模板。
+要把某个场景封装成独立应用（例如一个只做 BP 评审的 Claude 或 Codex 项目）时，用 `references/system-prompts.md` 里的模板。

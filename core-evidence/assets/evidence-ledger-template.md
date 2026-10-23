@@ -12,7 +12,7 @@ python3 <运行时>/tools/lib/ledger.py <任务文件夹> render              # 
 python3 <运行时>/tools/lib/ledger.py <任务文件夹> merge A             # 并入研究线 A 的暂存记录
 ```
 
-`<运行时>` 是本仓库根目录，或安装后的 `~/.claude/skills/_allen-runtime`。
+`<运行时>` 是本仓库根目录，或安装后的 `~/.claude/skills/_allen-runtime`（Claude Code）、`~/.codex/skills/_allen-runtime`（Codex）。
 
 ## 在 Python 里写入
 

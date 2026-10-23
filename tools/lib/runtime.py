@@ -8,11 +8,40 @@
 """
 import os
 import pathlib
+import shutil
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 ENGINES = ("report-forge", "thinkcell-charts", "onepager")
-CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-SOFFICE_APP = "/Applications/LibreOffice.app/Contents/MacOS/soffice"
+
+
+def _executable(env_name, candidates):
+    override = os.environ.get(env_name)
+    if override:
+        return override
+    for candidate in candidates:
+        if "/" in candidate:
+            if pathlib.Path(candidate).is_file():
+                return candidate
+        else:
+            found = shutil.which(candidate)
+            if found:
+                return found
+    return candidates[0]
+
+
+CHROME = _executable("ALLEN_CHROME", (
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "google-chrome", "google-chrome-stable", "chromium", "chromium-browser",
+))
+SOFFICE_APP = _executable("ALLEN_SOFFICE", (
+    "/Applications/LibreOffice.app/Contents/MacOS/soffice", "soffice", "libreoffice",
+))
+
+
+def chrome_channel(path=None):
+    """Playwright 的系统浏览器渠道；Linux Chromium 使用单独下载的 chromium 渠道。"""
+    name = pathlib.Path(path or CHROME).name.lower()
+    return "chromium" if "chromium" in name else "chrome"
 
 
 class RuntimeNotFound(RuntimeError):

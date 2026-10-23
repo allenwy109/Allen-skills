@@ -120,12 +120,12 @@ def check_playwright_chromium(e, rt):
 
 
 def check_chrome(e, rt):
-    name = "Google Chrome 无头启动（报告引擎）"
+    name = "Chrome/Chromium 无头启动（报告引擎）"
     if not e.exists(CHROME):
-        return result(name, MISSING, CHROME, "安装 Google Chrome")
+        return result(name, MISSING, CHROME, "安装 Google Chrome 或 Chromium，或设置 ALLEN_CHROME")
     code, out = e.run([CHROME, "--headless=new", "--disable-gpu", "--dump-dom", "about:blank"], timeout=60)
     if code != 0:
-        return result(name, MISSING, out.strip()[-200:], "确认 Google Chrome 能正常启动")
+        return result(name, MISSING, out.strip()[-200:], "确认 Chrome/Chromium 能无头启动，必要时设置 ALLEN_CHROME")
     return result(name, PASS, CHROME)
 
 
@@ -140,10 +140,10 @@ def check_poppler(e, rt):
 def check_tesseract(e, rt):
     name = "Tesseract（含 chi_sim）"
     if not e.which("tesseract"):
-        return result(name, MISSING, "找不到 tesseract", "brew install tesseract tesseract-lang")
+        return result(name, MISSING, "找不到 tesseract", "macOS：brew install tesseract tesseract-lang；Debian/Ubuntu：sudo apt-get install tesseract-ocr tesseract-ocr-chi-sim")
     _, out = e.run(["tesseract", "--list-langs"])
     if "chi_sim" not in out.split():
-        return result(name, MISSING, "缺少中文简体语言包 chi_sim", "brew install tesseract-lang")
+        return result(name, MISSING, "缺少中文简体语言包 chi_sim", "macOS：brew install tesseract-lang；Debian/Ubuntu：sudo apt-get install tesseract-ocr-chi-sim")
     return result(name, PASS, "chi_sim 可用")
 
 
@@ -176,7 +176,7 @@ def check_forge_deps(e, rt):
 
 def check_probe(e, rt):
     name = "报告引擎能力探测（看图验证）"
-    fix = f"{RENDER_FIX}，然后在 Claude 会话里完成看图验证（tools/record_probe.py）"
+    fix = f"{RENDER_FIX}，然后在 Claude Code 或 Codex 会话里完成看图验证（tools/record_probe.py）"
     probe = pathlib.Path(rt) / ".probe.json"
     if not e.exists(str(probe)):
         return result(name, MISSING, "还没有验证记录", fix)
@@ -195,12 +195,14 @@ def check_probe(e, rt):
 def check_node_playwright(e, rt):
     name = "thinkcell 浏览器测试前提（NODE_PATH 与 TC_BROWSER_PATH）"
     node_modules = runtime.engine_path(rt, "report-forge") / "node_modules"
-    code, out = e.run(["node", "-e", "require('playwright')"], env=dict(os.environ, NODE_PATH=str(node_modules)))
+    code, out = e.run(["node", "-e", "const p=require('playwright').chromium.executablePath(); console.log(p)"],
+                      env=dict(os.environ, NODE_PATH=str(node_modules)))
     if code != 0:
         return result(name, MISSING, "NODE_PATH 下加载不到 playwright", f"cd {node_modules.parent} && npm ci")
-    if not e.exists(CHROME):
-        return result(name, MISSING, "TC_BROWSER_PATH 要指向 Google Chrome，但它不存在", "安装 Google Chrome")
-    return result(name, PASS, f"NODE_PATH={node_modules}；TC_BROWSER_PATH={CHROME}")
+    browser = out.strip().splitlines()[-1] if runtime.chrome_channel() == "chromium" and out.strip() else CHROME
+    if not e.exists(browser):
+        return result(name, MISSING, f"浏览器不存在：{browser}", f"cd {node_modules.parent} && npx playwright install chromium")
+    return result(name, PASS, f"NODE_PATH={node_modules}；浏览器={browser}")
 
 
 def check_disk(e, rt):

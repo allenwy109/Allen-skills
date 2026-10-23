@@ -43,6 +43,10 @@ BP_MD = """# 星河数据科技 商业计划书
 
 def missing_tools():
     need = [t for t in ("pandoc", "pdfinfo", "pdftotext", "pdftoppm", "tesseract") if not shutil.which(t)]
+    if "tesseract" not in need:
+        langs = subprocess.run(["tesseract", "--list-langs"], capture_output=True, text=True)
+        if langs.returncode or "chi_sim" not in langs.stdout.split():
+            need.append("tesseract chi_sim")
     try:
         office.soffice_path()
     except office.OfficeError:

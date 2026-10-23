@@ -1,3 +1,4 @@
+import os
 import pathlib
 import subprocess
 import tempfile
@@ -56,15 +57,45 @@ class InstallRuntimeTest(unittest.TestCase):
         p = subprocess.run(["bash", str(ROOT / "install.sh"), "--help"], capture_output=True, text=True)
         self.assertEqual(p.returncode, 0)
         self.assertIn("--render-deps", p.stdout)
+        self.assertIn("--codex", p.stdout)
+        self.assertIn("--both", p.stdout)
         self.assertNotIn("--forge-deps", p.stdout)
         self.assertNotIn("--remove-old", p.stdout)
 
     def test_render_deps_without_homebrew_fails_clearly(self):
-        env = {"PATH": "/usr/bin:/bin", "HOME": self.tmp.name, "LC_ALL": "en_US.UTF-8"}
+        fake_bin = pathlib.Path(self.tmp.name) / "bin"
+        fake_bin.mkdir()
+        uname = fake_bin / "uname"
+        uname.write_text("#!/bin/sh\necho Darwin\n", encoding="utf-8")
+        uname.chmod(0o755)
+        env = {"PATH": f"{fake_bin}:/usr/bin:/bin", "HOME": self.tmp.name, "LC_ALL": "en_US.UTF-8"}
         p = subprocess.run(["bash", str(ROOT / "install.sh"), "--render-deps", "--target", str(self.target)],
                            capture_output=True, text=True, env=env)
         self.assertNotEqual(p.returncode, 0)
         self.assertIn("需要 Homebrew", p.stderr)
+
+    def test_codex_uses_codex_home(self):
+        codex_home = pathlib.Path(self.tmp.name) / "codex-home"
+        env = dict(os.environ, CODEX_HOME=str(codex_home))
+        p = subprocess.run(["bash", str(ROOT / "install.sh"), "--codex", "--link"],
+                           capture_output=True, text=True, env=env)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertTrue((codex_home / "skills" / "router").is_symlink())
+        self.assertEqual((codex_home / "skills" / "_allen-runtime").resolve(), ROOT.resolve())
+        self.assertTrue((codex_home / "prompts" / "allen-company.md").is_symlink())
+        self.assertTrue((codex_home / "prompts" / "allen-bp-review.md").is_symlink())
+
+    def test_both_installs_two_platforms(self):
+        fake_home = pathlib.Path(self.tmp.name) / "home"
+        codex_home = pathlib.Path(self.tmp.name) / "codex-home"
+        env = dict(os.environ, HOME=str(fake_home), CODEX_HOME=str(codex_home))
+        p = subprocess.run(["bash", str(ROOT / "install.sh"), "--both", "--link"],
+                           capture_output=True, text=True, env=env)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertTrue((fake_home / ".claude" / "skills" / "router").is_symlink())
+        self.assertTrue((codex_home / "skills" / "router").is_symlink())
+        self.assertTrue((fake_home / ".claude" / "commands" / "allen-capital.md").is_symlink())
+        self.assertTrue((codex_home / "prompts" / "allen-ecosystem.md").is_symlink())
 
     def test_does_not_install_zerox(self):
         p = install("--target", str(self.target))

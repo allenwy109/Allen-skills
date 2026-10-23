@@ -2,7 +2,7 @@
 """完成报告引擎的能力探测验证，并记录结果（设计 §9）。
 
 前提：已运行 ./install.sh --render-deps，生成了 <运行时>/.probe-task/。
-做法：由 Claude 在会话里实际打开 <运行时>/.probe-task/vision-challenge.png，按引擎要求写 response.json：
+做法：由 Claude Code 或 Codex 在会话里实际打开 <运行时>/.probe-task/vision-challenge.png，按引擎要求写 response.json：
   {"code":"图中六字符","shape_left_to_right":["颜色 形状","颜色 形状","颜色 形状"]}
 不能读取答案文件代替看图。然后运行：
   python3 tools/record_probe.py --response <response.json>

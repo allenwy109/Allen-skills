@@ -68,6 +68,7 @@ def last_json(text):
 
 def node(*args, script="report.cjs", ok_codes=(0,)):
     env = dict(os.environ, PATH=os.pathsep.join([str(runtime.runtime_root(skill_dir=SKILL_DIR) / "tools" / "bin"), os.environ.get("PATH", "")]))
+    env.setdefault("CHROME_CHANNEL", runtime.chrome_channel())
     p = subprocess.run(["node", str(engine() / "scripts" / script), *map(str, args)], capture_output=True, text=True, env=env)
     if p.returncode not in ok_codes:
         raise StepError(f"{script} {args[0] if args else ''} 失败：{(p.stdout + p.stderr).strip()[-2000:]}")
