@@ -121,6 +121,7 @@ out_report finish <任务> [--slug main]
 
 - 复制 HTML、PDF 到 `08_deliverables/report/`，生成讲者备注。
 - 回查正文页里作者手写（没有内容绑定）的文字中的数字。
+- 尽调报告（任务里有 `03d_diligence/report-content.json`）另加 3 项：尽调检查、内容契约（拆页后复核、22 条人工清单）、完成状态（research_gate 为 partial 或 report_status 为 limited 时记为有限完成，验收最高为有条件通过）。
 - 登记验收条目 `report-<slug>`，前置检查 7 项：故事线检查（`core-storyline` 的 `storyline check` 零错误）、转换前检查、A 级卡片出现在正文、引擎正式验收、作者与独立审查、执行清单、手写文字数字回查。
 
 此时验收状态是"不通过（尚未经过成品审查）"。成品审查员按 `../core-review/references/output-standard.md` 写结论 JSON（我们自己的八项标准，含讲者备注和附录是否齐全），用 `<运行时>/tools/acceptance.py <任务> review report-<slug> <结论.json>` 写入。

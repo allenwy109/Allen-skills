@@ -1,6 +1,6 @@
 # 转换映射表
 
-我们的格式（证据账、slides.json、图表 spec）到三个引擎输入的映射，是转换脚本的唯一依据（设计 §6.3）。每个引擎一节，随对应的输出 skill 一起写定并配测试。目前已写定：thinkcell（out-chart）、onepager（out-poster）、report-forge（out-report）。
+我们的格式（证据账、slides.json、图表 spec）到三个引擎输入的映射，是转换脚本的唯一依据（设计 §6.3）。每个引擎一节，随对应的输出 skill 一起写定并配测试。目前已写定：thinkcell（out-chart）、onepager（out-poster）、report-forge（out-report），以及尽调内容到故事线母版的转换（core-diligence）。
 
 ## 公共规则（所有引擎）
 
@@ -73,3 +73,24 @@ onepager 没有"输入 → HTML"的渲染器，海报 HTML 由作者手写，所
 成品回查（out-report finish，`poster_numbers.check(report=True)`）：只查正文页里没有 `data-content-key` 的文字。绑定的文字由引擎对照蓝图核对，作者手写的图注、坐标标签不经过引擎。
 
 测试：`tools/tests/test_bridge_forge.py`（12 例）；端到端测试在 `out-report/scripts/tests/test_out_report.py`（5 例，走完统一入口的全部步骤）。
+
+## 尽调内容 → 故事线（`tools/bridge/diligence_to_manuscript.py`，用于 core-diligence）
+
+不是引擎转换，而是把通过校验的 `03d_diligence/report-content.json` 机械转成 core-storyline 的输入，不改写结论。
+
+| report-content | 故事线 | 规则 |
+|---|---|---|
+| 内容块 | 母版里 `<!-- block:<章节ID>-<序号> -->` 标记 + 渲染后的文字；block_map.json 一行 | ID 规则与 core-diligence 的 `dcontent.block_ids` 相同（有测试保证） |
+| 块引用的证据 | 证据支持的主张 → 卡片引用〔card-…｜来源 定位〕，放在句末标点之前 | 同一主张只建一张卡；卡片 value_tier 按主张 materiality（critical、major → A；minor → B） |
+| 只引用了证据、没有主张的块 | 补登主张：kind 按证据属性（actual → fact，数值证据 → data；forecast → forecast；estimate → estimate；opinion → third_party_view）；verification 按独立来源组数（≥2 → verified，否则 single_source） | 期间、单位取自证据；限制按来源等级写（只有 C、D 级时写"只有公司自己的材料，未经独立核实"）；estimate、forecast 写 assumptions |
+| 指标卡、图表里的数值 | 补登主张时同时登记证据账指标（null → missing，不填 0），写进主张的 metric_refs | 小数位按数值本身 |
+| explanation | "### 标题" + 正文 + "限制：…" | 卡片的"含义"取主张 inference，为空时取该主题解释的首句 |
+| 图、表、矩阵、关系图、流程、时间线、人物卡、图片 | 母版里的表格或列表（图写单位、期间、主体名称、图型和数据表；流程注明是否按顺序；关系图注明布局不表示层级） | 拆页时由作者决定页面形式（out-report 的形式对应见 core-diligence/references/report-content.md 第 8 节） |
+| project 表 | 00_story-brief.md（7 项，没有的标"假设"） | |
+| sources | 01_materials_index.md | 处理状态按 access：full → 读完；partial → 读至部分 |
+| 章节和主题 | 03_storyline.md 的结构树；故事线模式：公司研究 → "公司研究"，其他目的 → "尽调结论" | 主线确认点记为 auto_adopted（由内容契约决定） |
+| 风险、缺口、scope_note | 缺少时补"风险与未知"（专项为"风险与红旗"）、"补齐路径"、"方法与局限"三节 | |
+
+拆页后复核：`diligence check-content --after-split` 用 block_map.json 和 slides.json 的 block_ids 核对每个块都落到页上、时间线与公司身份同章、人物卡不与公司身份同章，并重跑全部内容规则。
+
+测试：`core-diligence/scripts/tests/test_pipeline.py`（转母版 6 例；端到端 2 例：尽调 → 转母版 → 拆页 → 故事线检查 → 拆页后复核 → out-report → 验收通过）。
