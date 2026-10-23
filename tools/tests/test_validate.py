@@ -1,0 +1,76 @@
+import pathlib
+import shutil
+import subprocess
+import tempfile
+import unittest
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+
+def copy_repo(dst):
+    shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(".git", "node_modules", ".font-venv", "__pycache__", ".probe-task"))
+
+
+class ValidateTest(unittest.TestCase):
+    def run_validate(self, root):
+        return subprocess.run(["python3", str(root / "tools" / "validate.py")], capture_output=True, text=True)
+
+    def test_repo_passes(self):
+        p = self.run_validate(ROOT)
+        self.assertEqual(p.returncode, 0, p.stdout)
+
+    def test_tampered_vendor_file_fails(self):
+        with tempfile.TemporaryDirectory() as t:
+            copy = pathlib.Path(t) / "repo"
+            copy_repo(copy)
+            with open(copy / "vendor" / "onepager" / "LICENSE.txt", "a", encoding="utf-8") as f:
+                f.write("tamper\n")
+            p = self.run_validate(copy)
+            self.assertEqual(p.returncode, 1)
+            self.assertIn("vendor：文件被改动：onepager/LICENSE.txt", p.stdout)
+
+    def test_missing_lock_fails(self):
+        with tempfile.TemporaryDirectory() as t:
+            copy = pathlib.Path(t) / "repo"
+            copy_repo(copy)
+            (copy / "vendor" / "vendor.lock").unlink()
+            p = self.run_validate(copy)
+            self.assertEqual(p.returncode, 1)
+            self.assertIn("vendor：缺少", p.stdout)
+
+    def test_unknown_token_in_core_evidence_docs_fails(self):
+        with tempfile.TemporaryDirectory() as t:
+            copy = pathlib.Path(t) / "repo"
+            copy_repo(copy)
+            with open(copy / "core-evidence" / "references" / "source-tiers.md", "a", encoding="utf-8") as f:
+                f.write("\n多余的 `foo_bar` 词\n")
+            p = self.run_validate(copy)
+            self.assertEqual(p.returncode, 1)
+            self.assertIn("`foo_bar` 不是 ledger schema 里的字段、表名或枚举值", p.stdout)
+
+    def test_broken_schema_fails(self):
+        with tempfile.TemporaryDirectory() as t:
+            copy = pathlib.Path(t) / "repo"
+            copy_repo(copy)
+            f = copy / "tools" / "lib" / "schema" / "sidecar.schema.json"
+            f.write_text(f.read_text(encoding="utf-8").replace('"enum": "confirmation_stage"', '"enum": "nope"'), encoding="utf-8")
+            p = self.run_validate(copy)
+            self.assertEqual(p.returncode, 1)
+            self.assertIn("引用了不存在的枚举 nope", p.stdout)
+
+    def test_does_not_need_zerox_lock(self):
+        self.assertFalse((ROOT / "zerox.lock").exists())
+
+    def test_reference_to_zerox_skill_fails(self):
+        with tempfile.TemporaryDirectory() as t:
+            copy = pathlib.Path(t) / "repo"
+            copy_repo(copy)
+            with open(copy / "scene-company" / "SKILL.md", "a", encoding="utf-8") as f:
+                f.write("\n若已安装 `../zerox-storyline/`，先用它。\n")
+            p = self.run_validate(copy)
+            self.assertEqual(p.returncode, 1)
+            self.assertIn("引用了不存在的 skill ../zerox-storyline/", p.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

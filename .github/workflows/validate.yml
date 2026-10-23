@@ -13,9 +13,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: 单元测试
+        run: python3 -m unittest discover -s tools/tests -t .
+      - name: skill 脚本测试（缺外部工具的端到端测试会跳过）
+        run: for d in */scripts/tests; do python3 -m unittest discover -s "$d" -t "$d" || exit 1; done
       - name: 检查 skill 结构
         run: python3 tools/validate.py
       - name: 检查安装脚本语法
         run: bash -n install.sh
-      - name: 试装（不含 zerox）
-        run: ./install.sh --no-zerox --target "$RUNNER_TEMP/skills" && test -f "$RUNNER_TEMP/skills/router/SKILL.md"
+      - name: 试装（不装渲染依赖）
+        run: ./install.sh --target "$RUNNER_TEMP/skills" && test -f "$RUNNER_TEMP/skills/router/SKILL.md" && test -f "$RUNNER_TEMP/skills/_allen-runtime/vendor/vendor.lock"

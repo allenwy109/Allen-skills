@@ -1,0 +1,4 @@
+# 出成品所需的 Python 包：thinkcell-charts（python-pptx、openpyxl）与 onepager（playwright）的需求并集
+python-pptx>=1.0
+openpyxl>=3.1
+playwright>=1.40,<2.0

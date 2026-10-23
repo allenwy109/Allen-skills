@@ -1,0 +1,241 @@
+{
+ "version": "1.2",
+ "title": "{{待填写：报告标题，写判断}}",
+ "subtitle": "{{待填写：研究对象与基准日}}",
+ "language": "zh-CN",
+ "summary": "{{待填写：首屏说明研究谁、截至何时、回答什么决策、核心判断是什么}}",
+ "scope_note": "{{待填写：约定范围、资料覆盖与限制}}",
+ "sections": [
+  {
+   "id": "company-profile",
+   "title": "{{待填写：公司是谁（写判断）}}",
+   "blocks": [
+    {
+     "type": "explanation",
+     "topic": "identity",
+     "title": "这是一家什么公司",
+     "text": "{{待填写}}",
+     "status": "unknown",
+     "evidence_ids": [],
+     "limitations": "{{待填写}}"
+    },
+    {
+     "type": "timeline",
+     "purpose": "company_history",
+     "title": "{{待填写：公司时间线}}",
+     "items": [
+      {
+       "title": "{{待填写}}",
+       "text": "{{待填写}}",
+       "evidence_ids": [],
+       "date": "{{YYYY 或 YYYY-MM-DD}}",
+       "status": "completed"
+      }
+     ]
+    },
+    {
+     "type": "explanation",
+     "topic": "history_team",
+     "title": "从哪里来",
+     "text": "{{待填写}}",
+     "status": "unknown",
+     "evidence_ids": [],
+     "limitations": "{{待填写}}"
+    }
+   ]
+  },
+  {
+   "id": "founders-team",
+   "title": "{{待填写：谁在经营}}",
+   "blocks": [
+    {
+     "type": "people",
+     "title": "核心人物",
+     "profiles": [
+      {
+       "name": "{{待填写}}",
+       "role": "{{待填写}}",
+       "period": "{{待填写}}",
+       "background": "{{待填写}}",
+       "contribution": "{{待填写}}",
+       "limitations": "{{待填写}}",
+       "evidence_ids": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "products-customers",
+   "title": "{{待填写：卖什么、卖给谁}}",
+   "blocks": [
+    {
+     "type": "explanation",
+     "topic": "offering",
+     "title": "卖什么",
+     "text": "{{待填写}}",
+     "status": "unknown",
+     "evidence_ids": [],
+     "limitations": "{{待填写}}"
+    },
+    {
+     "type": "explanation",
+     "topic": "customers_markets",
+     "title": "卖给谁",
+     "text": "{{待填写}}",
+     "status": "unknown",
+     "evidence_ids": [],
+     "limitations": "{{待填写}}"
+    }
+   ]
+  },
+  {
+   "id": "business-model",
+   "title": "{{待填写：业务怎样运转}}",
+   "blocks": [
+    {
+     "type": "explanation",
+     "topic": "transaction_flow",
+     "title": "一笔业务怎么走",
+     "text": "{{待填写}}",
+     "status": "unknown",
+     "evidence_ids": [],
+     "limitations": "{{待填写}}"
+    },
+    {
+     "type": "process",
+     "purpose": "business_model",
+     "ordering": "conceptual",
+     "title": "{{待填写：业务模式图}}",
+     "items": [
+      {
+       "title": "{{待填写}}",
+       "text": "{{待填写}}",
+       "basis": "unknown",
+       "evidence_ids": []
+      },
+      {
+       "title": "{{待填写}}",
+       "text": "{{待填写}}",
+       "basis": "unknown",
+       "evidence_ids": []
+      }
+     ]
+    },
+    {
+     "type": "explanation",
+     "topic": "operating_model",
+     "title": "谁做什么",
+     "text": "{{待填写}}",
+     "status": "unknown",
+     "evidence_ids": [],
+     "limitations": "{{待填写}}"
+    },
+    {
+     "type": "explanation",
+     "topic": "revenue_costs",
+     "title": "怎样赚钱",
+     "text": "{{待填写}}",
+     "status": "unknown",
+     "evidence_ids": [],
+     "limitations": "{{待填写}}"
+    }
+   ]
+  },
+  {
+   "id": "financial-performance",
+   "title": "{{待填写：经营结果}}",
+   "blocks": [
+    {
+     "type": "explanation",
+     "topic": "financial_performance",
+     "title": "营收与利润",
+     "text": "{{待填写}}",
+     "status": "unknown",
+     "evidence_ids": [],
+     "limitations": "{{待填写}}"
+    },
+    {
+     "type": "chart",
+     "chart_type": "column",
+     "title": "{{待填写}}",
+     "unit": "{{待填写}}",
+     "period": "{{待填写}}",
+     "entity_id": "ENT-0001",
+     "kind": "actual",
+     "evidence_ids": [],
+     "note": "{{待填写}}",
+     "points": [
+      {
+       "label": "{{待填写}}",
+       "value": null
+      },
+      {
+       "label": "{{待填写2}}",
+       "value": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "marketing-growth",
+   "title": "{{待填写：怎样获客}}",
+   "blocks": [
+    {
+     "type": "explanation",
+     "topic": "marketing",
+     "title": "营销与获客",
+     "text": "{{待填写}}",
+     "status": "unknown",
+     "evidence_ids": [],
+     "limitations": "{{待填写}}"
+    }
+   ]
+  },
+  {
+   "id": "competitive-landscape",
+   "title": "{{待填写：和谁竞争}}",
+   "blocks": [
+    {
+     "type": "explanation",
+     "topic": "competition",
+     "title": "竞争与替代",
+     "text": "{{待填写}}",
+     "status": "unknown",
+     "evidence_ids": [],
+     "limitations": "{{待填写}}"
+    },
+    {
+     "type": "explanation",
+     "topic": "differentiation",
+     "title": "为什么选它",
+     "text": "{{待填写}}",
+     "status": "unknown",
+     "evidence_ids": [],
+     "limitations": "{{待填写}}"
+    }
+   ]
+  },
+  {
+   "id": "material-risks",
+   "title": "{{待填写：重大风险与未知}}",
+   "blocks": [
+    {
+     "type": "text",
+     "text": "{{待填写}}"
+    }
+   ]
+  },
+  {
+   "id": "decision",
+   "title": "{{待填写：推进条件}}",
+   "blocks": [
+    {
+     "type": "text",
+     "text": "{{待填写}}"
+    }
+   ]
+  }
+ ]
+}

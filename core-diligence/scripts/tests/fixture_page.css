@@ -1,0 +1,5 @@
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:32px;align-items:center}
+.panel{display:flex;flex-direction:column;justify-content:center;gap:10px;font-size:16px}
+.limit{font-size:14px;color:#55606b}
+.extra{font-size:14px}
+.takeaway{font-size:18px;font-weight:600}

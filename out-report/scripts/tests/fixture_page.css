@@ -1,0 +1,11 @@
+.two-col{display:grid;gap:40px;align-items:stretch}
+.wide-left{grid-template-columns:3fr 2fr}
+.wide-right{grid-template-columns:2fr 3fr}
+.panel-center{display:flex;flex-direction:column;justify-content:center}
+.panel-text{display:flex;flex-direction:column;justify-content:center;gap:14px}
+.panel-text h2{font-size:20px;margin:0}
+.kpi-card{padding:28px 24px}
+.kpi-value{font-size:28px;font-weight:600;margin:8px 0 14px}
+.kpi-label{font-size:16px}
+.kpi-note{font-size:15px;line-height:1.6}
+.takeaway{font-size:18px;font-weight:600}

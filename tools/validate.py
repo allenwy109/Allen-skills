@@ -4,9 +4,11 @@
 用法：python3 tools/validate.py
 检查项：
 1. 每个 skill 目录有 SKILL.md，frontmatter 的 name 和目录名一致，description 不为空且不超过 1024 字。
-2. SKILL.md 和 references 里出现的 ../<skill>/ 引用，都指向本仓库的 skill 或 zerox.lock 里登记的 zerox skill。
+2. SKILL.md 和 references 里出现的 ../<skill>/ 引用，都指向本仓库的 skill。
 3. 每张方法卡片都有必备的几节，且在本库的 method-index.md 里被登记。
 4. 方法库 SKILL.md 的选法表是四列（情况、首选、前提、换用）。
+5. vendor/ 下的引擎与 vendor.lock 一致，且没有残留的 SKILL.md。
+6. tools/lib/schema/ 下的 schema 文件通过自检；core-evidence 文档里用反引号写出的字段名和枚举值都在 ledger schema 里。
 发现错误时以非零状态退出。
 """
 import pathlib
@@ -19,15 +21,9 @@ CARD_SECTIONS = ["## 它解决什么问题", "## 什么时候换用别的", "## 
 errors, warnings = [], []
 
 
-def zerox_skills():
-    text = (ROOT / "zerox.lock").read_text(encoding="utf-8")
-    m = re.search(r'^ZEROX_SKILLS="([^"]*)"', text, re.M)
-    return set(m.group(1).split()) if m else set()
-
-
 skills = sorted(p.parent for p in ROOT.glob("*/SKILL.md"))
 names = {p.name for p in skills}
-known = names | zerox_skills()
+known = names
 
 for s in skills:
     text = (s / "SKILL.md").read_text(encoding="utf-8")
@@ -71,6 +67,34 @@ for lib in [s for s in skills if s.name.startswith("lib-")]:
         cols = [c.strip() for c in header.split("|")]
         if len(cols) != 4 or cols[2] != "前提" or cols[3] != "换用":
             errors.append(f"{lib.name}/SKILL.md：选法表不是“情况 | 首选 | 前提 | 换用”四列：{header.strip()}")
+
+vendor_dir = ROOT / "vendor"
+if vendor_dir.is_dir():
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from tools import vendor_sync
+
+    for e in vendor_sync.check(vendor_dir):
+        errors.append("vendor：" + e)
+
+schema_dir = ROOT / "tools" / "lib" / "schema"
+if schema_dir.is_dir():
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from tools.lib import schema_check
+
+    for f in sorted(schema_dir.glob("*.schema.json")):
+        for e in schema_check.self_check(schema_check.load(f)):
+            errors.append(f"{f.relative_to(ROOT)}：{e}")
+    ledger_schema = schema_check.load("ledger.schema.json")
+    vocabulary = {v for e in ledger_schema["enums"].values() for v in e["values"]}
+    vocabulary |= {k for t in ledger_schema["tables"].values() for k in t["fields"]}
+    vocabulary |= set(ledger_schema["tables"])
+    vocabulary |= {"init", "check", "render", "merge"}  # ledger.py 的子命令
+    for doc in [ROOT / "core-evidence" / "SKILL.md", *sorted((ROOT / "core-evidence" / "references").glob("*.md"))]:
+        for token in re.findall(r"`([a-z][a-z_]*)`", doc.read_text(encoding="utf-8")):
+            if token not in vocabulary:
+                errors.append(f"{doc.relative_to(ROOT)}：`{token}` 不是 ledger schema 里的字段、表名或枚举值")
 
 for w in warnings:
     print("提示：" + w)
