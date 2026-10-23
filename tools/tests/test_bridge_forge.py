@@ -83,6 +83,15 @@ class BuildTest(unittest.TestCase):
         claims = self.build()["blueprint"]["claims"]
         self.assertEqual(claims[0]["verification"], "provided")
 
+    def test_only_web_links_reach_references(self):
+        self.led.patch("sources", "M001", {"origin": "user", "url": "file:星河-年报摘要.pdf"})
+        ref = self.build()["references"][0]
+        self.assertNotIn("url", ref)
+        self.assertEqual(ref["kind"], "用户提供材料")
+        self.assertEqual(self.build()["blueprint"]["sources"]["M001"]["locator"], "用户提供材料 · p12、p30")
+        self.led.patch("sources", "M001", {"origin": "web", "url": "ftp://example.com/a.pdf"})
+        self.assertNotIn("url", self.build()["references"][0])
+
     def test_blocks_bare_number(self):
         slides = copy.deepcopy(self.slides)
         self.page(slides, 2)["proves"] = "收入从 1800 万元增至 3200 万元，毛利 999 万元"

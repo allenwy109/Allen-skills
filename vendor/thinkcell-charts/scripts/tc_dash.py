@@ -261,7 +261,9 @@ def page_frame(sl, sp):
     if sp.get("note"): rich(sl, tc_core.SW-4.6, 0.18 + size/72*1.7, 4.4, 0.3, sp["note"], size=7, align="r", wrap=True, color="#7F7F7F")
     fy = tc_core.SH-0.12; lines_ = sp.get("footnotes", [])
     src = sp.get("source")
-    allf = ([[dict(text="Source: "), *([dict(text=src)] if isinstance(src, str) else src)]] if src else [[dict(text="Source: [missing – add source]", color="#C00000")]]) + [l if isinstance(l, list) else [dict(text=l)] for l in lines_]
+    src_text = src if isinstance(src, str) else "".join(s.get("text", "") for s in (src or []))
+    label = "来源：" if any("\u4e00" <= ch <= "\u9fff" for ch in src_text) else "Source: "   # Allen-skills 补丁：中文来源用中文标签
+    allf = ([[dict(text=label), *([dict(text=src)] if isinstance(src, str) else src)]] if src else [[dict(text="Source: [missing – add source]", color="#C00000")]]) + [l if isinstance(l, list) else [dict(text=l)] for l in lines_]
     for k, l in enumerate(reversed(allf)):
         rich(sl, 0.35, fy-0.16*(k+1), 12.5, 0.16, l, size=7, color="#404040")
     return 0.18 + size/72*1.7 + 0.05 + (0.32 if sp.get("note") else 0), fy-0.16*len(allf)-0.05

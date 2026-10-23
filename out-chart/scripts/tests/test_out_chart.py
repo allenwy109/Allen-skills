@@ -67,6 +67,8 @@ class OutChartTest(unittest.TestCase):
         png = self.task / "08_deliverables" / "charts" / "png" / "revenue.png"
         text = subprocess.run(["tesseract", str(png), "-", "-l", "chi_sim+eng"], capture_output=True, text=True).stdout
         self.assertIn("收入两年增长", text.replace(" ", ""))
+        self.assertIn("来源", text.replace(" ", ""))          # 中文来源用中文标签（vendor 补丁 0001）
+        self.assertNotIn("Source", text)
 
     def test_acceptance_needs_review_then_passes_and_detects_tamper(self):
         acc = Acceptance(self.task)

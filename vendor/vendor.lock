@@ -487,8 +487,8 @@
     "scripts/make_examples.py": "eef66e55bebb474407430515e3ea4494a922aa62ccad0012e949de38a28d32d5",
     "scripts/requirements.txt": "247e721942ad79d8a605c9dec9f629e1b9d36beec4584689df66a3228522d716",
     "scripts/tc_advise.py": "f9e3dce30988d410d5cb1782a46b3a8a2bf6334d6022378e75a0ae05c2d20141",
-    "scripts/tc_core.py": "3c9e08cf3655e5e1f8ed8146c68604a64f55f8c77f35f6775b69b749c4a56d63",
-    "scripts/tc_dash.py": "3a6b7c6dc59f6349aeeffdc4492ac081049a1e81623d50e343ebffd647fda074",
+    "scripts/tc_core.py": "415858a82e039f90a0a98edab2101623ac98192a2eaa1657bcdbdf3b497bf58e",
+    "scripts/tc_dash.py": "ed066bb2816d882b7104651a2ee199b605aa9cd216bd160c03a4b265268273cb",
     "scripts/tc_html.py": "d50f44178e624de3e53caa09d68fb9333bb2fcafca9c79ee1c17ca428dc150cd",
     "scripts/tc_more.py": "a31bfd7570fb349f709d8b9ebcbb3dbc7628e70d7459bdbf26e1a36edabf957e",
     "scripts/tc_render.py": "ff3a774312721261b19b48ac26e4cfbb55c9dab9828708122006aa89d7a10674",
@@ -550,6 +550,11 @@
   "*.DS_Store",
   "*.pyc"
  ],
- "patches": [],
+ "patches": [
+  {
+   "name": "0001-thinkcell-chinese-source-label.patch",
+   "sha256": "69a7ceae1fd5b0d07cd53df22845fa03e523c6cdea886af486b11120bb5c2025"
+  }
+ ],
  "repo": "https://github.com/ZeroxZhang/zerox-skills.git"
 }

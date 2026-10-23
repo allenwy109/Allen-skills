@@ -111,7 +111,10 @@ def _scan_only(text, values, where, allow, problems, counter):
 
 def _source_entry(src, locators):
     url = src.get("final_url") or src.get("url") or ""
-    where = url or "；".join(src.get("original_files") or []) or (src.get("snapshot") or "") or "用户提供材料"
+    if url.startswith(("http://", "https://")):
+        where = url
+    else:   # 本地文件地址对读者没有意义，只写类别
+        where = "用户提供材料" if src.get("origin") == "user" else "本地存档材料"
     if locators:
         where += " · " + "、".join(locators)
     return {"label": src["title"], "locator": where}
@@ -251,8 +254,11 @@ def build(task, slides_doc, sidecar=None, allow=()):
         locs = sorted({e["locator"] for e in evidence.values() if e["source_id"] == sid and e.get("locator")
                        and any(l["evidence_id"] == e["id"] and l["claim_id"] in used for l in links)})
         forge_sources[sid] = _source_entry(src, locs)
+        url = src.get("final_url") or src.get("url") or ""
+        web = url.startswith(("http://", "https://"))   # 引擎的参考资料只接受网页链接；用户文件只写类别
         references.append({k: v for k, v in {"id": sid, "title": src["title"], "author": src.get("author_org") or src.get("publisher"),
-                                              "date": src.get("published"), "url": src.get("final_url") or src.get("url"),
+                                              "date": src.get("published"), "url": url if web else None,
+                                              "kind": "用户提供材料" if src.get("origin") == "user" else None,
                                               "locator": "、".join(locs)}.items() if v})
 
     # 4. 页面

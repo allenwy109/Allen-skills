@@ -195,7 +195,9 @@ class Slide:
         if sub: self.text(0.5, 1.2, sub, w=12.3, h=0.35, align="l", size=FS_SUB, color="#777777")
         foot = []
         if sp.get("footnote"): foot.append(sp["footnote"])
-        foot.append("Source: " + (sp.get("source") or "[missing – add source]"))
+        src = sp.get("source") or ""
+        # 来源含中文时用中文标签（Allen-skills 补丁）
+        foot.append(("来源：" + src) if any("\u4e00" <= ch <= "\u9fff" for ch in src) else ("Source: " + (src or "[missing – add source]")))
         if foot: self.text(0.5, 7.05, "\n".join(foot), w=12.3, h=0.4, align="l", anchor="b", size=FS_FOOT, color="#555555", wrap=True)
     CHART = (0.7, 1.75, 11.9, 4.95)   # x, y, w, h 图表区
 
