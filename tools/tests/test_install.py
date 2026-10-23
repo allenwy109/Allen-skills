@@ -56,7 +56,8 @@ class InstallRuntimeTest(unittest.TestCase):
         p = subprocess.run(["bash", str(ROOT / "install.sh"), "--help"], capture_output=True, text=True)
         self.assertEqual(p.returncode, 0)
         self.assertIn("--render-deps", p.stdout)
-        self.assertIn("--forge-deps", p.stdout)
+        self.assertNotIn("--forge-deps", p.stdout)
+        self.assertNotIn("--remove-old", p.stdout)
 
     def test_render_deps_without_homebrew_fails_clearly(self):
         env = {"PATH": "/usr/bin:/bin", "HOME": self.tmp.name, "LC_ALL": "en_US.UTF-8"}
@@ -69,25 +70,12 @@ class InstallRuntimeTest(unittest.TestCase):
         p = install("--target", str(self.target))
         self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         self.assertEqual(list(self.target.glob("zerox-*")), [])
-        self.assertNotEqual(install("--no-zerox", "--target", str(self.target)).returncode, 0)
 
-    def test_remove_old_deletes_only_zerox_skills_we_installed(self):
-        ours = self.target / "zerox-storyline"
-        ours.mkdir(parents=True)
-        (ours / ".installed-by-allen-skills").write_text("source=x", encoding="utf-8")
-        theirs = self.target / "zerox-mine"
-        theirs.mkdir()
-        old = self.target / "consulting-analysis"
-        old.mkdir()
-        p = install("--target", str(self.target))
-        self.assertIn("zerox-storyline 是以前装的 zerox skill", p.stdout)
-        self.assertTrue(ours.is_dir())
-        p = install("--remove-old", "--target", str(self.target))
-        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
-        self.assertIn("已删除旧的 zerox skill：zerox-storyline", p.stdout)
-        self.assertFalse(ours.exists())
-        self.assertFalse(old.exists())
-        self.assertTrue(theirs.is_dir())
+    def test_old_system_options_are_gone(self):
+        for opt in ("--no-zerox", "--remove-old", "--forge-deps"):
+            p = install(opt, "--target", str(self.target))
+            self.assertEqual(p.returncode, 2, opt)
+            self.assertIn(f"未知参数：{opt}", p.stderr)
 
 
 if __name__ == "__main__":

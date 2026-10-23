@@ -4,7 +4,7 @@
 用法：python3 tools/validate.py
 检查项：
 1. 每个 skill 目录有 SKILL.md，frontmatter 的 name 和目录名一致，description 不为空且不超过 1024 字。
-2. SKILL.md 和 references 里出现的 ../<skill>/ 引用，都指向本仓库的 skill（zerox 的 skill 已由 core-* 和 out-* 取代，引用它们算错误）。
+2. SKILL.md 和 references 里出现的 ../<skill>/ 引用，都指向本仓库的 skill。
 3. 每张方法卡片都有必备的几节，且在本库的 method-index.md 里被登记。
 4. 方法库 SKILL.md 的选法表是四列（情况、首选、前提、换用）。
 5. vendor/ 下的引擎与 vendor.lock 一致，且没有残留的 SKILL.md。

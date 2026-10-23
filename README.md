@@ -15,7 +15,6 @@ git clone https://github.com/allenwy109/Allen-skills.git
 cd Allen-skills
 ./install.sh                 # 装到 ~/.claude/skills（skill + 运行时 _allen-runtime）
 ./install.sh --render-deps   # 出正式报告、图表、海报所需的依赖（macOS，需 Homebrew）
-./install.sh --remove-old    # 从旧版升级时，删掉 consulting-analysis 等三个旧 skill 和以前装的 zerox-*
 ```
 
 上传到 claude.ai 时，先运行 `python3 tools/build-zips.py` 打包，每个 skill 一个 zip（out-* 依赖本机引擎，不打包）。

@@ -30,14 +30,12 @@ cd Allen-skills
 ./install.sh
 ```
 
-默认把本仓库的 20 个 skill 和运行时 `_allen-runtime`（vendor 引擎 + tools）复制到 `~/.claude/skills/`，对所有项目生效。不再安装 zerox 的 skill。常用参数：
+默认把本仓库的 20 个 skill 和运行时 `_allen-runtime`（vendor 引擎 + tools）复制到 `~/.claude/skills/`，对所有项目生效。常用参数：
 
 | 参数 | 作用 |
 |---|---|
 | `--link` | 用软链接代替复制，在仓库里改 skill 立即生效（自己维护时用） |
 | `--render-deps` | 安装出成品所需的依赖：Homebrew 装 Poppler、Tesseract（含中文）、Pandoc、LibreOffice；Python 虚拟环境（默认 `~/.cache/allen-skills/venv`，可用 `ALLEN_VENV` 改）；Playwright Chromium；报告引擎的 npm 依赖与字体；最后生成能力探测任务。需要 Node.js 20+、Python 3.10+、Google Chrome |
-| `--forge-deps` | 已弃用，等同 `--render-deps` |
-| `--remove-old` | 删除旧版的 consulting-analysis、management-toolkit、personal-effectiveness，以及本脚本以前装的 `zerox-*`（只删带安装标记的目录或指向安装缓存的软链接，别人自己的同名目录保留） |
 | `--target DIR` | 装到别的目录，例如某个项目的 `.claude/skills` |
 | `--force` | 覆盖目标目录里不是本脚本装的同名 skill |
 

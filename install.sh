@@ -7,8 +7,6 @@
 #   ./install.sh --link              用软链接代替复制（在本仓库里改 skill 立即生效）
 #   ./install.sh --render-deps       额外安装出成品所需的依赖：LibreOffice 等系统工具、Python 虚拟环境、
 #                                    Playwright Chromium、报告引擎的 npm 依赖与字体，并生成能力探测任务
-#   ./install.sh --forge-deps        已弃用，等同 --render-deps
-#   ./install.sh --remove-old        删除旧版 skill（consulting-analysis 等三个旧名字），以及本脚本以前装的 zerox-* skill
 #   ./install.sh --force             覆盖目标目录里不是本脚本装的同名 skill 或运行时
 #
 # 环境变量：
@@ -21,24 +19,20 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET="${HOME}/.claude/skills"
 MODE="copy"
-REMOVE_OLD=0
 FORCE=0
 RENDER_DEPS=0
 RUNTIME_NAME="_allen-runtime"
 # 与 tools/lib/runtime.py 的 venv_python() 保持一致
 VENV="${ALLEN_VENV:-${XDG_CACHE_HOME:-$HOME/.cache}/allen-skills/venv}"
 MARKER=".installed-by-allen-skills"
-OLD_NAMES="consulting-analysis management-toolkit personal-effectiveness"
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --target) TARGET="$2"; shift 2 ;;
     --link) MODE="link"; shift ;;
     --render-deps) RENDER_DEPS=1; shift ;;
-    --forge-deps) echo "提示：--forge-deps 已弃用，请改用 --render-deps。" >&2; RENDER_DEPS=1; shift ;;
-    --remove-old) REMOVE_OLD=1; shift ;;
     --force) FORCE=1; shift ;;
-    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
     *) echo "未知参数：$1" >&2; exit 2 ;;
   esac
 done
@@ -149,35 +143,6 @@ place_runtime
 if [ "${RENDER_DEPS}" = 1 ]; then
   render_deps
 fi
-
-# 2. 旧版 skill；以及本脚本以前装的 zerox-* skill（只认带安装标记的目录和指向 allen-skills 缓存的软链接）
-CACHE_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/allen-skills"
-for z in "$TARGET"/zerox-*; do
-  [ -e "$z" ] || [ -L "$z" ] || continue
-  ours=0
-  if [ -L "$z" ]; then
-    case "$(readlink "$z")" in "$CACHE_ROOT"/*) ours=1 ;; esac
-  elif [ -f "$z/$MARKER" ]; then
-    ours=1
-  fi
-  [ "$ours" = 1 ] || continue
-  if [ "$REMOVE_OLD" = 1 ]; then
-    rm -rf "${z:?}"
-    echo "已删除旧的 zerox skill：$(basename "$z")"
-  else
-    echo "提示：$z 是以前装的 zerox skill，现在已由 core-* 和 out-* 取代。建议运行 ./install.sh --remove-old 删除，避免重复触发。"
-  fi
-done
-for o in $OLD_NAMES; do
-  if [ -e "$TARGET/$o" ]; then
-    if [ "$REMOVE_OLD" = 1 ]; then
-      rm -rf "${TARGET:?}/$o"
-      echo "已删除旧版：$o"
-    else
-      echo "提示：$TARGET/$o 是旧版 skill，已被 lib-* 取代。建议运行 ./install.sh --remove-old 删除，避免重复触发。"
-    fi
-  fi
-done
 
 echo "安装到：${TARGET}（方式：${MODE}）"
 echo "已安装 ${#installed[@]} 个：${installed[*]}"
