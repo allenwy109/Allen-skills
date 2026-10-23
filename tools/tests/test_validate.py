@@ -58,5 +58,19 @@ class ValidateTest(unittest.TestCase):
             self.assertEqual(p.returncode, 1)
             self.assertIn("引用了不存在的枚举 nope", p.stdout)
 
+    def test_does_not_need_zerox_lock(self):
+        self.assertFalse((ROOT / "zerox.lock").exists())
+
+    def test_reference_to_zerox_skill_fails(self):
+        with tempfile.TemporaryDirectory() as t:
+            copy = pathlib.Path(t) / "repo"
+            copy_repo(copy)
+            with open(copy / "scene-company" / "SKILL.md", "a", encoding="utf-8") as f:
+                f.write("\n若已安装 `../zerox-storyline/`，先用它。\n")
+            p = self.run_validate(copy)
+            self.assertEqual(p.returncode, 1)
+            self.assertIn("引用了不存在的 skill ../zerox-storyline/", p.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

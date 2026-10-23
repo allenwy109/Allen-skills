@@ -7,7 +7,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
 def install(*args):
-    return subprocess.run(["bash", str(ROOT / "install.sh"), "--no-zerox", *args], capture_output=True, text=True)
+    return subprocess.run(["bash", str(ROOT / "install.sh"), *args], capture_output=True, text=True)
 
 
 class InstallRuntimeTest(unittest.TestCase):
@@ -60,10 +60,35 @@ class InstallRuntimeTest(unittest.TestCase):
 
     def test_render_deps_without_homebrew_fails_clearly(self):
         env = {"PATH": "/usr/bin:/bin", "HOME": self.tmp.name, "LC_ALL": "en_US.UTF-8"}
-        p = subprocess.run(["bash", str(ROOT / "install.sh"), "--no-zerox", "--render-deps", "--target", str(self.target)],
+        p = subprocess.run(["bash", str(ROOT / "install.sh"), "--render-deps", "--target", str(self.target)],
                            capture_output=True, text=True, env=env)
         self.assertNotEqual(p.returncode, 0)
         self.assertIn("需要 Homebrew", p.stderr)
+
+    def test_does_not_install_zerox(self):
+        p = install("--target", str(self.target))
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertEqual(list(self.target.glob("zerox-*")), [])
+        self.assertNotEqual(install("--no-zerox", "--target", str(self.target)).returncode, 0)
+
+    def test_remove_old_deletes_only_zerox_skills_we_installed(self):
+        ours = self.target / "zerox-storyline"
+        ours.mkdir(parents=True)
+        (ours / ".installed-by-allen-skills").write_text("source=x", encoding="utf-8")
+        theirs = self.target / "zerox-mine"
+        theirs.mkdir()
+        old = self.target / "consulting-analysis"
+        old.mkdir()
+        p = install("--target", str(self.target))
+        self.assertIn("zerox-storyline 是以前装的 zerox skill", p.stdout)
+        self.assertTrue(ours.is_dir())
+        p = install("--remove-old", "--target", str(self.target))
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertIn("已删除旧的 zerox skill：zerox-storyline", p.stdout)
+        self.assertFalse(ours.exists())
+        self.assertFalse(old.exists())
+        self.assertTrue(theirs.is_dir())
+
 
 if __name__ == "__main__":
     unittest.main()

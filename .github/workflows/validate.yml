@@ -21,5 +21,5 @@ jobs:
         run: python3 tools/validate.py
       - name: 检查安装脚本语法
         run: bash -n install.sh
-      - name: 试装（不含 zerox）
-        run: ./install.sh --no-zerox --target "$RUNNER_TEMP/skills" && test -f "$RUNNER_TEMP/skills/router/SKILL.md"
+      - name: 试装（不装渲染依赖）
+        run: ./install.sh --target "$RUNNER_TEMP/skills" && test -f "$RUNNER_TEMP/skills/router/SKILL.md" && test -f "$RUNNER_TEMP/skills/_allen-runtime/vendor/vendor.lock"

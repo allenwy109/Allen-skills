@@ -1,20 +1,17 @@
 #!/usr/bin/env bash
-# 安装 Allen 的方法论 skill 系统、运行时（_allen-runtime），以及 zerox.lock 里固定版本的 zerox skill。
+# 安装 Allen 的方法论 skill 系统和运行时（_allen-runtime：vendor/ 里固定版本的三个渲染引擎和 tools/）。
 #
 # 用法：
 #   ./install.sh                     安装到 ~/.claude/skills（复制）
 #   ./install.sh --target DIR        安装到其他目录
 #   ./install.sh --link              用软链接代替复制（在本仓库里改 skill 立即生效）
-#   ./install.sh --no-zerox          只装本仓库的 skill 和运行时
 #   ./install.sh --render-deps       额外安装出成品所需的依赖：LibreOffice 等系统工具、Python 虚拟环境、
 #                                    Playwright Chromium、报告引擎的 npm 依赖与字体，并生成能力探测任务
 #   ./install.sh --forge-deps        已弃用，等同 --render-deps
-#   ./install.sh --remove-old        删除旧版 skill（consulting-analysis 等三个旧名字）
+#   ./install.sh --remove-old        删除旧版 skill（consulting-analysis 等三个旧名字），以及本脚本以前装的 zerox-* skill
 #   ./install.sh --force             覆盖目标目录里不是本脚本装的同名 skill 或运行时
 #
 # 环境变量：
-#   ZEROX_REPO   改用其他 zerox 仓库地址（例如自己的 fork）
-#   CACHE_DIR    zerox 源码缓存位置，默认 ~/.cache/allen-skills
 #   ALLEN_VENV   Python 虚拟环境位置，默认 ~/.cache/allen-skills/venv
 #
 # 运行时（_allen-runtime）：复制模式下是 vendor/ 和 tools/ 的副本；--link 模式下是指向本仓库的软链接。
@@ -24,8 +21,6 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET="${HOME}/.claude/skills"
 MODE="copy"
-WITH_ZEROX=1
-FORGE_DEPS=0
 REMOVE_OLD=0
 FORCE=0
 RENDER_DEPS=0
@@ -39,12 +34,11 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --target) TARGET="$2"; shift 2 ;;
     --link) MODE="link"; shift ;;
-    --no-zerox) WITH_ZEROX=0; shift ;;
     --render-deps) RENDER_DEPS=1; shift ;;
-    --forge-deps) echo "提示：--forge-deps 已弃用，请改用 --render-deps。" >&2; RENDER_DEPS=1; FORGE_DEPS=1; shift ;;
+    --forge-deps) echo "提示：--forge-deps 已弃用，请改用 --render-deps。" >&2; RENDER_DEPS=1; shift ;;
     --remove-old) REMOVE_OLD=1; shift ;;
     --force) FORCE=1; shift ;;
-    -h|--help) sed -n '2,21p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
     *) echo "未知参数：$1" >&2; exit 2 ;;
   esac
 done
@@ -156,38 +150,24 @@ if [ "${RENDER_DEPS}" = 1 ]; then
   render_deps
 fi
 
-# 2. zerox skill，按 zerox.lock 固定版本
-if [ "$WITH_ZEROX" = 1 ]; then
-  # shellcheck disable=SC1091
-  . "$REPO_DIR/zerox.lock"
-  repo="${ZEROX_REPO:-$ZEROX_REPO_DEFAULT}"
-  cache="${CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/allen-skills}/zerox-skills"
-  mkdir -p "$cache"
-  if [ ! -d "$cache/.git" ]; then
-    git -C "$cache" init -q
-    git -C "$cache" remote add origin "$repo"
+# 2. 旧版 skill；以及本脚本以前装的 zerox-* skill（只认带安装标记的目录和指向 allen-skills 缓存的软链接）
+CACHE_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/allen-skills"
+for z in "$TARGET"/zerox-*; do
+  [ -e "$z" ] || [ -L "$z" ] || continue
+  ours=0
+  if [ -L "$z" ]; then
+    case "$(readlink "$z")" in "$CACHE_ROOT"/*) ours=1 ;; esac
+  elif [ -f "$z/$MARKER" ]; then
+    ours=1
+  fi
+  [ "$ours" = 1 ] || continue
+  if [ "$REMOVE_OLD" = 1 ]; then
+    rm -rf "${z:?}"
+    echo "已删除旧的 zerox skill：$(basename "$z")"
   else
-    git -C "$cache" remote set-url origin "$repo"
+    echo "提示：$z 是以前装的 zerox skill，现在已由 core-* 和 out-* 取代。建议运行 ./install.sh --remove-old 删除，避免重复触发。"
   fi
-  if [ "$(git -C "$cache" rev-parse -q --verify HEAD 2>/dev/null || true)" != "$ZEROX_COMMIT" ]; then
-    echo "下载 zerox-skills @ ${ZEROX_COMMIT:0:7} ……"
-    GIT_LFS_SKIP_SMUDGE=1 git -C "$cache" fetch -q --depth 1 origin "$ZEROX_COMMIT"
-    GIT_LFS_SKIP_SMUDGE=1 git -C "$cache" checkout -q --force FETCH_HEAD
-  fi
-  for s in $ZEROX_SKILLS; do
-    if [ -f "$cache/$s/SKILL.md" ]; then
-      place "$cache/$s" "$s"
-    else
-      skipped+=("${s}（zerox 该版本里没有这个 skill）")
-    fi
-  done
-  if [ "$FORGE_DEPS" = 1 ] && [ -d "$TARGET/zerox-consulting-report-forge" ]; then
-    echo "安装 report-forge 依赖（需要 Node.js 20+、Python 3.10+、Chrome 或 Playwright Chromium、Poppler）……"
-    (cd "$TARGET/zerox-consulting-report-forge" && npm ci && npm run setup-fonts)
-  fi
-fi
-
-# 3. 旧版 skill
+done
 for o in $OLD_NAMES; do
   if [ -e "$TARGET/$o" ]; then
     if [ "$REMOVE_OLD" = 1 ]; then
