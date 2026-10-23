@@ -1,0 +1,39 @@
+{
+ "synthetic": false,
+ "entity_id": "ENT-0001",
+ "scope": "consolidated",
+ "period_start": "YYYY-01-01",
+ "period_end": "YYYY-12-31",
+ "days": 365,
+ "currency": "CNY",
+ "unit": "万元",
+ "accounting_basis": "中国企业会计准则",
+ "attribute": "actual",
+ "audited": false,
+ "source_ids": [],
+ "values": {},
+ "input_evidence": {},
+ "prior": null,
+ "options": {
+  "allow_end_balance": false,
+  "allow_revenue_proxy": false,
+  "allow_cost_proxy": false,
+  "quick_deductions": [
+   "inventory",
+   "prepayments"
+  ],
+  "near_zero_profit": 0.01,
+  "capex_sign": "positive_outflow"
+ },
+ "cash_burn_basis": {
+  "basis": "",
+  "cash_excludes_restricted": false,
+  "includes_capex": false,
+  "includes_debt_service": false,
+  "includes_committed_spend": false,
+  "limitations": ""
+ },
+ "thresholds": [],
+ "series": [],
+ "segments": {}
+}

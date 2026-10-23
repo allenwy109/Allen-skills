@@ -40,6 +40,7 @@ _bootstrap()
 from tools.acceptance import Acceptance  # noqa: E402
 from tools.bridge import poster_numbers, to_forge  # noqa: E402
 from tools.lib import office, runtime  # noqa: E402
+from tools.lib.ledger import Ledger  # noqa: E402
 
 
 class StepError(Exception):
@@ -305,6 +306,39 @@ def storyline_check(task):
     return {"name": "故事线检查（storyline check）", "result": "passed" if r["passed"] else "failed", "detail": detail}
 
 
+def diligence_checks(task):
+    """尽调报告的前置检查（设计 §8.3）：尽调检查、内容契约（拆页后复核、22 条人工清单）、三种完成状态。
+    research_gate 为 complete、not_applicable 且 report_status=complete 算通过；partial、limited 记为"有限完成"（最终最高有条件通过）。"""
+    if not (pathlib.Path(task) / "03d_diligence" / "report-content.json").is_file():
+        return []
+    script = SKILL_DIR.parent / "core-diligence" / "scripts" / "diligence.py"
+    if not script.is_file():
+        return [{"name": "尽调检查", "result": "failed", "detail": f"找不到 {script}"}]
+
+    def run(*args):
+        p = subprocess.run([sys.executable, str(script), *args, str(task), "--json"], capture_output=True, text=True)
+        try:
+            return json.loads(p.stdout)
+        except ValueError:
+            return {"errors": [(p.stdout + p.stderr)[-300:]]}
+    chk = run("check")
+    cnt = run("check-content", "--after-split", "--final")
+    out = [{"name": "尽调检查（diligence check）", "result": "failed" if chk.get("errors") else "passed",
+            "detail": "；".join(chk.get("errors") or [])[:500] or f"{chk.get('mode')}；警告 {len(chk.get('warnings') or [])} 条"},
+           {"name": "尽调内容契约（拆页后复核、22 条人工清单）", "result": "failed" if cnt.get("errors") else "passed",
+            "detail": "；".join(cnt.get("errors") or [])[:500] or "11 个主题、内容块规则、拆页后同章规则和人工清单都通过"}]
+    gate = chk.get("research_gate")
+    status = ((Ledger(task).read("project") or [{}])[0]).get("report_status")
+    if gate in ("incomplete", None) or status in ("draft", None):
+        result = "failed"
+    elif gate == "partial" or status == "limited":
+        result = "limited"
+    else:
+        result = "passed"
+    out.append({"name": "尽调完成状态", "result": result, "detail": f"research_gate={gate}；report_status={status}"})
+    return out
+
+
 def cmd_finish(a):
     task, d = pathlib.Path(a.task), forge_dir(a.task)
     try:
@@ -327,7 +361,7 @@ def cmd_finish(a):
     trace = poster_numbers.check(task, (out_dir / html_file.name).read_text(encoding="utf-8"), conv["trace"]["allowed"], report=True)
     story_check = storyline_check(task)
     checks = [
-        story_check,
+        story_check, *diligence_checks(task),
         {"name": "转换前检查（to_forge）", "result": "passed",
          "detail": f"{conv['trace']['checked']} 个数字换成指标引用或追溯到证据账" + (f"；放行：{'、'.join(conv['trace']['allowed'])}" if conv["trace"]["allowed"] else "")},
         {"name": "A 级卡片出现在正文", "result": "failed" if conv["a_cards"]["missing"] else "passed",
