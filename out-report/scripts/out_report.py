@@ -291,6 +291,20 @@ def speaker_notes(task, out_dir):
     return [md, out_dir.parent / "speaker-notes.pdf"]
 
 
+def storyline_check(task):
+    """故事线检查（core-storyline 的 storyline check）是报告的前置条件。"""
+    script = SKILL_DIR.parent / "core-storyline" / "scripts" / "storyline.py"
+    if not script.is_file():
+        return {"name": "故事线检查（storyline check）", "result": "failed", "detail": f"找不到 {script}"}
+    p = subprocess.run([sys.executable, str(script), "check", str(task), "--json"], capture_output=True, text=True)
+    try:
+        r = json.loads(p.stdout)
+    except ValueError:
+        return {"name": "故事线检查（storyline check）", "result": "failed", "detail": (p.stdout + p.stderr)[-300:]}
+    detail = "；".join(e["message"] for e in r["errors"])[:500] or f"零错误，警告 {len(r['warnings'])} 条"
+    return {"name": "故事线检查（storyline check）", "result": "passed" if r["passed"] else "failed", "detail": detail}
+
+
 def cmd_finish(a):
     task, d = pathlib.Path(a.task), forge_dir(a.task)
     try:
@@ -311,7 +325,9 @@ def cmd_finish(a):
         files.append(out_dir / f.name)
     notes = speaker_notes(task, out_dir)
     trace = poster_numbers.check(task, (out_dir / html_file.name).read_text(encoding="utf-8"), conv["trace"]["allowed"], report=True)
+    story_check = storyline_check(task)
     checks = [
+        story_check,
         {"name": "转换前检查（to_forge）", "result": "passed",
          "detail": f"{conv['trace']['checked']} 个数字换成指标引用或追溯到证据账" + (f"；放行：{'、'.join(conv['trace']['allowed'])}" if conv["trace"]["allowed"] else "")},
         {"name": "A 级卡片出现在正文", "result": "failed" if conv["a_cards"]["missing"] else "passed",

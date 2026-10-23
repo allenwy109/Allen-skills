@@ -24,12 +24,15 @@ def run(*args):
     return subprocess.run([sys.executable, str(SCRIPTS / "out_report.py"), *map(str, args)], capture_output=True, text=True)
 
 
-def make_task(root, slides=None):
+def make_task(root, change=None):
+    """完整的故事线包（core-storyline 的产出）作为输入；change 用来改 slides.json 做反例。"""
     task = pathlib.Path(root) / "task"
-    F.make_report_ledger(task)
-    story = F.ensure_dir(task / "07_storyline")
-    (story / "slides.json").write_text(json.dumps(slides or F.report_slides(), ensure_ascii=False), encoding="utf-8")
-    (story / "sidecar.json").write_text(json.dumps(F.report_sidecar(), ensure_ascii=False), encoding="utf-8")
+    F.make_storyline_package(task)
+    if change:
+        p = task / "07_storyline" / "slides.json"
+        doc = json.loads(p.read_text(encoding="utf-8"))
+        change(doc)
+        p.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
     return task
 
 
@@ -117,7 +120,8 @@ class OutReportPipelineTest(unittest.TestCase):
         self.assertIn("主要客户已签三年合同（待确认）", html)
         self.assertIn("4100 万元（预测）", html)
         e = next(x for x in Acceptance(self.task).load()["deliverables"] if x["id"] == "report-main")
-        self.assertEqual([c["result"] for c in e["upstream_checks"]], ["passed"] * 6, self.finish.stdout)
+        self.assertEqual([c["result"] for c in e["upstream_checks"]], ["passed"] * 7, self.finish.stdout)
+        self.assertEqual(e["upstream_checks"][0]["name"], "故事线检查（storyline check）")
         self.assertEqual(e["number_trace"]["untraced"], [])
         self.assertEqual(len(e["files"]), 4)
         self.assertEqual(e["status"], "failed")                    # 还没有成品审查员结论
@@ -135,10 +139,10 @@ class OutReportPipelineTest(unittest.TestCase):
 
 class OutReportInitTest(unittest.TestCase):
     def test_bare_number_blocks_init(self):
-        slides = F.report_slides()
-        slides["slides"][1]["proves"] = "收入从 1800 万元增至 3200 万元，毛利 999 万元"
+        def change(doc):
+            doc["slides"][1]["proves"] = "收入从 1800 万元增至 3200 万元，毛利 999 万元"
         with tempfile.TemporaryDirectory() as tmp:
-            task = make_task(tmp, slides)
+            task = make_task(tmp, change)
             p = run("init", task)
             self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
             self.assertIn("数字 999", p.stderr)
