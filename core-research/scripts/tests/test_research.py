@@ -141,6 +141,12 @@ class CaptureTest(Base):
         r = rcapture.capture(self.task, str(local), "blob")
         self.assertEqual(r["access"], "metadata_only")
         self.assertIn("binary:", self.led.get("sources", r["id"])["access_note"])
+
+    def test_pdf_pages_are_marked(self):
+        if not shutil.which("pdftotext"):
+            if os.environ.get("ALLEN_REQUIRE_TOOLS") == "1":
+                self.fail("缺少：pdftotext")
+            self.skipTest("缺少：pdftotext")
         pdf = pathlib.Path(self.tmp.name) / "two.pdf"
         pdf.write_bytes(minimal_pdf(["Page one revenue", "Page two margin"]))
         body = snapshot.read(self.ev / rcapture.capture(self.task, str(pdf), "two-pages")["snapshot"])[1]
