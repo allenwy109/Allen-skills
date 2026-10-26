@@ -9,6 +9,7 @@
 4. 方法库 SKILL.md 的选法表是四列（情况、首选、前提、换用）。
 5. vendor/ 下的引擎与 vendor.lock 一致，且没有残留的 SKILL.md。
 6. tools/lib/schema/ 下的 schema 文件通过自检；core-evidence 文档里用反引号写出的字段名和枚举值都在 ledger schema 里。
+7. 每个 allen-* 应用都有 app.json 及 Claude/Codex 入口。
 发现错误时以非零状态退出。
 """
 import pathlib
@@ -50,6 +51,16 @@ for s in skills:
     for rel in re.findall(r"`((?:references|assets)/[^`*]+?\.md)`", text):
         if not (s / rel).exists():
             errors.append(f"{s.name}/SKILL.md：引用的文件不存在：{rel}")
+
+for app in sorted(s for s in skills if s.name.startswith("allen-")):
+    required = {
+        "应用元数据": app / "assets" / "app.json",
+        "Claude 入口": ROOT / "commands" / "claude" / f"{app.name}.md",
+        "Codex 入口": ROOT / "commands" / "codex" / f"{app.name}.md",
+    }
+    for label, path in required.items():
+        if not path.is_file():
+            errors.append(f"{app.name}：缺少 {label}：{path.relative_to(ROOT)}")
 
 for lib in [s for s in skills if s.name.startswith("lib-")]:
     index = (lib / "references" / "method-index.md").read_text(encoding="utf-8")

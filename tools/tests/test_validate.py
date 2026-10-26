@@ -71,6 +71,15 @@ class ValidateTest(unittest.TestCase):
             self.assertEqual(p.returncode, 1)
             self.assertIn("引用了不存在的 skill ../zerox-storyline/", p.stdout)
 
+    def test_missing_application_entry_fails(self):
+        with tempfile.TemporaryDirectory() as t:
+            copy = pathlib.Path(t) / "repo"
+            copy_repo(copy)
+            (copy / "commands" / "codex" / "allen-idea.md").unlink()
+            p = self.run_validate(copy)
+            self.assertEqual(p.returncode, 1)
+            self.assertIn("allen-idea：缺少 Codex 入口", p.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
