@@ -9,7 +9,7 @@ description: 评估尚未注册企业、没有完整 BP 的创业想法或技术
 
 ## 启动与控制
 
-L2、L3 必须使用 `<运行时>/tools/app_runtime.py`。先通过多轮提问生成并让用户确认 `00_idea-definition.md`；再生成并确认 `00_venture-paths.md`。确认前调用 `wait`，不得提前研究或写报告。
+L2、L3 必须使用 `<运行时>/tools/app_runtime.py`。先通过多轮提问生成并让用户确认 `00_idea-definition.md`；用户明确确认后运行 `confirm <任务目录> --file 00_idea-definition.md`。再生成 `00_venture-paths.md`，用户确认后用同一命令登记。确认绑定当前文件摘要；确认后改动文件会让门禁重新失败。确认前调用 `wait`，不得提前研究或写报告。
 
 ## 强制覆盖
 

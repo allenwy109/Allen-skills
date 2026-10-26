@@ -13,6 +13,7 @@
 发现错误时以非零状态退出。
 """
 import pathlib
+import json
 import re
 import sys
 
@@ -61,6 +62,21 @@ for app in sorted(s for s in skills if s.name.startswith("allen-")):
     for label, path in required.items():
         if not path.is_file():
             errors.append(f"{app.name}：缺少 {label}：{path.relative_to(ROOT)}")
+    meta_path = required["应用元数据"]
+    if meta_path.is_file():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as err:
+            errors.append(f"{meta_path.relative_to(ROOT)}：无效 JSON：{err}")
+        else:
+            if meta.get("id") != app.name:
+                errors.append(f"{meta_path.relative_to(ROOT)}：id 必须等于 {app.name}")
+            scene = meta.get("scene")
+            if scene not in known:
+                errors.append(f"{meta_path.relative_to(ROOT)}：scene 指向不存在的 skill {scene}")
+            for field in ("title", "report_title"):
+                if not isinstance(meta.get(field), str) or not meta[field].strip():
+                    errors.append(f"{meta_path.relative_to(ROOT)}：{field} 必须是非空字符串")
 
 for lib in [s for s in skills if s.name.startswith("lib-")]:
     index = (lib / "references" / "method-index.md").read_text(encoding="utf-8")

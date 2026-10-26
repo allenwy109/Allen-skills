@@ -9,13 +9,13 @@ description: 创业想法或技术尚未形成企业和完整 BP，需要先澄�
 
 从 `assets/idea-definition-template.md` 建立 `00_idea-definition.md`。已知内容不重复问；每轮只问一个最影响结论的问题。至少澄清技术或想法、客户与场景候选、当前做法与成本、创始人资源、地域范围和不可改变的约束。
 
-明确区分用户已确认的信息、系统分析假设和仍未知的问题。内容不足时用 app_runtime `wait`，理由写明当前最关键的问题。用户确认定义卡后，在证据账 `reviews` 表登记 `user_confirmation`，`covers.files` 写 `00_idea-definition.md`，再 `resume` 和推进。
+明确区分用户已确认的信息、系统分析假设和仍未知的问题。内容不足时用 app_runtime `wait`，理由写明当前最关键的问题。用户确认定义卡后，运行 app_runtime `confirm <任务目录> --file 00_idea-definition.md`，再 `resume` 和推进。确认绑定文件摘要；确认后修改文件必须重新确认。
 
 ## 企业化路径
 
 从 `assets/venture-paths-template.md` 建立 `00_venture-paths.md`，通常保留 2–3 条路径。每条明确目标客户、使用场景、核心产品、价值主张、收费方式、获客方式、关键能力和主要假设。
 
-路径必须在客户、场景、产品形态、商业模式或进入方式上至少有一项关键差异。确实只有一条合理路径时记录原因，不制造伪选项。让用户确认后登记第二条 `user_confirmation`，`covers.files` 写 `00_venture-paths.md`。
+路径必须在客户、场景、产品形态、商业模式或进入方式上至少有一项关键差异。确实只有一条合理路径时记录原因，不制造伪选项。用户确认后运行 app_runtime `confirm <任务目录> --file 00_venture-paths.md`。
 
 ## 研究要求
 
@@ -30,6 +30,8 @@ description: 创业想法或技术尚未形成企业和完整 BP，需要先澄�
 5. 潜在新进入者：科研成果、开源项目、新融资团队、专利方向和大厂新产品。
 
 至少比较目标客户、场景、价值主张、产品形态、价格或收费方式、获客渠道、成熟度、证据强度和进入本市场的能力。回答市场空白是机会还是需求弱、谁最可能复制或压制该路径、差异能否积累为防御能力。
+
+研究发现原路径的客户或场景不成立时，运行 app_runtime `rewind <任务目录> --stage pathing`，修改 `00_venture-paths.md` 并重新取得用户确认；不得手工改 `app-run.json` 或带着失效路径继续。
 
 ## 分析与时间前景
 

@@ -8,6 +8,8 @@
   app_runtime.py wait <任务目录> --reason "..."
   app_runtime.py block <任务目录> --reason "..."
   app_runtime.py resume <任务目录>
+  app_runtime.py confirm <任务目录> --file 00_idea-definition.md
+  app_runtime.py rewind <任务目录> --stage pathing
   app_runtime.py finish <任务目录>
 
 它不替模型写分析，只负责锁定应用、给出下一阶段、检查产物并阻止提前结束。
@@ -15,6 +17,7 @@
 import argparse
 import datetime as dt
 import glob
+import hashlib
 import json
 import pathlib
 import sys
@@ -104,18 +107,29 @@ def matches(task, pattern):
     return [p for p in found if p.is_file() and (p.stat().st_size > 0 or p.suffix == ".jsonl")]
 
 
-def confirmed_files(task):
-    confirmed = set()
-    for review in Ledger(task).read("reviews"):
-        if review.get("type") == "user_confirmation":
-            confirmed.update(review.get("covers", {}).get("files", []))
-    return confirmed
+def file_digest(path):
+    return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
+
+
+def is_confirmed(task, rel, after_count=0):
+    path = pathlib.Path(task) / rel
+    if not path.is_file():
+        return False
+    digest = file_digest(path)
+    reviews = Ledger(task).read("reviews")
+    return any(
+        review.get("type") == "user_confirmation"
+        and rel in review.get("covers", {}).get("files", [])
+        and review.get("digest") == digest
+        for review in reviews[after_count:]
+    )
 
 
 def validate_stage(task, run, stage):
     missing = [p for p in patterns_for(task, run, stage) if not matches(task, p)]
     required_confirmation = CONFIRMED_FILES.get(stage)
-    if required_confirmation and required_confirmation not in confirmed_files(task):
+    after_count = run.get("confirmation_after_count", {}).get(stage, 0)
+    if required_confirmation and not is_confirmed(task, required_confirmation, after_count):
         missing.append(f"confirmation:{required_confirmation}")
     if stage == "acceptance" and not missing:
         doc = Acceptance(task).check()
@@ -235,6 +249,43 @@ def resume(task):
     return stage_payload(task, run)
 
 
+def confirm(task, rel):
+    run = load(task)
+    stage = stage_payload(task, run).get("stage")
+    expected = CONFIRMED_FILES.get(stage)
+    if rel != expected:
+        raise AppError(f"当前阶段 {stage} 不能确认 {rel}")
+    path = pathlib.Path(task) / rel
+    if not path.is_file():
+        raise AppError(f"找不到待确认文件：{path}")
+    digest = file_digest(path)
+    review_id = Ledger(task).add("reviews", {
+        "type": "user_confirmation",
+        "reviewer": "用户",
+        "at": now(),
+        "covers": {"files": [rel]},
+        "conclusion": "用户已确认当前文件内容",
+        "digest": digest,
+    })
+    return {"confirmed": rel, "review_id": review_id, "digest": digest}
+
+
+def rewind(task, stage):
+    run = load(task)
+    if run["app_id"] != "allen-idea" or stage != "pathing":
+        raise AppError("只有 allen-idea 可以回退到 pathing")
+    target = run["stages"].index(stage)
+    if run["cursor"] <= target:
+        raise AppError("尚未越过 pathing，不能回退")
+    review_count = len(Ledger(task).read("reviews"))
+    run["cursor"] = target
+    run["completed_stages"] = run["stages"][:target]
+    run["status"] = "running"
+    run.setdefault("confirmation_after_count", {})[stage] = review_count
+    save(task, run)
+    return stage_payload(task, run)
+
+
 def finish(task):
     run = load(task)
     if run["cursor"] != len(run["stages"]):
@@ -272,6 +323,12 @@ def main(argv=None):
         q = sub.add_parser(name)
         q.add_argument("task")
         q.add_argument("--reason", required=True)
+    q = sub.add_parser("confirm")
+    q.add_argument("task")
+    q.add_argument("--file", required=True)
+    q = sub.add_parser("rewind")
+    q.add_argument("task")
+    q.add_argument("--stage", choices=("pathing",), required=True)
     a = ap.parse_args(argv)
     try:
         if a.cmd == "init":
@@ -286,6 +343,10 @@ def main(argv=None):
             out = set_state(a.task, "blocked", a.reason)
         elif a.cmd == "resume":
             out = resume(a.task)
+        elif a.cmd == "confirm":
+            out = confirm(a.task, a.file)
+        elif a.cmd == "rewind":
+            out = rewind(a.task, a.stage)
         else:
             out = finish(a.task)
         print(json.dumps(out, ensure_ascii=False, indent=1))

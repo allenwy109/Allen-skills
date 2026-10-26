@@ -6,7 +6,6 @@ import unittest
 
 from tools import app_runtime as R
 from tools.acceptance import Acceptance
-from tools.lib.ledger import Ledger
 
 
 def reviewer():
@@ -20,13 +19,7 @@ def reviewer():
 
 
 def confirm_file(task, rel):
-    Ledger(task).add("reviews", {
-        "type": "user_confirmation",
-        "reviewer": "用户",
-        "at": "2026-10-27T10:00:00+00:00",
-        "covers": {"files": [rel]},
-        "conclusion": "已确认",
-    })
+    R.confirm(task, rel)
 
 
 class AppRuntimeTest(unittest.TestCase):
@@ -86,6 +79,37 @@ class AppRuntimeTest(unittest.TestCase):
         self.write("00_venture-paths.md", "# 企业化路径")
         missing = R.advance(self.task)
         self.assertIn("confirmation:00_venture-paths.md", missing["missing"])
+        confirm_file(self.task, "00_venture-paths.md")
+        self.assertEqual(R.advance(self.task)["advanced"], "pathing")
+
+    def test_idea_confirmation_expires_when_file_changes(self):
+        self.init("allen-idea")
+        R.advance(self.task)
+        self.write("00_idea-definition.md", "# 第一版")
+        confirm_file(self.task, "00_idea-definition.md")
+        self.write("00_idea-definition.md", "# 第二版")
+        result = R.advance(self.task)
+        self.assertEqual(result["validation"], "failed")
+        self.assertIn("confirmation:00_idea-definition.md", result["missing"])
+
+    def test_idea_can_rewind_to_pathing_and_requires_new_confirmation(self):
+        self.init("allen-idea")
+        R.advance(self.task)
+        self.write("00_idea-definition.md", "# 想法定义")
+        confirm_file(self.task, "00_idea-definition.md")
+        R.advance(self.task)
+        self.write("00_venture-paths.md", "# 第一版路径")
+        confirm_file(self.task, "00_venture-paths.md")
+        R.advance(self.task)
+        self.write("01_issue-tree.md")
+        R.advance(self.task)
+
+        result = R.rewind(self.task, "pathing")
+        self.assertEqual(result["stage"], "pathing")
+        stale = R.advance(self.task)
+        self.assertEqual(stale["validation"], "failed")
+        self.assertIn("confirmation:00_venture-paths.md", stale["missing"])
+        self.write("00_venture-paths.md", "# 第二版路径")
         confirm_file(self.task, "00_venture-paths.md")
         self.assertEqual(R.advance(self.task)["advanced"], "pathing")
 
