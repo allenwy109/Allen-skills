@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Allen 四个应用入口的运行状态机。
+"""Allen 应用入口的运行状态机。
 
 用法：
   app_runtime.py init <任务目录> --app allen-company --request "..." [--file PATH] [--url URL] [--depth L2]
@@ -8,6 +8,8 @@
   app_runtime.py wait <任务目录> --reason "..."
   app_runtime.py block <任务目录> --reason "..."
   app_runtime.py resume <任务目录>
+  app_runtime.py confirm <任务目录> --file 00_idea-definition.md
+  app_runtime.py rewind <任务目录> --stage pathing
   app_runtime.py finish <任务目录>
 
 它不替模型写分析，只负责锁定应用、给出下一阶段、检查产物并阻止提前结束。
@@ -15,6 +17,7 @@
 import argparse
 import datetime as dt
 import glob
+import hashlib
 import json
 import pathlib
 import sys
@@ -33,12 +36,16 @@ APPS = {
     "allen-capital": {"title": "资本市场对接与表现", "scene": "scene-company", "report": "资本对接与参与判断报告"},
     "allen-ecosystem": {"title": "上下游机会", "scene": "scene-company", "report": "产业协同与上下游机会报告"},
     "allen-bp-review": {"title": "评审 BP", "scene": "scene-bp-review", "report": "BP 评审与修改建议报告"},
+    "allen-idea": {"title": "创业点子评估", "scene": "scene-idea", "report": "创业点子企业化前景评估报告"},
 }
 
 STAGES = {
     "intake": {"skill": "core-intake", "required": ["00_brief.md", "03_evidence/ledger/project.jsonl"]},
+    "clarify": {"skill": "scene-idea", "required": ["00_idea-definition.md"]},
+    "pathing": {"skill": "scene-idea", "required": ["00_venture-paths.md"]},
     "framing": {"skill": "core-framing", "required": ["01_issue-tree.md"]},
     "evidence": {"skill": "core-evidence", "required": ["03_evidence/ledger/sources.jsonl", "03_evidence/ledger/claims.jsonl"]},
+    "research": {"skill": "core-research", "required": ["03_evidence/ledger/sources.jsonl", "03_evidence/ledger/claims.jsonl", "03r_research/report.md"]},
     "method": {"skill": "core-method-select", "required": ["02_method-plan.md"]},
     "analysis": {"skill": None, "required": ["04_analysis/*.md"]},
     "review": {"skill": "core-review", "required": ["05_review-log.md"]},
@@ -51,6 +58,12 @@ STAGES = {
 
 COMPANY_ORDER = ["intake", "framing", "evidence", "method", "analysis", "review", "synthesis", "storyline", "report", "support", "acceptance"]
 BP_ORDER = ["intake", "evidence", "framing", "method", "analysis", "review", "synthesis", "storyline", "report", "support", "acceptance"]
+IDEA_ORDER = ["intake", "clarify", "pathing", "framing", "research", "method", "analysis", "review", "synthesis", "storyline", "report", "support", "acceptance"]
+
+CONFIRMED_FILES = {
+    "clarify": "00_idea-definition.md",
+    "pathing": "00_venture-paths.md",
+}
 
 
 class AppError(Exception):
@@ -94,8 +107,39 @@ def matches(task, pattern):
     return [p for p in found if p.is_file() and (p.stat().st_size > 0 or p.suffix == ".jsonl")]
 
 
+def file_digest(path):
+    return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
+
+
+def is_confirmed(task, rel, after_count=0):
+    path = pathlib.Path(task) / rel
+    if not path.is_file():
+        return False
+    digest = file_digest(path)
+    reviews = Ledger(task).read("reviews")
+    return any(
+        review.get("type") == "user_confirmation"
+        and rel in review.get("covers", {}).get("files", [])
+        and review.get("digest") == digest
+        for review in reviews[after_count:]
+    )
+
+
 def validate_stage(task, run, stage):
     missing = [p for p in patterns_for(task, run, stage) if not matches(task, p)]
+    invalidated = run.get("invalidated_digests", {})
+    for pattern in patterns_for(task, run, stage):
+        for path in matches(task, pattern):
+            rel = str(path.relative_to(pathlib.Path(task)))
+            stale_digests = invalidated.get(rel, [])
+            if isinstance(stale_digests, str):
+                stale_digests = [stale_digests]
+            if file_digest(path) in stale_digests:
+                missing.append(f"stale:{rel}")
+    required_confirmation = CONFIRMED_FILES.get(stage)
+    after_count = run.get("confirmation_after_count", {}).get(stage, 0)
+    if required_confirmation and not is_confirmed(task, required_confirmation, after_count):
+        missing.append(f"confirmation:{required_confirmation}")
     if stage == "acceptance" and not missing:
         doc = Acceptance(task).check()
         kinds = {d["kind"]: d for d in doc.get("deliverables", [])}
@@ -150,7 +194,12 @@ def init_task(args):
              "## 用户要求（原文）\n\n" + request + "\n")
     (task / "00_brief.md").write_text(brief, encoding="utf-8")
     Ledger(task).init()
-    order = BP_ORDER if args.app == "allen-bp-review" else COMPANY_ORDER
+    if args.app == "allen-bp-review":
+        order = BP_ORDER
+    elif args.app == "allen-idea":
+        order = IDEA_ORDER
+    else:
+        order = COMPANY_ORDER
     run = {
         "version": 1,
         "run_id": task.name,
@@ -209,6 +258,54 @@ def resume(task):
     return stage_payload(task, run)
 
 
+def confirm(task, rel):
+    run = load(task)
+    stage = stage_payload(task, run).get("stage")
+    expected = CONFIRMED_FILES.get(stage)
+    if rel != expected:
+        raise AppError(f"当前阶段 {stage} 不能确认 {rel}")
+    path = pathlib.Path(task) / rel
+    if not path.is_file():
+        raise AppError(f"找不到待确认文件：{path}")
+    digest = file_digest(path)
+    review_id = Ledger(task).add("reviews", {
+        "type": "user_confirmation",
+        "reviewer": "用户",
+        "at": now(),
+        "covers": {"files": [rel]},
+        "conclusion": "用户已确认当前文件内容",
+        "digest": digest,
+    })
+    return {"confirmed": rel, "review_id": review_id, "digest": digest}
+
+
+def rewind(task, stage):
+    run = load(task)
+    if run["app_id"] != "allen-idea" or stage != "pathing":
+        raise AppError("只有 allen-idea 可以回退到 pathing")
+    target = run["stages"].index(stage)
+    if run["cursor"] <= target:
+        raise AppError("尚未越过 pathing，不能回退")
+    review_count = len(Ledger(task).read("reviews"))
+    invalidated = run.setdefault("invalidated_digests", {})
+    for downstream in run["stages"][target + 1:]:
+        for pattern in patterns_for(task, run, downstream):
+            for path in matches(task, pattern):
+                rel = str(path.relative_to(pathlib.Path(task)))
+                digest = file_digest(path)
+                stale_digests = invalidated.setdefault(rel, [])
+                if isinstance(stale_digests, str):
+                    stale_digests = invalidated[rel] = [stale_digests]
+                if digest not in stale_digests:
+                    stale_digests.append(digest)
+    run["cursor"] = target
+    run["completed_stages"] = run["stages"][:target]
+    run["status"] = "running"
+    run.setdefault("confirmation_after_count", {})[stage] = review_count
+    save(task, run)
+    return stage_payload(task, run)
+
+
 def finish(task):
     run = load(task)
     if run["cursor"] != len(run["stages"]):
@@ -246,6 +343,12 @@ def main(argv=None):
         q = sub.add_parser(name)
         q.add_argument("task")
         q.add_argument("--reason", required=True)
+    q = sub.add_parser("confirm")
+    q.add_argument("task")
+    q.add_argument("--file", required=True)
+    q = sub.add_parser("rewind")
+    q.add_argument("task")
+    q.add_argument("--stage", choices=("pathing",), required=True)
     a = ap.parse_args(argv)
     try:
         if a.cmd == "init":
@@ -260,6 +363,10 @@ def main(argv=None):
             out = set_state(a.task, "blocked", a.reason)
         elif a.cmd == "resume":
             out = resume(a.task)
+        elif a.cmd == "confirm":
+            out = confirm(a.task, a.file)
+        elif a.cmd == "rewind":
+            out = rewind(a.task, a.stage)
         else:
             out = finish(a.task)
         print(json.dumps(out, ensure_ascii=False, indent=1))

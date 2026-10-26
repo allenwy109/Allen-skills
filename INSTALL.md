@@ -32,7 +32,7 @@ cd Allen-skills
 ./install.sh
 ```
 
-默认把本仓库的 24 个 skill 和运行时 `_allen-runtime`（vendor 引擎 + tools）复制到 `~/.claude/skills/`，并把四个 `/allen-*` 入口装到 `~/.claude/commands/`。常用参数：
+默认把本仓库的 26 个 skill 和运行时 `_allen-runtime`（vendor 引擎 + tools）复制到 `~/.claude/skills/`，并把五个 `/allen-*` 入口装到 `~/.claude/commands/`。常用参数：
 
 | 参数 | 作用 |
 |---|---|
@@ -57,7 +57,7 @@ cd Allen-skills
 ./install.sh --codex
 ```
 
-默认安装到 `${CODEX_HOME:-$HOME/.codex}/skills`，四个自定义 prompt 安装到 `${CODEX_HOME:-$HOME/.codex}/prompts`。可用 `/prompts:allen-company` 等命令，或直接用 `$allen-company` 等 Skill 名称。安装后重新启动 Codex 会话，让它重新扫描。开发本仓库时可加 `--link`，仓库中的改动会立即反映到安装目录：
+默认安装到 `${CODEX_HOME:-$HOME/.codex}/skills`，五个自定义 prompt 安装到 `${CODEX_HOME:-$HOME/.codex}/prompts`。可用 `/prompts:allen-idea`、`/prompts:allen-company` 等命令，或直接用 `$allen-idea`、`$allen-company` 等 Skill 名称。安装后重新启动 Codex 会话，让它重新扫描。开发本仓库时可加 `--link`，仓库中的改动会立即反映到安装目录：
 
 ```bash
 ./install.sh --codex --link
@@ -139,10 +139,11 @@ options = ClaudeAgentOptions(
 
 ## 怎么用
 
-四个固定应用的入口：
+五个固定应用的入口：
 
 | 应用 | Claude Code | Codex |
 |---|---|---|
+| 验证创业点子 | `/allen-idea <要求>` | `/prompts:allen-idea <要求>` 或 `$allen-idea` |
 | 了解企业 | `/allen-company <要求>` | `/prompts:allen-company <要求>` 或 `$allen-company` |
 | 资本市场对接与表现 | `/allen-capital <要求>` | `/prompts:allen-capital <要求>` 或 `$allen-capital` |
 | 上下游机会 | `/allen-ecosystem <要求>` | `/prompts:allen-ecosystem <要求>` 或 `$allen-ecosystem` |
@@ -152,6 +153,7 @@ options = ClaudeAgentOptions(
 
 | 想做的事 | 可以这样说 |
 |---|---|
+| 验证创业点子 | “我有一项低成本机器视觉技术，想比较几种创业方向。” |
 | 分析一家企业 | “帮我分析一下 XX 公司，我们在考虑和它合作。” |
 | 研究一个话题 | “研究一下 2026 年国内储能行业，值不值得进？” |
 | 评审 BP | “评审这份 BP。”（附文件） |
@@ -161,7 +163,7 @@ options = ClaudeAgentOptions(
 
 深度：默认 L2（完整流程、3 个审查者：事实核查员、红队、成品审查员；交正式报告）。说“简单说说”是 L1（对话里直接回答）；说“深入分析”是 L3（5 个审查者，研究和尽调做得更深，研究包封包）。深度的唯一标准在 router 第 2 节。
 
-L2、L3 会在当前目录下建 `work/<日期>-<主题>/` 文件夹，里面是每一步的交接文件。四个应用交付 `report/` 中的主报告和 `supporting-package.zip`；两者是否完成都以 `08_deliverables/acceptance.json` 为准。
+L2、L3 会在当前目录下建 `work/<日期>-<主题>/` 文件夹，里面是每一步的交接文件。五个应用交付 `report/` 中的主报告和 `supporting-package.zip`；两者是否完成都以 `08_deliverables/acceptance.json` 为准。`allen-idea` 在正式研究前会先后等待用户确认想法定义卡和 2–3 条企业化路径。
 
 ## 检查安装是否成功
 

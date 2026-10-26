@@ -71,6 +71,26 @@ class ValidateTest(unittest.TestCase):
             self.assertEqual(p.returncode, 1)
             self.assertIn("引用了不存在的 skill ../zerox-storyline/", p.stdout)
 
+    def test_missing_application_entry_fails(self):
+        with tempfile.TemporaryDirectory() as t:
+            copy = pathlib.Path(t) / "repo"
+            copy_repo(copy)
+            (copy / "commands" / "codex" / "allen-idea.md").unlink()
+            p = self.run_validate(copy)
+            self.assertEqual(p.returncode, 1)
+            self.assertIn("allen-idea：缺少 Codex 入口", p.stdout)
+
+    def test_invalid_application_metadata_fails(self):
+        with tempfile.TemporaryDirectory() as t:
+            copy = pathlib.Path(t) / "repo"
+            copy_repo(copy)
+            meta = copy / "allen-idea" / "assets" / "app.json"
+            meta.write_text('{"id":"wrong","title":"创业点子评估","scene":"missing","report_title":"报告"}', encoding="utf-8")
+            p = self.run_validate(copy)
+            self.assertEqual(p.returncode, 1)
+            self.assertIn("allen-idea/assets/app.json：id 必须等于 allen-idea", p.stdout)
+            self.assertIn("allen-idea/assets/app.json：scene 指向不存在的 skill missing", p.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

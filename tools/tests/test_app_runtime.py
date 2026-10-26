@@ -18,6 +18,10 @@ def reviewer():
     }
 
 
+def confirm_file(task, rel):
+    R.confirm(task, rel)
+
+
 class AppRuntimeTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -46,6 +50,82 @@ class AppRuntimeTest(unittest.TestCase):
         self.assertEqual(run["stages"][1:3], ["evidence", "framing"])
         with self.assertRaises(R.AppError):
             self.init("allen-company")
+
+    def test_idea_uses_clarify_pathing_and_research_first(self):
+        payload = self.init("allen-idea")
+        self.assertEqual(payload["stage"], "intake")
+        run = json.loads((self.task / "app-run.json").read_text(encoding="utf-8"))
+        self.assertEqual(run["stages"][:6], [
+            "intake", "clarify", "pathing", "framing", "research", "method",
+        ])
+
+    def test_idea_clarify_requires_file_and_user_confirmation(self):
+        self.init("allen-idea")
+        self.assertEqual(R.advance(self.task)["advanced"], "intake")
+        missing = R.advance(self.task)
+        self.assertEqual(missing["validation"], "failed")
+        self.write("00_idea-definition.md", "# 想法定义")
+        missing = R.advance(self.task)
+        self.assertIn("confirmation:00_idea-definition.md", missing["missing"])
+        confirm_file(self.task, "00_idea-definition.md")
+        self.assertEqual(R.advance(self.task)["advanced"], "clarify")
+
+    def test_idea_pathing_requires_file_and_user_confirmation(self):
+        self.init("allen-idea")
+        R.advance(self.task)
+        self.write("00_idea-definition.md", "# 想法定义")
+        confirm_file(self.task, "00_idea-definition.md")
+        R.advance(self.task)
+        self.write("00_venture-paths.md", "# 企业化路径")
+        missing = R.advance(self.task)
+        self.assertIn("confirmation:00_venture-paths.md", missing["missing"])
+        confirm_file(self.task, "00_venture-paths.md")
+        self.assertEqual(R.advance(self.task)["advanced"], "pathing")
+
+    def test_idea_confirmation_expires_when_file_changes(self):
+        self.init("allen-idea")
+        R.advance(self.task)
+        self.write("00_idea-definition.md", "# 第一版")
+        confirm_file(self.task, "00_idea-definition.md")
+        self.write("00_idea-definition.md", "# 第二版")
+        result = R.advance(self.task)
+        self.assertEqual(result["validation"], "failed")
+        self.assertIn("confirmation:00_idea-definition.md", result["missing"])
+
+    def test_idea_can_rewind_to_pathing_and_requires_new_confirmation(self):
+        self.init("allen-idea")
+        R.advance(self.task)
+        self.write("00_idea-definition.md", "# 想法定义")
+        confirm_file(self.task, "00_idea-definition.md")
+        R.advance(self.task)
+        self.write("00_venture-paths.md", "# 第一版路径")
+        confirm_file(self.task, "00_venture-paths.md")
+        R.advance(self.task)
+        self.write("01_issue-tree.md", "# 第一版问题树")
+        R.advance(self.task)
+
+        result = R.rewind(self.task, "pathing")
+        self.assertEqual(result["stage"], "pathing")
+        stale = R.advance(self.task)
+        self.assertEqual(stale["validation"], "failed")
+        self.assertIn("confirmation:00_venture-paths.md", stale["missing"])
+        self.write("00_venture-paths.md", "# 第二版路径")
+        confirm_file(self.task, "00_venture-paths.md")
+        self.assertEqual(R.advance(self.task)["advanced"], "pathing")
+        stale = R.advance(self.task)
+        self.assertEqual(stale["validation"], "failed")
+        self.assertIn("stale:01_issue-tree.md", stale["missing"])
+        self.write("01_issue-tree.md", "# 第二版问题树")
+        self.assertEqual(R.advance(self.task)["advanced"], "framing")
+
+        R.rewind(self.task, "pathing")
+        self.write("00_venture-paths.md", "# 第三版路径")
+        confirm_file(self.task, "00_venture-paths.md")
+        R.advance(self.task)
+        self.write("01_issue-tree.md", "# 第一版问题树")
+        stale = R.advance(self.task)
+        self.assertEqual(stale["validation"], "failed")
+        self.assertIn("stale:01_issue-tree.md", stale["missing"])
 
     def test_file_input_requires_registered_source(self):
         self.init(files=["company.pdf"])
