@@ -87,8 +87,11 @@ class InstallRuntimeTest(unittest.TestCase):
         self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         self.assertTrue((codex_home / "skills" / "router").is_symlink())
         self.assertEqual((codex_home / "skills" / "_allen-runtime").resolve(), ROOT.resolve())
+        self.assertTrue((codex_home / "skills" / "allen-idea").is_symlink())
+        self.assertTrue((codex_home / "skills" / "scene-idea").is_symlink())
         self.assertTrue((codex_home / "prompts" / "allen-company.md").is_symlink())
         self.assertTrue((codex_home / "prompts" / "allen-bp-review.md").is_symlink())
+        self.assertTrue((codex_home / "prompts" / "allen-idea.md").is_symlink())
 
     def test_both_installs_two_platforms(self):
         fake_home = pathlib.Path(self.tmp.name) / "home"
@@ -100,7 +103,9 @@ class InstallRuntimeTest(unittest.TestCase):
         self.assertTrue((fake_home / ".claude" / "skills" / "router").is_symlink())
         self.assertTrue((codex_home / "skills" / "router").is_symlink())
         self.assertTrue((fake_home / ".claude" / "commands" / "allen-capital.md").is_symlink())
+        self.assertTrue((fake_home / ".claude" / "commands" / "allen-idea.md").is_symlink())
         self.assertTrue((codex_home / "prompts" / "allen-ecosystem.md").is_symlink())
+        self.assertTrue((codex_home / "prompts" / "allen-idea.md").is_symlink())
 
     def test_does_not_install_zerox(self):
         p = install("--target", str(self.target))
