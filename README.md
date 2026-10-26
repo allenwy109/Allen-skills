@@ -1,6 +1,6 @@
 # Allen 的方法论 Skills
 
-一套可在 Claude Code 和 Codex 中使用的 Agent Skills 分析系统：给它一家企业、一个话题、一份商业计划书或一个个人问题，它会拆问题、选对方法、联网核实关键事实、用独立的审查者挑毛病，最后经故事线整理。四个企业应用固定交付一份主报告（HTML + PDF）和一份支撑文件包（ZIP）。用户可以直接附 PDF、Word、PPT。
+一套可在 Claude Code 和 Codex 中使用的 Agent Skills 分析系统：给它一家企业、一个创业点子或技术、一个话题、一份商业计划书或一个个人问题，它会拆问题、选对方法、联网核实关键事实、用独立的审查者挑毛病，最后经故事线整理。五个应用固定交付一份主报告（HTML + PDF）和一份支撑文件包（ZIP）。用户可以直接附 PDF、Word、PPT。
 
 整体设计见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
@@ -23,10 +23,11 @@ cd Allen-skills
 
 ## 怎么用
 
-四个企业应用可以明确调用，命令后直接写要求并附文件：
+五个应用可以明确调用，命令后直接写要求并附文件：
 
 | 应用 | Claude Code | Codex | 处理重点 |
 |---|---|---|---|
+| 验证创业点子 | `/allen-idea` | `/prompts:allen-idea` 或 `$allen-idea` | 多轮澄清、路径比较、需求与潜在竞品、短中长期前景 |
 | 了解企业 | `/allen-company` | `/prompts:allen-company` 或 `$allen-company` | 企业全景、团队与人才价值 |
 | 资本市场对接与表现 | `/allen-capital` | `/prompts:allen-capital` 或 `$allen-capital` | 融资阶段、资本匹配、我方参与方式 |
 | 上下游机会 | `/allen-ecosystem` | `/prompts:allen-ecosystem` 或 `$allen-ecosystem` | 客户、供应商、渠道、技术与交付伙伴 |
@@ -35,6 +36,7 @@ cd Allen-skills
 也可以直接说要做什么，由 router 判断：
 
 - “帮我分析一下 XX 公司，我们在考虑和它合作。”
+- “我有一项低成本机器视觉技术，想比较几种创业方向并判断是快钱还是长期机会。”
 - “研究一下 2026 年国内储能行业，值不值得进？”
 - “评审这份 BP。”（附文件）
 - “我总是拖延，怎么办？”
@@ -45,11 +47,13 @@ cd Allen-skills
 
 | 层 | Skill | 用途 |
 |---|---|---|
+| 应用 | [allen-idea](allen-idea/) | 澄清创业想法，比较企业化路径并判断前景 |
 | 应用 | [allen-company](allen-company/) | 了解企业，含团队和人才价值 |
 | 应用 | [allen-capital](allen-capital/) | 判断资本市场对接、融资表现与参与方式 |
 | 应用 | [allen-ecosystem](allen-ecosystem/) | 分析上下游和产业协同机会 |
 | 应用 | [allen-bp-review](allen-bp-review/) | 评审 BP 的证据、内容、故事线和页面表达 |
 | 入口 | [router](router/) | 判断场景和投入深度，建任务文件夹；附各场景的系统提示词模板 |
+| 场景 | [scene-idea](scene-idea/) | 给创业想法或技术：澄清、路径比较、需求与竞品研究、前景判断 |
 | 场景 | [scene-company](scene-company/) | 给一家企业：诊断、合作、投资、内部管理 |
 | 场景 | [scene-topic](scene-topic/) | 给一个话题或行业：研究并给出判断 |
 | 场景 | [scene-bp-review](scene-bp-review/) | 给一份商业计划书：核实说法、找漏洞、出评审意见 |
@@ -94,5 +98,5 @@ lib-*/
 - `python3 tools/validate.py`：检查 skill 结构、跨 skill 引用、卡片必备小节、选法表格式、vendor 完整性、schema。PR 上会自动跑。
 - `tools/selftest.sh`：全部单元测试、各 skill 的脚本测试和三个引擎的测试；`tools/selftest.sh --e2e` 另跑端到端冒烟（文字要求 + 三份文件 → 正式报告、图表、海报 → 验收）。
 - `python3 tools/doctor.py`：检查出成品所需的依赖。
-- [tests/method-selection-cases.md](tests/method-selection-cases.md)：12 道选方法测试题，改选法表或卡片后重跑。
+- [tests/method-selection-cases.md](tests/method-selection-cases.md)：13 道选方法测试题，改选法表或卡片后重跑。
 - 加新方法：在对应方法库加卡片（必备小节见 validate.py），在 method-index.md 登记，在 SKILL.md 选法表加一行。

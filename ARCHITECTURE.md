@@ -5,13 +5,13 @@
 按功能拆开：流程只写一份（在场景里），选方法、核实、研究、尽调、故事线各成一个能力 skill，事实只记在一个证据账里，成品只经输出层出，最后由独立审查和统一验收把关。
 
 ```
-应用入口    allen-company   allen-capital   allen-ecosystem   allen-bp-review
+应用入口    allen-idea   allen-company   allen-capital   allen-ecosystem   allen-bp-review
              │  锁定系统提示词和场景；app_runtime 状态机防止只摘要后退出
 通用入口    router：没有明确点名应用时判断场景，定深度，建任务文件夹
              │
 接收        core-intake：用户附的 PDF / Word / PPT → 逐页全文、页面图片、表格，登记进证据账
              │
-场景层      scene-company   scene-topic   scene-bp-review   scene-personal
+场景层      scene-idea   scene-company   scene-topic   scene-bp-review   scene-personal
              │  只编排：按什么顺序调哪些能力、交付什么、哪些关口必须过
              │
 能力层      core-framing → core-method-select → （按卡片分析）→ core-synthesis → core-storyline
@@ -50,6 +50,7 @@ skill 之间不靠对话记忆传递，而是通过任务文件夹里的固定�
 ```
 work/<日期>-<主题>/
 ├── 00_brief.md          router（含"用户要求（原文）"）
+├── 00_idea-definition.md / 00_venture-paths.md  allen-idea 专用，需用户确认
 ├── 01_issue-tree.md     core-framing
 ├── 02_method-plan.md    core-method-select
 ├── 03_evidence/         统一证据账：ledger/*.jsonl 是事实的唯一真源，raw/ 存来源快照和用户材料
@@ -89,7 +90,7 @@ L1 快答不建文件夹，内容直接写在回答里。完整的目录树在 r
 - 正式报告、图表、海报只能经 out-* 出：vendor 引擎目录里没有 SKILL.md，不会被单独触发；场景只指向 core-storyline 和 out-*。
 - 引擎的生产记录只能经 report.cjs 统一入口写，否则过不了引擎的验收和打包门禁。
 - 只有 acceptance.json 能判定"已完成"，它会重新计算前置检查和成品哈希；成品被改动后状态自动失效。
-- 四个应用入口必须经 app_runtime 逐阶段推进；缺少阶段文件、主报告或支撑文件包时不能提前结束。
+- 五个应用入口必须经 app_runtime 逐阶段推进；allen-idea 的 clarify 和 pathing 是应用专用确认门禁，其余证据、报告和验收规则共用；缺少阶段文件、用户确认、主报告或支撑文件包时不能提前结束。
 - `validate.py` 拦下对不存在的 skill 的引用，场景只能指向本系统的 skill。
 
 ## 依赖
