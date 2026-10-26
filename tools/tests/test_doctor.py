@@ -126,7 +126,7 @@ class DoctorTest(unittest.TestCase):
             ("虚拟环境不存在", lambda e: e.paths.discard(VENV_PY), venv, doctor.MISSING),
             ("虚拟环境缺包", lambda e: e.rules.insert(0, ("import sys, pptx", (1, "ModuleNotFoundError: pptx"))), venv, doctor.MISSING),
             ("虚拟环境 Python 太旧", lambda e: e.rules.insert(0, ("import sys, pptx", (0, "3.9\n"))), venv, doctor.OLD),
-            ("Chrome 启动失败", lambda e: e.rules.insert(0, ("chromium.launch", (1, "crash"))), "Chrome/Chromium 无头启动（报告引擎）", doctor.MISSING),
+            ("Chrome 启动失败", lambda e: e.rules.insert(0, ("--dump-dom", (1, "crash"))), "Chrome/Chromium 无头启动（报告引擎）", doctor.MISSING),
             ("Chrome 不存在", lambda e: e.paths.discard(doctor.CHROME), "Chrome/Chromium 无头启动（报告引擎）", doctor.MISSING),
             ("缺 pdffonts", lambda e: e.commands.discard("pdffonts"), "Poppler（pdfinfo、pdftotext、pdftoppm、pdffonts）", doctor.MISSING),
             ("缺 tesseract", lambda e: e.commands.discard("tesseract"), "Tesseract（含 chi_sim）", doctor.MISSING),
