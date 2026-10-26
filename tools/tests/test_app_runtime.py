@@ -112,6 +112,11 @@ class AppRuntimeTest(unittest.TestCase):
         self.write("00_venture-paths.md", "# 第二版路径")
         confirm_file(self.task, "00_venture-paths.md")
         self.assertEqual(R.advance(self.task)["advanced"], "pathing")
+        stale = R.advance(self.task)
+        self.assertEqual(stale["validation"], "failed")
+        self.assertIn("stale:01_issue-tree.md", stale["missing"])
+        self.write("01_issue-tree.md", "# 第二版问题树")
+        self.assertEqual(R.advance(self.task)["advanced"], "framing")
 
     def test_file_input_requires_registered_source(self):
         self.init(files=["company.pdf"])

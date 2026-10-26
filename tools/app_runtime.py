@@ -127,6 +127,12 @@ def is_confirmed(task, rel, after_count=0):
 
 def validate_stage(task, run, stage):
     missing = [p for p in patterns_for(task, run, stage) if not matches(task, p)]
+    invalidated = run.get("invalidated_digests", {})
+    for pattern in patterns_for(task, run, stage):
+        for path in matches(task, pattern):
+            rel = str(path.relative_to(pathlib.Path(task)))
+            if invalidated.get(rel) == file_digest(path):
+                missing.append(f"stale:{rel}")
     required_confirmation = CONFIRMED_FILES.get(stage)
     after_count = run.get("confirmation_after_count", {}).get(stage, 0)
     if required_confirmation and not is_confirmed(task, required_confirmation, after_count):
@@ -278,6 +284,12 @@ def rewind(task, stage):
     if run["cursor"] <= target:
         raise AppError("尚未越过 pathing，不能回退")
     review_count = len(Ledger(task).read("reviews"))
+    invalidated = run.setdefault("invalidated_digests", {})
+    for downstream in run["stages"][target + 1:]:
+        for pattern in patterns_for(task, run, downstream):
+            for path in matches(task, pattern):
+                rel = str(path.relative_to(pathlib.Path(task)))
+                invalidated[rel] = file_digest(path)
     run["cursor"] = target
     run["completed_stages"] = run["stages"][:target]
     run["status"] = "running"
