@@ -101,7 +101,7 @@ class AppRuntimeTest(unittest.TestCase):
         self.write("00_venture-paths.md", "# 第一版路径")
         confirm_file(self.task, "00_venture-paths.md")
         R.advance(self.task)
-        self.write("01_issue-tree.md")
+        self.write("01_issue-tree.md", "# 第一版问题树")
         R.advance(self.task)
 
         result = R.rewind(self.task, "pathing")
@@ -117,6 +117,15 @@ class AppRuntimeTest(unittest.TestCase):
         self.assertIn("stale:01_issue-tree.md", stale["missing"])
         self.write("01_issue-tree.md", "# 第二版问题树")
         self.assertEqual(R.advance(self.task)["advanced"], "framing")
+
+        R.rewind(self.task, "pathing")
+        self.write("00_venture-paths.md", "# 第三版路径")
+        confirm_file(self.task, "00_venture-paths.md")
+        R.advance(self.task)
+        self.write("01_issue-tree.md", "# 第一版问题树")
+        stale = R.advance(self.task)
+        self.assertEqual(stale["validation"], "failed")
+        self.assertIn("stale:01_issue-tree.md", stale["missing"])
 
     def test_file_input_requires_registered_source(self):
         self.init(files=["company.pdf"])
