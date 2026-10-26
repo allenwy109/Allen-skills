@@ -6,6 +6,7 @@ import unittest
 
 from tools import app_runtime as R
 from tools.acceptance import Acceptance
+from tools.lib.ledger import Ledger
 
 
 def reviewer():
@@ -16,6 +17,16 @@ def reviewer():
         "conclusion": "文件完整",
         "issues": [],
     }
+
+
+def confirm_file(task, rel):
+    Ledger(task).add("reviews", {
+        "type": "user_confirmation",
+        "reviewer": "用户",
+        "at": "2026-10-27T10:00:00+00:00",
+        "covers": {"files": [rel]},
+        "conclusion": "已确认",
+    })
 
 
 class AppRuntimeTest(unittest.TestCase):
@@ -46,6 +57,37 @@ class AppRuntimeTest(unittest.TestCase):
         self.assertEqual(run["stages"][1:3], ["evidence", "framing"])
         with self.assertRaises(R.AppError):
             self.init("allen-company")
+
+    def test_idea_uses_clarify_pathing_and_research_first(self):
+        payload = self.init("allen-idea")
+        self.assertEqual(payload["stage"], "intake")
+        run = json.loads((self.task / "app-run.json").read_text(encoding="utf-8"))
+        self.assertEqual(run["stages"][:6], [
+            "intake", "clarify", "pathing", "framing", "research", "method",
+        ])
+
+    def test_idea_clarify_requires_file_and_user_confirmation(self):
+        self.init("allen-idea")
+        self.assertEqual(R.advance(self.task)["advanced"], "intake")
+        missing = R.advance(self.task)
+        self.assertEqual(missing["validation"], "failed")
+        self.write("00_idea-definition.md", "# 想法定义")
+        missing = R.advance(self.task)
+        self.assertIn("confirmation:00_idea-definition.md", missing["missing"])
+        confirm_file(self.task, "00_idea-definition.md")
+        self.assertEqual(R.advance(self.task)["advanced"], "clarify")
+
+    def test_idea_pathing_requires_file_and_user_confirmation(self):
+        self.init("allen-idea")
+        R.advance(self.task)
+        self.write("00_idea-definition.md", "# 想法定义")
+        confirm_file(self.task, "00_idea-definition.md")
+        R.advance(self.task)
+        self.write("00_venture-paths.md", "# 企业化路径")
+        missing = R.advance(self.task)
+        self.assertIn("confirmation:00_venture-paths.md", missing["missing"])
+        confirm_file(self.task, "00_venture-paths.md")
+        self.assertEqual(R.advance(self.task)["advanced"], "pathing")
 
     def test_file_input_requires_registered_source(self):
         self.init(files=["company.pdf"])

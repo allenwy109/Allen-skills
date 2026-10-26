@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Allen 四个应用入口的运行状态机。
+"""Allen 应用入口的运行状态机。
 
 用法：
   app_runtime.py init <任务目录> --app allen-company --request "..." [--file PATH] [--url URL] [--depth L2]
@@ -33,12 +33,16 @@ APPS = {
     "allen-capital": {"title": "资本市场对接与表现", "scene": "scene-company", "report": "资本对接与参与判断报告"},
     "allen-ecosystem": {"title": "上下游机会", "scene": "scene-company", "report": "产业协同与上下游机会报告"},
     "allen-bp-review": {"title": "评审 BP", "scene": "scene-bp-review", "report": "BP 评审与修改建议报告"},
+    "allen-idea": {"title": "创业点子评估", "scene": "scene-idea", "report": "创业点子企业化前景评估报告"},
 }
 
 STAGES = {
     "intake": {"skill": "core-intake", "required": ["00_brief.md", "03_evidence/ledger/project.jsonl"]},
+    "clarify": {"skill": "scene-idea", "required": ["00_idea-definition.md"]},
+    "pathing": {"skill": "scene-idea", "required": ["00_venture-paths.md"]},
     "framing": {"skill": "core-framing", "required": ["01_issue-tree.md"]},
     "evidence": {"skill": "core-evidence", "required": ["03_evidence/ledger/sources.jsonl", "03_evidence/ledger/claims.jsonl"]},
+    "research": {"skill": "core-research", "required": ["03_evidence/ledger/sources.jsonl", "03_evidence/ledger/claims.jsonl", "03r_research/report.md"]},
     "method": {"skill": "core-method-select", "required": ["02_method-plan.md"]},
     "analysis": {"skill": None, "required": ["04_analysis/*.md"]},
     "review": {"skill": "core-review", "required": ["05_review-log.md"]},
@@ -51,6 +55,12 @@ STAGES = {
 
 COMPANY_ORDER = ["intake", "framing", "evidence", "method", "analysis", "review", "synthesis", "storyline", "report", "support", "acceptance"]
 BP_ORDER = ["intake", "evidence", "framing", "method", "analysis", "review", "synthesis", "storyline", "report", "support", "acceptance"]
+IDEA_ORDER = ["intake", "clarify", "pathing", "framing", "research", "method", "analysis", "review", "synthesis", "storyline", "report", "support", "acceptance"]
+
+CONFIRMED_FILES = {
+    "clarify": "00_idea-definition.md",
+    "pathing": "00_venture-paths.md",
+}
 
 
 class AppError(Exception):
@@ -94,8 +104,19 @@ def matches(task, pattern):
     return [p for p in found if p.is_file() and (p.stat().st_size > 0 or p.suffix == ".jsonl")]
 
 
+def confirmed_files(task):
+    confirmed = set()
+    for review in Ledger(task).read("reviews"):
+        if review.get("type") == "user_confirmation":
+            confirmed.update(review.get("covers", {}).get("files", []))
+    return confirmed
+
+
 def validate_stage(task, run, stage):
     missing = [p for p in patterns_for(task, run, stage) if not matches(task, p)]
+    required_confirmation = CONFIRMED_FILES.get(stage)
+    if required_confirmation and required_confirmation not in confirmed_files(task):
+        missing.append(f"confirmation:{required_confirmation}")
     if stage == "acceptance" and not missing:
         doc = Acceptance(task).check()
         kinds = {d["kind"]: d for d in doc.get("deliverables", [])}
@@ -150,7 +171,12 @@ def init_task(args):
              "## 用户要求（原文）\n\n" + request + "\n")
     (task / "00_brief.md").write_text(brief, encoding="utf-8")
     Ledger(task).init()
-    order = BP_ORDER if args.app == "allen-bp-review" else COMPANY_ORDER
+    if args.app == "allen-bp-review":
+        order = BP_ORDER
+    elif args.app == "allen-idea":
+        order = IDEA_ORDER
+    else:
+        order = COMPANY_ORDER
     run = {
         "version": 1,
         "run_id": task.name,
