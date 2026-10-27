@@ -1,8 +1,12 @@
 {
   "schemaVersion": "1.0",
-  "status": "approved",
-  "approvedBy": "user",
-  "approvedAt": "2026-10-27T11:43:00+10:30",
-  "candidateDigest": "823c58f3473e6faf9e0ae3455cb23b2632d95f2badb4d026616f209e10eaae96",
-  "changeReason": "用户确认：这个排版结构我认可"
+  "status": "needs-reapproval",
+  "contentApproval": {
+    "status": "approved",
+    "approvedBy": "user",
+    "approvedAt": "2026-10-27T11:43:00+10:30",
+    "candidateDigest": "823c58f3473e6faf9e0ae3455cb23b2632d95f2badb4d026616f209e10eaae96",
+    "changeReason": "用户确认：这个排版结构我认可"
+  },
+  "changeReason": "修正目录第 02 章页码，并使可见审批文案与历史用户批准记录一致；新像素候选待用户重新确认"
 }

@@ -57,12 +57,36 @@ class GoldenReportContractTest(unittest.TestCase):
         steps = [(float(a), float(b)) for a, b in re.findall(r'data-waterfall-step[^>]*data-start="([\d.-]+)"[^>]*data-end="([\d.-]+)"', self.source_html)]
         self.assertEqual(steps, [(0, 8.6), (8.6, 3.2), (3.2, 2.5), (2.5, 2.1), (0, 2.1)])
 
+    def test_toc_chapter_pages_match_first_running_header(self):
+        toc = re.search(r'<section[^>]*data-page-id="p02".*?</section>', self.source_html, re.S).group(0)
+        toc_entries = dict(re.findall(r'<strong>(\d{2})\s+[^<]+</strong><span>(\d{2})</span>', toc))
+        first_running_pages = {}
+        for section in re.findall(r'<section\b.*?</section>', self.source_html, re.S):
+            page = re.search(r'data-page-id="p(\d{2})"', section)
+            chapter = re.search(r'(?:class="section-no">|class="running"><span>)(\d{2})', section)
+            if page and chapter:
+                first_running_pages.setdefault(chapter.group(1), page.group(1))
+        self.assertEqual(toc_entries, {"01": "04", "02": "06", "03": "10", "04": "15"})
+        self.assertEqual(toc_entries, {chapter: first_running_pages[chapter] for chapter in toc_entries})
+
+    def test_visible_approval_copy_matches_machine_state(self):
+        visible = re.sub(r'<[^>]+>', ' ', self.source_html)
+        for stale in ("黄金小册候选", "UNAPPROVED", "Unapproved", "未批准", "设计候选"):
+            self.assertNotIn(stale, visible)
+        self.assertIn("黄金小册基准 v1.0", visible)
+        self.assertIn("已批准 / Approved", visible)
+        self.assertIn("批准人：user", visible)
+        self.assertIn("批准日期：2026-10-27", visible)
+        self.assertIn("审批状态：approved", visible)
+
     def test_approval_record_is_separate_and_records_user_approval(self):
-        self.assertEqual(self.baseline["status"], "approved")
-        self.assertEqual(self.baseline["approvedBy"], "user")
-        self.assertRegex(self.baseline["approvedAt"], r"^2026-10-27T\d{2}:\d{2}:\d{2}\+10:30$")
-        self.assertEqual(self.baseline["changeReason"], "用户确认：这个排版结构我认可")
-        self.assertRegex(self.baseline["candidateDigest"], r"^[0-9a-f]{64}$")
+        self.assertEqual(self.baseline["status"], "needs-reapproval")
+        approval = self.baseline["contentApproval"]
+        self.assertEqual(approval["status"], "approved")
+        self.assertEqual(approval["approvedBy"], "user")
+        self.assertRegex(approval["approvedAt"], r"^2026-10-27T\d{2}:\d{2}:\d{2}\+10:30$")
+        self.assertEqual(approval["changeReason"], "用户确认：这个排版结构我认可")
+        self.assertRegex(approval["candidateDigest"], r"^[0-9a-f]{64}$")
         self.assertNotIn("artifacts", self.baseline); self.assertNotIn("environment", self.baseline)
 
     def test_source_is_script_free_and_declares_a4_readability(self):
@@ -106,13 +130,15 @@ class GoldenRenderIntegrationTest(unittest.TestCase):
     def test_candidate_is_captured_with_separate_approval_and_tagging_limit_is_honest(self):
         baseline = json.loads((GOLDEN / "visual-baseline.json").read_text())
         self.assertEqual(self.second["status"], "captured"); self.assertEqual(self.second["approvalStatus"], baseline["status"])
-        self.assertEqual(self.second["candidateDigest"], baseline["candidateDigest"])
+        self.assertNotEqual(self.second["candidateDigest"], baseline["contentApproval"]["candidateDigest"])
         self.assertFalse(self.second["accessibility"]["pdfTagged"]); self.assertIn("Chromium", self.second["accessibility"]["limitation"])
 
     def test_approved_baseline_refuses_changed_candidate(self):
         with tempfile.TemporaryDirectory() as tmp:
             copy = pathlib.Path(tmp) / "golden"; shutil.copytree(GOLDEN, copy, ignore=shutil.ignore_patterns("build"))
-            b = json.loads((copy / "visual-baseline.json").read_text()); b.update({"status": "approved", "approvedBy": "Test", "approvedAt": "2026-10-27T00:00:00Z", "candidateDigest": "wrong"})
+            b = json.loads((copy / "visual-baseline.json").read_text())
+            previous = b["contentApproval"]
+            b.update({"status": "approved", "approvedBy": previous["approvedBy"], "approvedAt": previous["approvedAt"], "candidateDigest": previous["candidateDigest"]})
             (copy / "visual-baseline.json").write_text(json.dumps(b))
             self.assertIn("approved baseline does not match", run_render(copy, expect=2).stderr)
 
