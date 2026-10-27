@@ -7,6 +7,15 @@ import unittest
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+SCENE_PATHS = [
+    ROOT / name / "SKILL.md"
+    for name in ("scene-idea", "scene-company", "scene-topic", "scene-bp-review")
+]
+METHOD_TEMPLATE = ROOT / "core-method-select" / "assets" / "method-plan-template.md"
+SHARED_GUIDE = ROOT / "core-evidence" / "references" / "decision-research-contracts.md"
+REVIEW_PROMPTS = ROOT / "core-review" / "references" / "reviewer-prompts.md"
+REVIEW_STANDARD = ROOT / "core-review" / "references" / "output-standard.md"
+PRESSURE_CASES = ROOT / "tests" / "research-quality-cases.md"
 
 
 def valid_contract():
@@ -87,6 +96,42 @@ def run_quality_check(contract, ledger):
 
 
 class ResearchQualityTest(unittest.TestCase):
+    def test_research_scenes_route_material_questions_through_shared_contract(self):
+        for path in SCENE_PATHS:
+            with self.subTest(path=path):
+                text = path.read_text(encoding="utf-8")
+                self.assertIn("decision-research.json", text)
+                self.assertIn("research_quality.py", text)
+                self.assertRegex(text, r"L2/L3|L2、L3|L2 和 L3")
+                self.assertIn("综合", text)
+
+    def test_method_plan_requires_prerequisite_status_output_and_downgrade(self):
+        text = METHOD_TEMPLATE.read_text(encoding="utf-8")
+        for field in ("前提状态", "实际产出", "降级理由"):
+            self.assertIn(field, text)
+
+    def test_shared_guide_covers_decision_research_judgments(self):
+        text = SHARED_GUIDE.read_text(encoding="utf-8")
+        for term in (
+            "触发", "权宜办法", "后果", "购买或切换信号", "证据边界",
+            "直接", "间接", "自建", "相邻", "不行动",
+            "3C", "五力", "STP", "定价三角", "客户旅程", "KSF",
+            "critical_claim_refs", "不强制全用",
+        ):
+            self.assertIn(term, text)
+
+    def test_review_rechecks_gate_and_challenges_known_failure_modes(self):
+        text = REVIEW_PROMPTS.read_text(encoding="utf-8") + REVIEW_STANDARD.read_text(encoding="utf-8")
+        self.assertIn("research_quality.py", text)
+        for term in ("发布方偏差", "替代层", "强度措辞", "只列方法名"):
+            self.assertIn(term, text)
+
+    def test_pressure_suite_contains_five_required_cases(self):
+        text = PRESSURE_CASES.read_text(encoding="utf-8")
+        for term in ("供应商案例", "自建", "不购买", "TAM", "法律义务", "L1"):
+            self.assertIn(term, text)
+        self.assertEqual(text.count("## Case "), 5)
+
     def test_complete_contract_passes(self):
         result = run_quality_check(valid_contract(), valid_ledger())
         self.assertEqual(result.returncode, 0, result.stderr)

@@ -56,6 +56,7 @@ core-diligence 的深度：L2 用 Quick，L3 用 Standard，用户要求"深入"
 
 - 选方法关口（core-method-select）：每个子问题的前提检查和预期产出写进方法计划。
 - 核实关口（core-evidence 第 6 节）：综合前，影响结论的事实都有状态。
+- L2/L3 中痛点或竞争会改变结论时，按 `../core-evidence/references/decision-research-contracts.md` 建 `03_evidence/decision-research.json`；审查后、综合前运行 `python3 <运行时>/tools/research_quality.py check <任务文件夹>`，失败不得进入综合。
 - L2 起必须有审查记录；没有子代理能力时写明"未经独立审查"。
 - 只有 `08_deliverables/acceptance.json` 能判定"已完成"。
 
