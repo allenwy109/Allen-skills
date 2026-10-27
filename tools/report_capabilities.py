@@ -43,11 +43,31 @@ def _digest(path):
 
 def generate_baseline(root):
     root = pathlib.Path(root).resolve()
-    showcase = root / SHOWCASE
+    showcase_path = root / SHOWCASE
+    if showcase_path.is_symlink():
+        raise CapabilityError(f"{SHOWCASE}: showcase must not be a symlink")
+    showcase = showcase_path.resolve()
+    try:
+        showcase.relative_to(root)
+    except ValueError as error:
+        raise CapabilityError(f"{SHOWCASE}: showcase escapes repository") from error
     if not showcase.is_dir():
         raise CapabilityError(f"{SHOWCASE}: showcase directory does not exist")
     artifacts = []
-    for path in sorted(item for item in showcase.rglob("*") if item.is_file()):
+    for path in sorted(showcase_path.rglob("*")):
+        if path.is_symlink():
+            raise CapabilityError(
+                f"{path.relative_to(root).as_posix()}: showcase symlink is not allowed"
+            )
+        resolved = path.resolve()
+        try:
+            resolved.relative_to(showcase)
+        except ValueError as error:
+            raise CapabilityError(
+                f"{path.relative_to(root).as_posix()}: showcase path escapes directory"
+            ) from error
+        if not path.is_file():
+            continue
         artifacts.append({
             "path": path.relative_to(root).as_posix(),
             "sha256": _digest(path),
@@ -143,7 +163,8 @@ def check_baseline(root):
     if extra_fields:
         errors.append("baseline: unknown fields: " + ", ".join(extra_fields))
     for field in ("version", "upstream_repo", "upstream_commit", "license", "status", "approval"):
-        if baseline.get(field) != expected[field]:
+        if (type(baseline.get(field)) is not type(expected[field])
+                or baseline.get(field) != expected[field]):
             errors.append(f"baseline: {field} must be {expected[field]!r}")
     artifacts = baseline.get("artifacts")
     if not isinstance(artifacts, list) or not artifacts:
@@ -181,7 +202,9 @@ def check_baseline(root):
         actual[path_text] = artifact
         if artifact.get("sha256") != _digest(path):
             errors.append(f"{label}: sha256 mismatch: {path_text}")
-        if artifact.get("size") != path.stat().st_size:
+        if type(artifact.get("size")) is not int:
+            errors.append(f"{label}: size must be an integer: {path_text}")
+        elif artifact.get("size") != path.stat().st_size:
             errors.append(f"{label}: size mismatch: {path_text}")
     expected_by_path = {item["path"]: item for item in expected["artifacts"]}
     missing = sorted(set(expected_by_path) - set(actual))

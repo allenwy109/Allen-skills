@@ -32,7 +32,7 @@ class ReportCapabilitiesTests(unittest.TestCase):
         showcase.mkdir(parents=True)
         (showcase / "a.txt").write_bytes(b"alpha\n")
         (showcase / "nested").mkdir()
-        (showcase / "nested" / "b.bin").write_bytes(b"\x00\x01")
+        (showcase / "nested" / "b.bin").write_bytes(b"\x00")
         references = root / "references"
         references.mkdir()
         schema = ROOT / "references" / "visual-baseline.schema.json"
@@ -320,7 +320,9 @@ class ReportCapabilitiesTests(unittest.TestCase):
             self.assertEqual(report_capabilities.check_baseline(root), [])
 
             cases = {
+                "boolean version": lambda data: data.update(version=True),
                 "bad hash": lambda data: data["artifacts"][0].update(sha256="0" * 64),
+                "boolean size": lambda data: data["artifacts"][1].update(size=True),
                 "missing item": lambda data: data["artifacts"].pop(),
                 "duplicate path": lambda data: data["artifacts"].append(dict(data["artifacts"][0])),
                 "path escape": lambda data: data["artifacts"][0].update(path="../outside"),
@@ -335,6 +337,40 @@ class ReportCapabilitiesTests(unittest.TestCase):
                     mutate(changed)
                     report_capabilities.write_baseline(root, changed)
                     self.assertTrue(report_capabilities.check_baseline(root))
+
+    def test_generated_baseline_always_passes_check(self):
+        temporary, root = self.make_baseline_root()
+        with temporary:
+            report_capabilities.write_baseline_schema(root)
+            report_capabilities.write_baseline(
+                root, report_capabilities.generate_baseline(root)
+            )
+
+            self.assertEqual(report_capabilities.check_baseline(root), [])
+
+    def test_generate_baseline_rejects_escaping_symlink(self):
+        temporary, root = self.make_baseline_root()
+        with temporary:
+            outside = root / "outside.txt"
+            outside.write_text("outside", encoding="utf-8")
+            link = root / "vendor" / "report-forge" / "docs" / "showcase" / "outside-link"
+            link.symlink_to(outside)
+
+            with self.assertRaisesRegex(report_capabilities.CapabilityError, "symlink"):
+                report_capabilities.generate_baseline(root)
+
+            tools = root / "tools"
+            tools.mkdir()
+            shutil.copy2(ROOT / "tools" / "report_capabilities.py",
+                         tools / "report_capabilities.py")
+            result = subprocess.run(
+                ["python3", str(tools / "report_capabilities.py"), "baseline-generate"],
+                capture_output=True, text=True,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertFalse(json.loads(result.stdout)["ok"])
+            self.assertNotIn("Traceback", result.stderr)
 
     def test_check_baseline_rejects_schema_errors(self):
         temporary, root = self.make_baseline_root()
