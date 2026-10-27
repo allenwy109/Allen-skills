@@ -4,7 +4,7 @@
 import argparse
 import json
 import pathlib
-import re
+import subprocess
 import sys
 
 
@@ -12,32 +12,60 @@ MATRIX = pathlib.Path("references/upstream-capability-matrix.json")
 REFERENCE_FIELDS = ("upstream_ref", "local_ref", "test", "visual_evidence")
 STATUSES = {"parity", "missing", "untested", "present-not-used", "superseded"}
 RELEASE_READY = {"parity", "superseded"}
+REQUIRED_CAPABILITY_IDS = {
+    "layouts-38", "masters-6", "themes-3", "ratios-2", "form-catalog",
+    "form-capacity", "chart-diversity", "layout-diversity", "module-fill",
+    "representative-pages", "contact-sheet-worst-page", "html-pdf-page-review",
+    "official-showcase", "showcase-build-scripts", "screenshot-manifest",
+    "author-review", "independent-review", "review-reuse", "execution-plan",
+    "resume-recovery", "narrative", "composition", "evidence-binding",
+    "packaging", "upstream-contract-tests", "real-browser-tests",
+}
 
 
-def _object_keys(path, start, end):
-    text = path.read_text(encoding="utf-8")
-    body = text.split(start, 1)[1].split(end, 1)[0]
-    return re.findall(r'^  ["\']([^"\']+)["\']:\s*\{', body, re.MULTILINE)
+class CapabilityError(Exception):
+    """A stable, user-facing capability inspection failure."""
+
+
+def _javascript_capabilities(forge):
+    script = (
+        "const themes=require(process.argv[1]),grid=require(process.argv[2]);"
+        "process.stdout.write(JSON.stringify({themes:themes.ids,ratios:Object.keys(grid.RATIOS).sort()}));"
+    )
+    try:
+        result = subprocess.run(
+            ["node", "-e", script, str(forge / "assets" / "deck-themes.js"),
+             str(forge / "assets" / "deck-grid.js")],
+            check=True, capture_output=True, text=True,
+        )
+        data = json.loads(result.stdout)
+        if not isinstance(data.get("themes"), list) or not isinstance(data.get("ratios"), list):
+            raise ValueError("invalid exports")
+        return data
+    except (OSError, subprocess.CalledProcessError, json.JSONDecodeError, ValueError) as error:
+        raise CapabilityError("cannot inspect JavaScript exports") from error
 
 
 def inspect(root):
-    root = pathlib.Path(root)
+    root = pathlib.Path(root).resolve()
     forge = root / "vendor" / "report-forge"
-    catalog = json.loads(
-        (forge / "assets" / "layout-atlas" / "catalog.json").read_text(encoding="utf-8")
-    )
-    themes = _object_keys(
-        forge / "assets" / "deck-themes.js", "const presets={", "\n};\nfunction get"
-    )
-    ratios = _object_keys(
-        forge / "assets" / "deck-grid.js", "const RATIOS = {", "\n};\n\n/* 行高"
-    )
+    try:
+        catalog = json.loads(
+            (forge / "assets" / "layout-atlas" / "catalog.json").read_text(encoding="utf-8")
+        )
+        layouts = catalog["layouts"]
+        masters = catalog["masters"]
+        if not isinstance(layouts, list) or not isinstance(masters, list):
+            raise ValueError("invalid catalog")
+    except (OSError, json.JSONDecodeError, KeyError, ValueError) as error:
+        raise CapabilityError("cannot inspect layout catalog") from error
+    javascript = _javascript_capabilities(forge)
     showcase = forge / "docs" / "showcase"
     return {
-        "layout_count": len(catalog["layouts"]),
-        "master_count": len(catalog["masters"]),
-        "themes": themes,
-        "ratios": ratios,
+        "layout_count": len(layouts),
+        "master_count": len(masters),
+        "themes": javascript["themes"],
+        "ratios": javascript["ratios"],
         "showcase_files": sorted(
             str(path.relative_to(root)) for path in showcase.rglob("*") if path.is_file()
         ),
@@ -61,6 +89,8 @@ def check(root, strict=False):
         return errors + ["matrix: capabilities must be an array"]
 
     seen = set()
+    ids = []
+    strict = strict or _requires_strict(matrix)
     for index, capability in enumerate(capabilities):
         if not isinstance(capability, dict):
             errors.append(f"capability[{index}]: must be an object")
@@ -70,6 +100,8 @@ def check(root, strict=False):
         if label in seen:
             errors.append(f"{label}: duplicate id")
         seen.add(label)
+        if isinstance(capability_id, str) and capability_id:
+            ids.append(capability_id)
         for field in ("id", "category", *REFERENCE_FIELDS, "status"):
             if not isinstance(capability.get(field), str) or not capability[field].strip():
                 errors.append(f"{label}: {field} must be a non-empty string")
@@ -94,7 +126,21 @@ def check(root, strict=False):
             else:
                 if not target.exists():
                     errors.append(f"{label}: {field} does not exist: {reference}")
+    actual = set(ids)
+    missing = sorted(REQUIRED_CAPABILITY_IDS - actual)
+    extra = sorted(actual - REQUIRED_CAPABILITY_IDS)
+    if missing:
+        errors.append("matrix: missing capability ids: " + ", ".join(missing))
+    if extra:
+        errors.append("matrix: extra capability ids: " + ", ".join(extra))
     return errors
+
+
+def _requires_strict(matrix):
+    return (
+        matrix.get("status") in {"complete", "release"}
+        or str(matrix.get("phase", "")).startswith(("phase-4", "release"))
+    )
 
 
 def main(argv=None):
@@ -103,13 +149,22 @@ def main(argv=None):
     parser.add_argument("--strict", action="store_true")
     args = parser.parse_args(argv)
     root = pathlib.Path(__file__).resolve().parent.parent
-    if args.command == "inspect":
-        result = inspect(root)
-        code = 0
-    else:
-        errors = check(root, strict=args.strict)
-        result = {"errors": errors, "ok": not errors, "strict": args.strict}
-        code = 1 if errors else 0
+    try:
+        if args.command == "inspect":
+            result = inspect(root)
+            code = 0
+        else:
+            errors = check(root, strict=args.strict)
+            try:
+                matrix = json.loads((root / MATRIX).read_text(encoding="utf-8"))
+                effective_strict = args.strict or _requires_strict(matrix)
+            except (OSError, json.JSONDecodeError):
+                effective_strict = args.strict
+            result = {"errors": errors, "ok": not errors, "strict": effective_strict}
+            code = 1 if errors else 0
+    except CapabilityError as error:
+        result = {"error": str(error), "ok": False}
+        code = 1
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return code
 
