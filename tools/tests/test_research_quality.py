@@ -31,6 +31,10 @@ def valid_contract():
             "status": "ready", "output": "segment comparison",
         }],
         "critical_claim_refs": ["cl-0001"],
+        "claim_risk_assessments": [
+            {"claim_ref": "cl-0001", "risk_type": "none", "narrowed": False, "limited_confidence": False},
+            {"claim_ref": "cl-0002", "risk_type": "none", "narrowed": False, "limited_confidence": False},
+        ],
     }
 
 
@@ -48,7 +52,10 @@ def valid_ledger(*, counterevidence=True, adversarial_search=False, issuer_only=
             {"id": "cl-0001", "statement": statement, "confidence": "medium", "limitation": "one segment"},
             {"id": "cl-0002", "statement": "Some buyers prefer spreadsheets", "confidence": "medium", "limitation": "one segment"},
         ],
-        "claim_evidence.jsonl": [{"id": "ce-0001", "claim_id": "cl-0001", "evidence_id": "ev-0001", "relation": "supports"}],
+        "claim_evidence.jsonl": [
+            {"id": "ce-0001", "claim_id": "cl-0001", "evidence_id": "ev-0001", "relation": "supports"},
+            {"id": "ce-0003", "claim_id": "cl-0002", "evidence_id": "ev-0001", "relation": "supports"},
+        ],
         "search_log.jsonl": [],
     }
     if counterevidence:
@@ -100,6 +107,32 @@ class ResearchQualityTest(unittest.TestCase):
         result = run_quality_check(valid_contract(), valid_ledger(counterevidence=False, adversarial_search=False))
         self.assertIn("QUALITY_CRITICAL_CLAIM", result.stderr)
 
+    def test_critical_claim_without_support_is_rejected(self):
+        ledger = valid_ledger()
+        ledger["claim_evidence.jsonl"] = [x for x in ledger["claim_evidence.jsonl"] if x["claim_id"] != "cl-0001"]
+        result = run_quality_check(valid_contract(), ledger)
+        self.assertIn("QUALITY_CRITICAL_CLAIM", result.stderr)
+
+    def test_critical_support_requires_resolvable_source(self):
+        ledger = valid_ledger()
+        ledger["sources.jsonl"] = []
+        result = run_quality_check(valid_contract(), ledger)
+        self.assertIn("QUALITY_CRITICAL_CLAIM", result.stderr)
+
+    def test_adversarial_search_can_replace_counterevidence(self):
+        contract = valid_contract()
+        contract["pain"][0]["counter_claim_refs"] = []
+        contract["pain"][0]["adversarial_search_ref"] = "SL-0001"
+        result = run_quality_check(contract, valid_ledger(counterevidence=False, adversarial_search=True))
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_material_pain_requires_counter_claim_or_adversarial_search(self):
+        contract = valid_contract()
+        contract["pain"][0]["counter_claim_refs"] = []
+        result = run_quality_check(contract, valid_ledger())
+        self.assertIn("QUALITY_PAIN_COUNTEREVIDENCE", result.stderr)
+        self.assertNotEqual(result.returncode, 0)
+
     def test_unknown_claim_reference_is_rejected(self):
         contract = valid_contract()
         contract["pain"][0]["support_claim_refs"] = ["cl-9999"]
@@ -113,9 +146,53 @@ class ResearchQualityTest(unittest.TestCase):
         self.assertIn("QUALITY_METHOD_DOWNGRADE", result.stderr)
 
     def test_issuer_only_high_risk_claim_is_rejected(self):
-        ledger = valid_ledger(issuer_only=True, statement="Customers have high willingness to pay")
-        result = run_quality_check(valid_contract(), ledger)
+        contract = valid_contract()
+        contract["claim_risk_assessments"][0]["risk_type"] = "willingness_to_pay"
+        ledger = valid_ledger(issuer_only=True, statement="Buyers show strong commercial intent")
+        result = run_quality_check(contract, ledger)
         self.assertIn("QUALITY_ISSUER_ONLY", result.stderr)
+
+    def test_issuer_only_high_risk_claim_outside_critical_refs_is_rejected(self):
+        contract = valid_contract()
+        contract["claim_risk_assessments"][1]["risk_type"] = "prevalence"
+        result = run_quality_check(contract, valid_ledger(issuer_only=True))
+        self.assertIn("QUALITY_ISSUER_ONLY", result.stderr)
+
+    def test_ordinary_wording_does_not_bypass_structured_high_risk_check(self):
+        contract = valid_contract()
+        contract["claim_risk_assessments"][0]["risk_type"] = "causality"
+        result = run_quality_check(contract, valid_ledger(issuer_only=True, statement="Result improved after rollout"))
+        self.assertIn("QUALITY_ISSUER_ONLY", result.stderr)
+
+    def test_issuer_only_narrowed_low_confidence_claim_is_allowed(self):
+        contract = valid_contract()
+        contract["claim_risk_assessments"][0].update(
+            risk_type="competitive_intensity", narrowed=True, limited_confidence=True
+        )
+        ledger = valid_ledger(issuer_only=True)
+        ledger["claims.jsonl"][0]["confidence"] = "low"
+        result = run_quality_check(contract, ledger)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_every_referenced_claim_needs_risk_assessment(self):
+        contract = valid_contract()
+        contract["claim_risk_assessments"] = contract["claim_risk_assessments"][:1]
+        result = run_quality_check(contract, valid_ledger())
+        self.assertIn("QUALITY_RISK_ASSESSMENT", result.stderr)
+
+    def test_risk_assessment_claim_reference_must_resolve(self):
+        contract = valid_contract()
+        contract["claim_risk_assessments"].append(
+            {"claim_ref": "cl-9999", "risk_type": "none", "narrowed": False, "limited_confidence": False}
+        )
+        result = run_quality_check(contract, valid_ledger())
+        self.assertIn("QUALITY_CLAIM_REF", result.stderr)
+
+    def test_duplicate_risk_assessment_is_rejected(self):
+        contract = valid_contract()
+        contract["claim_risk_assessments"].append(dict(contract["claim_risk_assessments"][0]))
+        result = run_quality_check(contract, valid_ledger())
+        self.assertIn("QUALITY_RISK_ASSESSMENT", result.stderr)
 
 
 if __name__ == "__main__":

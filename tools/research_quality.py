@@ -14,12 +14,6 @@ from tools.lib import schema_check
 
 
 LAYERS = ("direct", "indirect", "diy", "adjacent", "do_nothing")
-HIGH_RISK = re.compile(
-    r"prevalen|willingness[- ]to[- ]pay|competitive intensity|causal|regulatory obligation|"
-    r"普遍|渗透率|付费意愿|支付意愿|竞争强度|因果|监管义务|法定义务",
-    re.IGNORECASE,
-)
-NARROWING = re.compile(r"one segment|single segment|limited to|narrow|仅|只限|局限|范围", re.IGNORECASE)
 ADVERSARIAL = re.compile(r"adversarial|counter(?:example|evidence)?|disconfirm|反向|反证|反例|证伪", re.IGNORECASE)
 
 
@@ -53,6 +47,11 @@ def claim_refs(contract):
     return refs
 
 
+def valid_evidence_link(link, evidences, sources):
+    evidence = evidences.get(link.get("evidence_id"))
+    return bool(evidence and evidence.get("source_id") in sources)
+
+
 def check(task):
     task = pathlib.Path(task)
     evidence = task / "03_evidence"
@@ -74,8 +73,12 @@ def check(task):
     pains = contract.get("pain") if isinstance(contract.get("pain"), list) else []
     if material.get("pain"):
         for pain in pains:
-            if isinstance(pain, dict) and not str(pain.get("purchase_signal", "")).strip():
+            if not isinstance(pain, dict):
+                continue
+            if not str(pain.get("purchase_signal", "")).strip():
                 errors.append(issue("QUALITY_PAIN_PURCHASE_SIGNAL", f"{pain.get('id', '?')} lacks purchase_signal"))
+            if not pain.get("counter_claim_refs") and not str(pain.get("adversarial_search_ref", "")).strip():
+                errors.append(issue("QUALITY_PAIN_COUNTEREVIDENCE", f"{pain.get('id', '?')} needs counterevidence or adversarial search"))
 
     competition = contract.get("competition") if isinstance(contract.get("competition"), dict) else {}
     layers = competition.get("layers") if isinstance(competition.get("layers"), dict) else {}
@@ -111,16 +114,33 @@ def check(task):
     except ValueError as err:
         return errors + [issue("QUALITY_LEDGER", str(err))]
 
-    for ref in sorted(set(claim_refs(contract))):
+    referenced = set(claim_refs(contract))
+    assessments = contract.get("claim_risk_assessments", [])
+    assessment_refs = [x["claim_ref"] for x in assessments]
+    for ref in sorted(referenced | set(assessment_refs)):
         if ref not in claims:
             errors.append(issue("QUALITY_CLAIM_REF", f"unknown claim reference: {ref}"))
+
+    searches_by_id = {x.get("id"): x for x in searches}
+    for pain in pains:
+        if not isinstance(pain, dict) or not pain.get("adversarial_search_ref"):
+            continue
+        search = searches_by_id.get(pain["adversarial_search_ref"])
+        if not search or not ADVERSARIAL.search(f"{search.get('query', '')} {search.get('purpose', '')}"):
+            errors.append(issue("QUALITY_PAIN_COUNTEREVIDENCE", f"{pain.get('id', '?')} has no valid adversarial search"))
+
+    assessment_by_claim = {x["claim_ref"]: x for x in assessments}
+    for ref in sorted({x for x in assessment_refs if assessment_refs.count(x) > 1}):
+        errors.append(issue("QUALITY_RISK_ASSESSMENT", f"{ref} has duplicate risk assessments"))
+    for ref in sorted(referenced - assessment_by_claim.keys()):
+        errors.append(issue("QUALITY_RISK_ASSESSMENT", f"{ref} lacks explicit risk assessment"))
 
     for ref in contract.get("critical_claim_refs", []):
         if ref not in claims:
             continue
         related = [x for x in links if x.get("claim_id") == ref]
-        supported = any(x.get("relation") == "supports" and x.get("evidence_id") in evidences for x in related)
-        contradicted = any(x.get("relation") == "contradicts" and x.get("evidence_id") in evidences for x in related)
+        supported = any(x.get("relation") == "supports" and valid_evidence_link(x, evidences, sources) for x in related)
+        contradicted = any(x.get("relation") == "contradicts" and valid_evidence_link(x, evidences, sources) for x in related)
         searched = any(
             ref in f"{x.get('query', '')} {x.get('purpose', '')}" and
             ADVERSARIAL.search(f"{x.get('query', '')} {x.get('purpose', '')}")
@@ -129,17 +149,19 @@ def check(task):
         if not supported or not (contradicted or searched):
             errors.append(issue("QUALITY_CRITICAL_CLAIM", f"{ref} needs support and adversarial treatment"))
 
-        claim = claims[ref]
-        if HIGH_RISK.search(claim.get("statement", "")):
-            support_links = [x for x in related if x.get("relation") == "supports"]
-            support_sources = []
-            for link in support_links:
-                evidence_record = evidences.get(link.get("evidence_id"), {})
-                support_sources.append(sources.get(evidence_record.get("source_id"), {}))
-            issuer_only = bool(support_sources) and all(x.get("source_type") == "company" for x in support_sources)
-            narrowed_low = claim.get("confidence") == "low" and NARROWING.search(claim.get("limitation", ""))
-            if issuer_only and not narrowed_low:
-                errors.append(issue("QUALITY_ISSUER_ONLY", f"{ref} is a high-risk claim supported only by issuer sources"))
+    for ref in sorted(referenced & assessment_by_claim.keys() & claims.keys()):
+        assessment = assessment_by_claim[ref]
+        if assessment["risk_type"] == "none":
+            continue
+        support_links = [
+            x for x in links
+            if x.get("claim_id") == ref and x.get("relation") == "supports" and valid_evidence_link(x, evidences, sources)
+        ]
+        support_sources = [sources[evidences[x["evidence_id"]]["source_id"]] for x in support_links]
+        issuer_only = bool(support_sources) and all(x.get("source_type") == "company" for x in support_sources)
+        exception = assessment["narrowed"] and assessment["limited_confidence"] and claims[ref].get("confidence") == "low"
+        if issuer_only and not exception:
+            errors.append(issue("QUALITY_ISSUER_ONLY", f"{ref} is a high-risk claim supported only by issuer sources"))
     return errors
 
 

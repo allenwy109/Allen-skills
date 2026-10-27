@@ -3,7 +3,8 @@
   "comment": "Decision-grade pain, competition, method, and critical-claim contract.",
   "enums": {
     "confidence": {"values": ["high", "medium", "low", "unknown"], "labels": {"high": "高", "medium": "中", "low": "低", "unknown": "未知"}},
-    "method_status": {"values": ["ready", "hypothesis", "candidate", "blocked", "not_applicable"], "labels": {"ready": "可用", "hypothesis": "假设", "candidate": "候选结论", "blocked": "受阻", "not_applicable": "不适用"}}
+    "method_status": {"values": ["ready", "hypothesis", "candidate", "blocked", "not_applicable"], "labels": {"ready": "可用", "hypothesis": "假设", "candidate": "候选结论", "blocked": "受阻", "not_applicable": "不适用"}},
+    "risk_type": {"values": ["none", "prevalence", "willingness_to_pay", "competitive_intensity", "causality", "regulatory_obligation"], "labels": {"none": "非高风险", "prevalence": "普遍性", "willingness_to_pay": "支付意愿", "competitive_intensity": "竞争强度", "causality": "因果", "regulatory_obligation": "监管义务"}}
   },
   "root": {
     "type": "object",
@@ -23,6 +24,7 @@
         "purchase_signal": {"type": "string", "required": true},
         "support_claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}},
         "counter_claim_refs": {"type": "array", "required": true, "items": {"type": "string"}},
+        "adversarial_search_ref": {"type": "string"},
         "confidence": {"type": "string", "enum": "confidence", "required": true},
         "validation_gap": {"type": "string", "required": true}
       }}},
@@ -55,7 +57,13 @@
         "output": {"type": "string", "required": true},
         "downgrade_reason": {"type": "string"}
       }}},
-      "critical_claim_refs": {"type": "array", "required": true, "items": {"type": "string"}}
+      "critical_claim_refs": {"type": "array", "required": true, "items": {"type": "string"}},
+      "claim_risk_assessments": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+        "claim_ref": {"type": "string", "required": true},
+        "risk_type": {"type": "string", "enum": "risk_type", "required": true},
+        "narrowed": {"type": "boolean", "required": true},
+        "limited_confidence": {"type": "boolean", "required": true}
+      }}}
     }
   }
 }
