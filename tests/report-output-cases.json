@@ -1,0 +1,92 @@
+[
+  {
+    "id": "idea-validation",
+    "scene": "创业点子评估",
+    "input_snapshot": {
+      "sha256": "b73a661f8ec4457ab647ffa17013ce972471a2c780422abdfd33059785a6f362",
+      "payload": {"title": "区域算力资源池创业评估", "story_mode": "opportunity", "audience": "创业团队", "decision": "是否进入付费验证", "variant": "balanced"}
+    },
+    "expected_claims": ["cl-0001", "cl-0003", "cl-0004", "cl-0005"],
+    "expected_panels": ["bars", "kpi", "note", "steps"],
+    "expected_relations": ["bars-note", "kpi-steps"],
+    "expected_components": ["cover", "toc", "executive-summary", "section-title", "data-chart", "claim-evidence", "section-title", "executive-summary", "claim-evidence", "references-appendix"],
+    "page_range": [6, 8],
+    "expected_status": "awaiting-human-visual-review",
+    "negative_mutation": {"type": "unsupported-form", "expected_status": "REPORT_UNSUPPORTED_BLOCK"}
+  },
+  {
+    "id": "company-profile",
+    "scene": "企业全景",
+    "input_snapshot": {
+      "sha256": "14b14e60c98122d2b0759d1145924a956674f75b0be7f6ba832766df119b3b41",
+      "payload": {"title": "星河数据科技企业全景", "story_mode": "company_research", "audience": "投资经理", "decision": "是否继续跟进", "variant": "balanced"}
+    },
+    "expected_claims": ["cl-0001", "cl-0003", "cl-0004", "cl-0005"],
+    "expected_panels": ["bars", "kpi", "note", "steps"],
+    "expected_relations": ["bars-note", "kpi-steps"],
+    "expected_components": ["cover", "toc", "executive-summary", "section-title", "data-chart", "claim-evidence", "section-title", "executive-summary", "claim-evidence", "references-appendix"],
+    "page_range": [6, 8],
+    "expected_status": "awaiting-human-visual-review",
+    "negative_mutation": {"type": "unknown-claim", "expected_status": "REPORT_CONVERSION_FAILED"}
+  },
+  {
+    "id": "bp-review",
+    "scene": "BP 评审",
+    "input_snapshot": {
+      "sha256": "427644afe9ff3e358dd1f02bc1aea388d7f6d42b314b9096aba3fa3a804a84db",
+      "payload": {"title": "云舟科技 BP 评审", "story_mode": "request_approval", "audience": "投资委员会", "decision": "是否邀请路演", "variant": "decision-table"}
+    },
+    "expected_claims": ["cl-0001", "cl-0003", "cl-0004", "cl-0005"],
+    "expected_panels": ["bars", "kpi", "note", "steps"],
+    "expected_relations": ["bars-note", "kpi-steps"],
+    "expected_components": ["cover", "toc", "executive-summary", "section-title", "claim-evidence", "claim-evidence", "section-title", "executive-summary", "claim-evidence", "references-appendix"],
+    "page_range": [6, 8],
+    "expected_status": "awaiting-human-visual-review",
+    "negative_mutation": {"type": "duplicate-panel", "expected_status": "REPORT_CONVERSION_FAILED"}
+  },
+  {
+    "id": "topic-research",
+    "scene": "行业／话题研究",
+    "input_snapshot": {
+      "sha256": "d5037c6dd019d6289c5b5aa6644946db263efce0efe4be34b30a3983765bd3c2",
+      "payload": {"title": "边缘 AI 行业研究", "story_mode": "industry_research", "audience": "战略负责人", "decision": "是否配置研究资源", "variant": "balanced"}
+    },
+    "expected_claims": ["cl-0001", "cl-0003", "cl-0004", "cl-0005"],
+    "expected_panels": ["bars", "kpi", "note", "steps"],
+    "expected_relations": ["bars-note", "kpi-steps"],
+    "expected_components": ["cover", "toc", "executive-summary", "section-title", "data-chart", "claim-evidence", "section-title", "executive-summary", "claim-evidence", "references-appendix"],
+    "page_range": [6, 8],
+    "expected_status": "awaiting-human-visual-review",
+    "negative_mutation": {"type": "duplicate-relation", "expected_status": "REPORT_COVERAGE_MISMATCH"}
+  },
+  {
+    "id": "quantitative-heavy",
+    "scene": "定量图表密集报告",
+    "input_snapshot": {
+      "sha256": "c407bb859ae7deee69408d1c9e1e841a166dbc8393102f5f8ec94d60db5d71d5",
+      "payload": {"title": "算力市场定量追踪", "story_mode": "industry_research", "audience": "经营分析团队", "decision": "如何配置预算", "variant": "chart-heavy"}
+    },
+    "expected_claims": ["cl-0001", "cl-0003", "cl-0004", "cl-0005"],
+    "expected_panels": ["bars", "kpi", "note", "steps"],
+    "expected_relations": ["bars-note", "kpi-steps"],
+    "expected_components": ["cover", "toc", "executive-summary", "section-title", "data-chart", "data-chart", "section-title", "executive-summary", "claim-evidence", "references-appendix"],
+    "page_range": [6, 8],
+    "expected_status": "awaiting-human-visual-review",
+    "negative_mutation": {"type": "unknown-metric", "expected_status": "REPORT_CONVERSION_FAILED"}
+  },
+  {
+    "id": "evidence-heavy",
+    "scene": "文字证据密集报告",
+    "input_snapshot": {
+      "sha256": "4caea5b59564eb93c9177e1121a0964bc228709cc2afe2d2f1652cd40760a8b4",
+      "payload": {"title": "客户需求证据研究", "story_mode": "problem_to_solution", "audience": "产品负责人", "decision": "是否进入产品验证", "variant": "text-heavy"}
+    },
+    "expected_claims": ["cl-0001", "cl-0003", "cl-0004", "cl-0005"],
+    "expected_panels": ["bars", "kpi", "note", "steps"],
+    "expected_relations": ["bars-note", "kpi-steps"],
+    "expected_components": ["cover", "toc", "executive-summary", "section-title", "claim-evidence", "claim-evidence", "section-title", "claim-evidence", "claim-evidence", "references-appendix"],
+    "page_range": [6, 8],
+    "expected_status": "awaiting-human-visual-review",
+    "negative_mutation": {"type": "unknown-relation-panel", "expected_status": "REPORT_CONVERSION_FAILED"}
+  }
+]
