@@ -357,6 +357,48 @@ class ReportCapabilitiesTests(unittest.TestCase):
         self.assertEqual(json.loads(output.getvalue()), {"errors": ["baseline: broken"], "ok": False})
         self.assertNotIn("Traceback", output.getvalue())
 
+    def test_baseline_check_cli_rejects_malformed_schema_without_traceback(self):
+        malformed_schemas = {
+            "numeric required": {
+                "type": "object",
+                "required": 7,
+                "properties": {},
+            },
+            "null artifact items": {
+                "type": "object",
+                "required": ["version", "upstream_repo", "upstream_commit", "license",
+                             "status", "approval", "artifacts"],
+                "properties": {
+                    "version": {}, "upstream_repo": {}, "upstream_commit": {},
+                    "license": {}, "status": {}, "approval": {},
+                    "artifacts": {"items": None},
+                },
+            },
+        }
+        for label, schema in malformed_schemas.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                root = pathlib.Path(directory)
+                tools = root / "tools"
+                references = root / "references"
+                tools.mkdir()
+                references.mkdir()
+                shutil.copy2(ROOT / "tools" / "report_capabilities.py",
+                             tools / "report_capabilities.py")
+                (references / "visual-baseline.schema.json").write_text(
+                    json.dumps(schema), encoding="utf-8"
+                )
+
+                result = subprocess.run(
+                    ["python3", str(tools / "report_capabilities.py"), "baseline-check"],
+                    capture_output=True, text=True,
+                )
+
+                self.assertEqual(result.returncode, 1)
+                payload = json.loads(result.stdout)
+                self.assertFalse(payload["ok"])
+                self.assertTrue(any("schema" in error for error in payload["errors"]))
+                self.assertNotIn("Traceback", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

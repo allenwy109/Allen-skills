@@ -78,13 +78,24 @@ def _schema_errors(schema):
                 "approval", "artifacts"}
     if not isinstance(schema, dict) or schema.get("type") != "object":
         return ["baseline schema: root must define an object"]
-    if set(schema.get("required", [])) != required:
+    schema_required = schema.get("required")
+    if (not isinstance(schema_required, list)
+            or not all(isinstance(field, str) for field in schema_required)
+            or set(schema_required) != required):
         return ["baseline schema: required fields do not match contract"]
     properties = schema.get("properties")
     if not isinstance(properties, dict) or not required.issubset(properties):
         return ["baseline schema: properties do not match contract"]
-    items = properties.get("artifacts", {}).get("items", {})
-    if set(items.get("required", [])) != {"path", "sha256", "size"}:
+    artifacts_schema = properties.get("artifacts")
+    if not isinstance(artifacts_schema, dict):
+        return ["baseline schema: artifacts must define an object schema"]
+    items = artifacts_schema.get("items")
+    if not isinstance(items, dict):
+        return ["baseline schema: artifact items must define an object schema"]
+    item_required = items.get("required")
+    if (not isinstance(item_required, list)
+            or not all(isinstance(field, str) for field in item_required)
+            or set(item_required) != {"path", "sha256", "size"}):
         return ["baseline schema: artifact fields do not match contract"]
     expected_constants = {
         "version": 1,
@@ -93,7 +104,8 @@ def _schema_errors(schema):
         "license": "Apache-2.0",
     }
     for field, value in expected_constants.items():
-        if properties[field].get("const") != value:
+        field_schema = properties.get(field)
+        if not isinstance(field_schema, dict) or field_schema.get("const") != value:
             return [f"baseline schema: {field} const does not match contract"]
     if schema.get("additionalProperties") is not False or items.get("additionalProperties") is not False:
         return ["baseline schema: additional properties must be rejected"]
