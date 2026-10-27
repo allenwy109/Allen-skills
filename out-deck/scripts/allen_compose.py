@@ -193,15 +193,12 @@ def _trend(page, page_claims, metrics):
         height = max(8, round(float(metric["value"]) / maximum * 210))
         x = 75 + index * 120
         y = 245 - height
+        label = metric.get("period") or metric.get("year") or metric.get("label") or ("前期", "后期", "后续")[min(index, 2)]
         bars.append(f'<rect x="{x}" y="{y}" width="72" height="{height}" rx="4" class="chart-bar"/>'
                     f'<text x="{x + 36}" y="{y - 12}" text-anchor="middle" class="chart-value" data-content-key="metric:{_esc(metric["id"])}">{_esc(_metric_text(metric))}</text>'
-                    f'<text x="{x + 36}" y="275" text-anchor="middle" class="chart-label">{_esc(metric["id"])}</text>')
-    statement = page_claims[0]["statement"] if page_claims else page.get("proves", "")
-    evidence = (f'<aside class="insight-aside"><div class="eyebrow">WHAT THE DATA SAYS</div>'
-                f'<p data-content-key="claim:{_esc(page_claims[0]["id"])}">{_esc(statement)}</p>'
-                f'<p class="limitation" data-content-key="limitation:{_esc(page_claims[0]["id"])}">{_esc(page_claims[0].get("limitation", ""))}</p></aside>') if page_claims else ""
+                    f'<text x="{x + 36}" y="275" text-anchor="middle" class="chart-label">{_esc(label)}</text>')
     return ('<div class="exhibit trend-exhibit"><svg viewBox="0 0 560 300" role="img" aria-label="同量尺趋势比较">'
-            '<line x1="45" x2="525" y1="245" y2="245" class="axis"/>' + "".join(bars) + '</svg>' + evidence + '</div>')
+            '<line x1="45" x2="525" y1="245" y2="245" class="axis"/>' + "".join(bars) + '</svg></div>')
 
 
 def _matrix(page, page_claims, metrics):
@@ -271,6 +268,11 @@ def _body_page(page, form, layout, decision, claims, metrics, sources):
     composition = (((page.get("exhibit") or {}).get("semantics") or {}).get("composition") or {})
     panels = composition.get("panels") or {}
     anchor = composition.get("anchorPanel") or next(iter(panels), "main")
+    support_claims = {ref for panel_id, panel in panels.items() if panel_id != anchor for ref in panel.get("claimRefs", [])}
+    if form == "trend-bars" and page_claims and page_claims[0]["id"] not in support_claims:
+        claim = page_claims[0]
+        exhibit += (f'<aside class="insight-aside"><p data-content-key="claim:{_esc(claim["id"])}">{_esc(claim["statement"])}</p>'
+                    f'<p class="limitation" data-content-key="limitation:{_esc(claim["id"])}">{_esc(claim.get("limitation", ""))}</p></aside>')
     panel_content = {anchor: ("allen-primary-panel", "exhibit", exhibit)}
     for panel_id, panel in panels.items():
         if panel_id == anchor:
@@ -278,9 +280,15 @@ def _body_page(page, form, layout, decision, claims, metrics, sources):
         refs = [claims[ref] for ref in panel.get("claimRefs", []) if ref in claims]
         statements = "".join(f'<p data-content-key="claim:{_esc(claim["id"])}">{_esc(_replace_metrics(claim.get("statement", ""), metrics))}</p>'
                              f'<p class="limitation" data-content-key="limitation:{_esc(claim["id"])}">{_esc(claim.get("limitation", ""))}</p>' for claim in refs)
+        if form == "trend-bars":
+            statements = "".join(f'<p data-content-key="claim:{_esc(claim["id"])}">{_esc(_replace_metrics(claim.get("statement", ""), metrics))}</p>'
+                                 f'<p class="limitation" data-content-key="limitation:{_esc(claim["id"])}">边界：{_esc(claim.get("limitation", ""))}</p>' for claim in refs)
         content = f'<h2>{_esc(panel.get("purpose", "补充证据"))}</h2>{statements}'
         if panel.get("form") == "html.kpi":
-            content = f'<div class="kpi-card">{content}</div>'
+            panel_metrics = [metric for claim in refs for metric in claim.get("metrics", [])]
+            values = "".join(f'<strong data-content-key="metric:{_esc(metric["id"])}">{_esc(_metric_text(metric))}</strong>' for metric in panel_metrics)
+            limits = "".join(f'<p class="limitation" data-content-key="limitation:{_esc(claim["id"])}">{_esc(claim.get("limitation", ""))}</p>' for claim in refs)
+            content = f'<div class="kpi-card"><h2>{_esc(panel.get("purpose", "关键指标"))}</h2>{values}{limits}</div>'
         panel_content[panel_id] = ("allen-support-panel", "annotation", content)
     module_plan = {region["id"]: region for region in decision["module"]["regions"]}
     layout_modules = LAYOUTS[layout]["modules"]
@@ -322,9 +330,8 @@ def _simple_page(page, role):
 def _references(sources, sequence, claims):
     rows = "".join(f'<li><strong>{_esc(src.get("label", sid))}</strong><span>{_esc(src.get("locator", ""))}</span></li>' for sid, src in sources.items())
     source_claims = sum(1 for claim in claims.values() if claim.get("sourceKeys"))
-    audit = ('<div class="source-audit"><article><strong>完整</strong><span>已定位来源</span></article>'
-             '<article><strong>可追溯</strong><span>绑定来源的主张</span></article>'
-             '<article><strong>逐页</strong><span>正文保留近端定位</span></article></div>')
+    audit = ('<div class="source-audit"><strong>Provenance check</strong>'
+             '<span>✓ 完整定位</span><span>✓ 主张可追溯</span><span>✓ 正文保留近端来源</span></div>')
     return (f'<section class="slide allen-references" data-page-id="references" data-page-role="references" data-frame-boundary="line">'
             f'<header class="slide__header"><div class="corner">{sequence:02d}</div><h1 class="slide__title">Sources / 来源与定位</h1></header>'
             f'{audit}<ol>{rows}</ol><p class="reference-note">单一来源不等于单一证据：本页同时给出主张绑定数量与逐页定位责任，避免空洞来源页。</p></section>')
@@ -333,11 +340,11 @@ def _references(sources, sequence, claims):
 CSS = """
 .allen-slide,.allen-cover,.allen-back,.allen-references{font-family:'Deck Inter','Deck Noto Sans SC',sans-serif;color:#17252b;background:#f7f4ed}
 .allen-slide{padding:38px 54px 34px;box-sizing:border-box}.slide__header{padding-top:12px}.corner,.bookend-kicker,.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#087f73;font-weight:600}
-.slide__title{font-family:'Deck Playfair Display','Deck Noto Serif SC',serif;font-size:31px;line-height:1.22;margin:8px 0}.slide__lead{font-size:14px;color:#66777d;margin:0}.slide__body{height:400px;margin-top:18px}.exhibit{height:100%}.trend-exhibit{display:grid;grid-template-columns:2fr 1fr;gap:32px}.trend-exhibit svg{width:100%;height:100%;background:#fff;border:1px solid #ced8d6}.chart-bar{fill:#087f73}.axis{stroke:#77878b;stroke-width:1}.chart-value{font-size:16px;font-weight:600}.chart-label{font-size:12px;fill:#66777d}.insight-aside,.quote-exhibit aside{padding:24px;background:#e7efed}.insight-aside p{font-size:20px;line-height:1.45}.limitation{font-size:12px!important;color:#66777d;line-height:1.5!important}
+.slide__title{font-family:'Deck Playfair Display','Deck Noto Serif SC',serif;font-size:31px;line-height:1.22;margin:8px 0}.slide__lead{font-size:14px;color:#66777d;margin:0}.slide__body{height:430px;margin-top:14px}.exhibit{height:100%}.trend-exhibit svg{width:100%;height:100%;background:#fff;border:1px solid #ced8d6}.chart-bar{fill:#087f73}.axis{stroke:#77878b;stroke-width:1}.chart-value{font-size:16px;font-weight:600}.chart-label{font-size:13px;fill:#66777d}.insight-aside,.quote-exhibit aside{padding:24px;background:#e7efed}.insight-aside p{font-size:20px;line-height:1.45}.limitation{font-size:13px!important;color:#66777d;line-height:1.5!important}
 .allen-panel-grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(180px,1fr);gap:18px;height:100%}.allen-primary-panel:only-child{grid-column:1/-1}.allen-primary-panel{min-width:0}.allen-support-panel{background:#fff;padding:16px;align-self:stretch}.allen-support-panel h2{font-size:14px;line-height:1.35}.allen-support-panel p{font-size:12px;line-height:1.45}.relation-audit{display:none}
-.metric-strip{position:absolute;left:54px;bottom:77px;display:flex;gap:8px}.metric-strip span{background:#e7efed;color:#153c47;padding:4px 8px;font-size:12px;font-weight:600}
+.metric-strip{position:absolute;left:54px;bottom:78px;display:flex;gap:8px}.metric-strip span{background:#e7efed;color:#153c47;padding:4px 8px;font-size:13px;font-weight:600}.kpi-card strong{display:block;font-size:30px;color:#087f73;margin:18px 0}.kpi-card{height:100%;box-sizing:border-box}
 .matrix-exhibit table{width:100%;border-collapse:collapse;background:#fff}.matrix-exhibit th{background:#153c47;color:#fff;text-align:left;padding:13px;font-weight:600}.matrix-exhibit td{padding:16px 13px;border-bottom:1px solid #cbd5d2;font-size:15px}.roadmap-exhibit{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:stretch}.roadmap-step{background:#fff;padding:20px}.roadmap-step:nth-child(even){margin-top:54px}.step-no{font-size:28px;color:#087f73;font-family:'Deck Playfair Display','Deck Noto Serif SC',serif}.roadmap-step h2{font-size:17px;line-height:1.35}.roadmap-step p{font-size:12px;color:#66777d;line-height:1.5}
-.quote-exhibit{display:grid;grid-template-columns:80px 2fr 1fr;gap:25px;align-items:center}.quote-mark{font-family:'Deck Playfair Display','Deck Noto Serif SC',serif;font-size:110px;color:#087f73;align-self:start}.quote-exhibit blockquote{font-family:'Deck Playfair Display','Deck Noto Serif SC',serif;font-size:28px;line-height:1.45;margin:0}.evidence-source{position:absolute;left:54px;bottom:46px;font-size:12px;line-height:1.35;color:#617276;max-width:70%}.takeaway{position:absolute;right:54px;bottom:45px;max-width:34%;font-size:14px;font-weight:600;text-align:right}.allen-cover,.allen-back{padding:70px 78px;display:flex;flex-direction:column;justify-content:center}.allen-cover h1,.allen-back h1{font:600 46px/1.22 'Deck Playfair Display','Deck Noto Serif SC',serif;max-width:760px}.allen-cover:before{content:'';position:absolute;left:78px;top:92px;width:74px;height:8px;background:#087f73}.allen-references{padding:48px 62px}.source-audit{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0}.source-audit article{background:#153c47;color:white;padding:16px}.source-audit strong{font-size:25px}.source-audit span{display:block;color:#d9e5e2;font-size:12px}.allen-references ol{display:grid;grid-template-columns:1fr 1fr;gap:18px 34px;margin-top:18px}.allen-references li{background:#fff;padding:16px}.allen-references span{display:block;color:#66777d;font-size:12px;margin-top:7px}.reference-note{font-size:12px;color:#66777d}
+.quote-exhibit{display:grid;grid-template-columns:80px 2fr 1fr;gap:25px;align-items:center}.quote-mark{font-family:'Deck Playfair Display','Deck Noto Serif SC',serif;font-size:110px;color:#087f73;align-self:start}.quote-exhibit blockquote{font-family:'Deck Playfair Display','Deck Noto Serif SC',serif;font-size:28px;line-height:1.45;margin:0}.evidence-source{position:absolute;left:54px;bottom:46px;font-size:13px;line-height:1.35;color:#617276;max-width:70%}.takeaway{position:absolute;right:54px;bottom:45px;max-width:38%;font-size:14px;font-weight:600;text-align:right}.allen-cover,.allen-back{padding:70px 78px;display:flex;flex-direction:column;justify-content:center}.allen-cover h1,.allen-back h1{font:600 46px/1.22 'Deck Playfair Display','Deck Noto Serif SC',serif;max-width:760px}.allen-cover:before{content:'';position:absolute;left:78px;top:92px;width:74px;height:8px;background:#087f73}.allen-references{padding:48px 62px}.source-audit{display:flex;align-items:center;gap:18px;margin:14px 0;padding:12px 16px;border:1px solid #ced8d6;background:#fff}.source-audit strong{font-size:14px;color:#153c47}.source-audit span{color:#66777d;font-size:13px}.allen-references ol{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}.allen-references li{background:#fff;padding:18px;border-left:4px solid #087f73}.allen-references span{display:block;color:#66777d;font-size:13px;margin-top:7px}.reference-note{font-size:13px;color:#66777d}
 """.strip() + "\n"
 
 
@@ -398,9 +405,8 @@ def compose(deck_dir):
         if reference.is_file():
             reference_html = reference.read_text(encoding="utf-8")
             source_claims = sum(1 for claim in claims.values() if claim.get("sourceKeys"))
-            audit = ('<div class="source-audit" data-module="source-audit"><article><strong>完整</strong><span>已定位来源</span></article>'
-                     '<article><strong>可追溯</strong><span>绑定来源的主张</span></article>'
-                     '<article><strong>逐页</strong><span>正文保留近端定位</span></article></div>')
+            audit = ('<div class="source-audit" data-module="source-audit"><strong>来源核验</strong>'
+                     '<span>✓ 完整定位</span><span>✓ 主张可追溯</span><span>✓ 正文保留近端来源</span></div>')
             reference_html = reference_html.replace("</section>", audit + "</section>")
         else:
             reference_html = _references(sources, len(html_pages), claims)

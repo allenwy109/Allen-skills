@@ -166,7 +166,7 @@ def build(output):
         if digest != sha(reference_work / "deck-blueprint.json"):
             raise RuntimeError("benchmark variants did not receive the same blueprint")
         reset_output(output)
-        labels = ["Atlas", "Juniper"]
+        labels = ["Cobalt", "Saffron"]
         mapping = {labels[0]: "candidate", labels[1]: "reference"} if int(digest[0], 16) % 2 == 0 else {labels[0]: "reference", labels[1]: "candidate"}
         variants = {}
         for label, identity in mapping.items():
@@ -193,7 +193,8 @@ def build(output):
         packet = {"version": 1, "inputSha256": config["materializedInputSha256"], "blueprintSha256": digest,
                   "labels": labels, "pageCount": len(candidate["pages"]), "variants": variants}
         write_json(output / "anonymous-manifest.json", packet)
-        mapping_file = pathlib.Path(tempfile.gettempdir()) / f"allen-deck-benchmark-map-{digest[:12]}.json"
+        label_key = "-".join(label.lower() for label in labels)
+        mapping_file = pathlib.Path(tempfile.gettempdir()) / f"allen-deck-benchmark-map-{label_key}-{digest[:12]}.json"
         write_json(mapping_file, {"identities": mapping, "releaseEvidence": {
             "candidateStrategy": config["candidateStrategy"], "referenceStrategy": config["referenceStrategy"],
             "referenceProvenance": author, "compositionContract": candidate,
@@ -203,7 +204,7 @@ def build(output):
 
 
 def main():
-    parser = argparse.ArgumentParser(); parser.add_argument("--output", default=str(ROOT / "out-deck/build/visual-benchmark")); args = parser.parse_args()
+    parser = argparse.ArgumentParser(); parser.add_argument("--output", default=str(ROOT / "out-deck/build/visual-benchmark-v2")); args = parser.parse_args()
     packet, mapping = build(pathlib.Path(args.output).resolve())
     print(json.dumps({"packet": str(pathlib.Path(args.output).resolve()), "mapping": str(mapping), "manifest": packet}, ensure_ascii=False, indent=2))
 

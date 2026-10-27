@@ -121,6 +121,12 @@ class AllenComposeTest(unittest.TestCase):
         self.assertEqual(first["coverage"]["claimRefs"], ["c1", "c2", "c3", "c4"])
         self.assertEqual(first["coverage"]["metricRefs"], ["m1", "m2"])
         self.assertEqual(first["coverage"]["sourceIds"], ["S1", "S2"])
+        rendered = html1.decode()
+        self.assertNotRegex(rendered, r">m[12]<")
+        self.assertEqual(rendered.count("需求强度从 30% 增至 68%"), 1)
+        css = (self.d / "page.css").read_text()
+        self.assertIn(".evidence-source{", css)
+        self.assertIn("font-size:13px", css)
 
     def test_plan_changes_drive_output_and_incomplete_decisions_fail(self):
         before = allen_compose.compose(self.d)
@@ -178,7 +184,7 @@ class AllenComposeTest(unittest.TestCase):
         text = (self.d / "pages.html").read_text()
         self.assertIn('data-page-role="references"', text)
         self.assertIn("访谈纪要:L10-L20", text)
-        self.assertIn("绑定来源的主张", text)
+        self.assertIn("主张可追溯", text)
 
     def test_missing_or_stale_plan_fails_before_writing(self):
         (self.d / "obs" / "layout-plan.json").unlink()
