@@ -60,6 +60,21 @@ for s in skills:
         if not (s / rel).exists():
             errors.append(f"{s.name}/SKILL.md：引用的文件不存在：{rel}")
 
+deck = ROOT / "out-deck"
+if deck in skills:
+    wrapper = deck / "scripts" / "out_deck.py"
+    if not wrapper.is_file():
+        errors.append("out-deck：缺少 scripts/out_deck.py")
+    else:
+        source = wrapper.read_text(encoding="utf-8")
+        for command in ("init", "refresh", "plan", "step", "finish", "capabilities"):
+            if f'"{command}"' not in source:
+                errors.append(f"out-deck：wrapper 缺少 {command} 生命周期入口")
+    skill_text = (deck / "SKILL.md").read_text(encoding="utf-8")
+    for item in ("chart-plan", "layout-plan", "module-fill-plan", "representatives", "production", "delivery"):
+        if item not in skill_text:
+            errors.append(f"out-deck/SKILL.md：缺少 {item} 清单说明")
+
 for app in sorted(s for s in skills if s.name.startswith("allen-")):
     required = {
         "应用元数据": app / "assets" / "app.json",
