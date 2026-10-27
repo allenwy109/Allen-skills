@@ -60,34 +60,43 @@ class ReportCapabilitiesTests(unittest.TestCase):
         for field in ("upstream_ref", "local_ref", "test", "visual_evidence"):
             self.assertTrue(any(f"missing-capability: {field} does not exist" in error for error in errors))
 
-    def test_default_check_allows_development_statuses_but_strict_rejects_them(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = pathlib.Path(directory)
-            evidence = root / "evidence.txt"
-            evidence.write_text("present", encoding="utf-8")
-            matrix = {
-                "phase": "development",
-                "status": "in-progress",
-                "capabilities": [
-                    {
-                        "id": "planned-capability",
-                        "category": "contract",
-                        "upstream_ref": "evidence.txt",
-                        "local_ref": "evidence.txt",
-                        "test": "evidence.txt",
-                        "visual_evidence": "evidence.txt",
-                        "status": "untested",
-                    }
-                ],
-            }
-            path = root / "references" / "upstream-capability-matrix.json"
-            path.parent.mkdir()
-            path.write_text(json.dumps(matrix), encoding="utf-8")
+    def test_default_and_strict_status_rules(self):
+        cases = {
+            "parity": (True, True),
+            "superseded": (True, True),
+            "untested": (True, False),
+            "present-not-used": (True, False),
+            "missing": (False, False),
+        }
+        for status, (default_allowed, strict_allowed) in cases.items():
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as directory:
+                root = pathlib.Path(directory)
+                evidence = root / "evidence.txt"
+                evidence.write_text("present", encoding="utf-8")
+                matrix = {
+                    "phase": "development",
+                    "status": "in-progress",
+                    "capabilities": [
+                        {
+                            "id": "status-capability",
+                            "category": "contract",
+                            "upstream_ref": "evidence.txt",
+                            "local_ref": "evidence.txt",
+                            "test": "evidence.txt",
+                            "visual_evidence": "evidence.txt",
+                            "status": status,
+                        }
+                    ],
+                }
+                path = root / "references" / "upstream-capability-matrix.json"
+                path.parent.mkdir()
+                path.write_text(json.dumps(matrix), encoding="utf-8")
 
-            self.assertEqual(report_capabilities.check(root), [])
-            strict_errors = report_capabilities.check(root, strict=True)
+                default_errors = report_capabilities.check(root)
+                strict_errors = report_capabilities.check(root, strict=True)
 
-        self.assertEqual(strict_errors, ["planned-capability: status untested is not release-ready"])
+                self.assertEqual(not default_errors, default_allowed)
+                self.assertEqual(not strict_errors, strict_allowed)
 
 
 if __name__ == "__main__":
