@@ -2,7 +2,6 @@
 """Build a reproducible, blind same-input deck A/B review packet."""
 import argparse
 import hashlib
-import html
 import json
 import os
 import pathlib
@@ -15,11 +14,14 @@ HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(ROOT / "out-report/scripts/tests"))
 
 import allen_compose  # noqa: E402
-from tools.bridge import to_forge  # noqa: E402
-from tools.e2e.test_report_outputs import make_case_task, read_json, task_input_digest  # noqa: E402
+import out_deck  # noqa: E402
+import synthetic  # noqa: E402
+from tools.e2e.test_report_outputs import read_json, task_input_digest  # noqa: E402
 from tools.lib import runtime  # noqa: E402
+from tools.tests import fixtures as F  # noqa: E402
 
 
 def sha(path):
@@ -30,100 +32,90 @@ def write_json(path, value):
     pathlib.Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def decisions(blueprint):
-    chart, layout, modules = [], [], []
-    layouts = ("chart-sidebar", "comparison-columns", "process-roadmap", "prose-aside")
-    for index, slide in enumerate(s for s in blueprint["slides"] if s["pageRole"] not in ("cover", "close")):
-        comp = slide["exhibit"]["semantics"]["composition"]
-        anchor = comp["panels"][comp["anchorPanel"]]
-        relationship = anchor["selection"]["relationship"]
-        form = ("trend-bars" if anchor["form"] == "svg.custom" else "evidence-quote" if anchor["form"] == "html.text"
-                else "roadmap" if relationship in ("sequence", "roadmap") else "comparison-matrix")
-        chosen_layout = layouts[index % len(layouts)]
-        chart.append({"pageId": slide["id"], "form": form, "relationship": relationship, "reason": "锁定关系选择"})
-        layout.append({"pageId": slide["id"], "layout": chosen_layout, "readingPath": slide["visual"]["readingPath"],
-                       "regions": [r["slot"] for r in slide["visual"]["regions"]], "reason": "锁定布局选择"})
-        modules.append({"pageId": slide["id"], "regions": [{"id": r["slot"], "content": "蓝图绑定内容完整呈现",
-                          "layout": chosen_layout, "whitespace": "保留来源与收束句安全区"} for r in slide["visual"]["regions"]]})
-    return chart, layout, modules
-
-
-def reference_pages(blueprint):
-    claims = {claim["id"]: claim for claim in blueprint.get("claims", [])}
-    sources = blueprint.get("sources", {})
-    pages = []
-    for slide in blueprint["slides"]:
-        role = slide["pageRole"]
-        if role in ("cover", "close"):
-            page_role = "cover" if role == "cover" else "back-cover"
-            pages.append(f'<section class="slide ref-bookend" data-page-role="{page_role}"><h1>{html.escape(slide["title"])}</h1><p>{html.escape(slide.get("subtitle", ""))}</p></section>')
-            continue
-        rows = []
-        source_ids = []
-        for ref in slide.get("claimRefs", []):
-            claim = claims[ref]
-            rows.append(f'<tr><td>{html.escape(claim["kind"])}</td><td>{html.escape(claim["statement"])}</td><td>{html.escape(claim.get("limitation", ""))}</td></tr>')
-            source_ids.extend(s for s in claim.get("sourceKeys", []) if s not in source_ids)
-        source = "；".join(f'{sources[s]["label"]} · {sources[s]["locator"]}' for s in source_ids)
-        pages.append(f'<section class="slide ref-body"><h1>{html.escape(slide["title"])}</h1><p>{html.escape(slide.get("subtitle", ""))}</p>'
-                     f'<table><thead><tr><th>身份</th><th>证据</th><th>边界</th></tr></thead><tbody>{"".join(rows)}</tbody></table>'
-                     f'<footer>{html.escape(source)}</footer></section>')
-    if sources:
-        items = "".join(f'<li><strong>{html.escape(source["label"])}</strong><span>{html.escape(source["locator"])}</span></li>'
-                        for source in sources.values())
-        references = f'<section class="slide ref-body" data-page-role="references"><h1>Sources / 来源与定位</h1><ol>{items}</ol></section>'
-        pages.insert(max(0, len(pages) - 1), references)
-    return "\n".join(pages)
-
-
-def standalone(pages, css):
-    base = ".slide{position:relative;width:1280px;height:720px;box-sizing:border-box;page-break-after:always;overflow:hidden}.slide:last-child{page-break-after:auto}body{margin:0;background:#ddd}.ref-bookend,.ref-body{padding:64px;background:#f7f4ed;font-family:sans-serif}.ref-bookend{display:flex;flex-direction:column;justify-content:center}.ref-bookend h1{font-size:50px}.ref-body h1{font-size:32px}.ref-body table{width:100%;border-collapse:collapse;margin-top:40px;background:white}.ref-body th,.ref-body td{padding:18px;border-bottom:1px solid #ccd4d2;text-align:left}.ref-body footer{position:absolute;bottom:35px;font-size:12px;color:#566}"
-    return f"<!doctype html><meta charset='utf-8'><style>{base}\n{css}</style><body>{pages}</body>"
-
-
-def export(html_file, out_dir):
-    node = out_dir / "export.cjs"
+def contact_sheet(out_dir, count):
+    node = out_dir / "contact.cjs"
     playwright = runtime.engine_dir("report-forge", skill_dir=ROOT / "out-deck") / "node_modules" / "playwright"
-    node.write_text("""const {chromium}=require(process.argv[2]),fs=require('fs'),path=require('path');(async()=>{const b=await chromium.launch({headless:true});const p=await b.newPage({viewport:{width:1280,height:720},deviceScaleFactor:1});await p.goto('file://'+path.resolve(process.argv[3]));await p.pdf({path:process.argv[4],width:'13.333in',height:'7.5in',printBackground:true});const slides=p.locator('.slide');for(let i=0;i<await slides.count();i++)await slides.nth(i).screenshot({path:path.join(process.argv[5],`page-${String(i+1).padStart(2,'0')}.png`)});await p.setContent('<style>body{margin:20px;background:#ddd;display:grid;grid-template-columns:repeat(3,384px);gap:12px}img{width:384px}</style>'+[...Array(await slides.count())].map((_,i)=>`<img src="file://${path.join(process.argv[5],`page-${String(i+1).padStart(2,'0')}.png`)}">`).join(''));await p.screenshot({path:path.join(process.argv[5],'contact-sheet.png'),fullPage:true});await b.close()})().catch(e=>{console.error(e);process.exit(1)})""", encoding="utf-8")
-    subprocess.run(["node", str(node), str(playwright), str(html_file), str(out_dir / "deck.pdf"), str(out_dir)], check=True)
+    node.write_text("""const {chromium}=require(process.argv[2]),path=require('path'),fs=require('fs'),{pathToFileURL}=require('url');(async()=>{const b=await chromium.launch({headless:true});const p=await b.newPage({viewport:{width:1280,height:720},deviceScaleFactor:1});const dir=process.argv[3],n=Number(process.argv[4]),html=path.join(dir,'contact.html');fs.writeFileSync(html,'<style>body{margin:20px;background:#ddd;display:grid;grid-template-columns:repeat(3,384px);gap:12px}img{width:384px}</style>'+[...Array(n)].map((_,i)=>`<img src="${`page-${String(i+1).padStart(2,'0')}.png`}">`).join(''));await p.goto(pathToFileURL(html).href);await p.waitForLoadState('load');const loaded=await p.locator('img').evaluateAll(xs=>xs.every(x=>x.complete&&x.naturalWidth>0));if(!loaded)throw Error('contact sheet images did not load');await p.screenshot({path:path.join(dir,'contact-sheet.png'),fullPage:true});fs.unlinkSync(html);await b.close()})().catch(e=>{console.error(e);process.exit(1)})""", encoding="utf-8")
+    subprocess.run(["node", str(node), str(playwright), str(out_dir), str(count)], check=True)
     node.unlink()
 
 
 def build(output):
     config = read_json(ROOT / "out-deck/benchmarks/semantic-benchmark.json")
-    fixture = ROOT / config["fixture"]
-    if sha(fixture) != config["fixtureSha256"]:
-        raise RuntimeError("benchmark fixture hash changed")
-    case = next(c for c in read_json(ROOT / "tests/report-output-cases.json") if c["input_snapshot"]["path"] == config["fixture"])
+    author = config["referenceAuthor"]
+    for key in ("html", "css"):
+        if sha(ROOT / author[key]) != author[f"{key}Sha256"]:
+            raise RuntimeError(f"locked reference author {key} changed")
     with tempfile.TemporaryDirectory() as tmp:
-        task = make_case_task(tmp, case)
-        if task_input_digest(task) != config["materializedInputSha256"]:
+        source_task = pathlib.Path(tmp) / "source-task"
+        F.make_storyline_package(source_task)
+        if task_input_digest(source_task) != config["materializedInputSha256"]:
             raise RuntimeError("materialized benchmark input changed")
-        slides = read_json(task / "07_storyline/slides.json")
-        sidecar = read_json(task / "07_storyline/sidecar.json")
-        blueprint = to_forge.build(task, slides, sidecar, [])["blueprint"]
-        work = pathlib.Path(tmp) / "work"; (work / "obs").mkdir(parents=True)
-        write_json(work / "deck-blueprint.json", blueprint)
-        digest = sha(work / "deck-blueprint.json")
-        chart, layout, modules = decisions(blueprint)
-        common = {"kind": "planning", "reviewer": "benchmark builder", "basis": "locked same-input benchmark",
-                  "alternatives": [{"pageId": s["id"], "considered": "locked", "decision": "locked"} for s in blueprint["slides"]],
-                  "files": [{"record": "../deck-blueprint.json", "sha256": digest}]}
-        write_json(work / "obs/chart-plan.json", {**common, "chartDecisions": chart})
-        write_json(work / "obs/layout-plan.json", {**common, "layoutDecisions": layout})
-        write_json(work / "obs/module-fill-plan.json", {**common, "modulePlans": modules})
-        candidate = allen_compose.compose(work)
+        env = dict(os.environ, ALLEN_RUNTIME=str(runtime.runtime_root(skill_dir=ROOT / "out-deck")), ALLEN_REQUIRE_TOOLS="1")
+        def cli(*args):
+            result = subprocess.run([sys.executable, str(ROOT / "out-deck/scripts/out_deck.py"), *map(str, args)],
+                                    cwd=ROOT, env=env, capture_output=True, text=True)
+            if result.returncode:
+                raise RuntimeError(result.stdout + result.stderr)
+
+        def prepare(identity):
+            task = pathlib.Path(tmp) / f"{identity}-task"
+            shutil.copytree(source_task, task)
+            cli("init", task)
+            work = out_deck.forge_dir(task)
+            for item, requirement in (("chart-plan", "chart-diversity"), ("layout-plan", "layout-diversity"), ("module-fill-plan", "module-fill")):
+                evidence = synthetic.planning(work, item, requirement)
+                cli("plan", task, item, evidence, "--reviewer", "benchmark planning reviewer",
+                    "--basis", "accepted against locked blueprint")
+            cli("step", task, "ready")
+            cli("step", task, "compile")
+            if identity == "candidate":
+                composition = allen_compose.compose(work)
+            else:
+                parts = [work / "bookend-cover.html", ROOT / author["html"],
+                         work / "bookend-references.html", work / "bookend-back.html"]
+                (work / "pages.html").write_text("\n".join(path.read_text(encoding="utf-8") for path in parts), encoding="utf-8")
+                shutil.copy2(ROOT / author["css"], work / "page.css")
+                composition = None
+            cli("step", task, "assemble")
+            cli("step", task, "smoke")
+            refs = read_json(work / "execution-plan.json")["productionRefs"]
+            smoke = read_json(work / ".allen/runs.json")["smoke"]
+            cli("plan", task, "representatives", synthetic.representatives(work, smoke),
+                "--reviewer", "benchmark visual reviewer", "--basis", "accepted from actual smoke screenshots")
+            assembled = work / refs["assemble"]["files"]["html"]["record"]
+            cli("plan", task, "production", synthetic.production(work, assembled),
+                "--reviewer", "benchmark production reviewer", "--basis", "accepted assembled artifact")
+            cli("step", task, "acceptance")
+            refs = read_json(work / "execution-plan.json")["productionRefs"]
+            return work, composition, work / refs["qa"]["files"]["audit"]["record"]
+
+        candidate_work, candidate, candidate_audit = prepare("candidate")
+        reference_work, _, reference_audit = prepare("reference")
+        digest = sha(candidate_work / "deck-blueprint.json")
+        if digest != sha(reference_work / "deck-blueprint.json"):
+            raise RuntimeError("benchmark variants did not receive the same blueprint")
         shutil.rmtree(output, ignore_errors=True); output.mkdir(parents=True)
-        candidates = {"candidate": standalone((work / "pages.html").read_text(), (work / "page.css").read_text()),
-                      "reference": standalone(reference_pages(blueprint), "")}
         labels = ["Atlas", "Juniper"]
         mapping = {labels[0]: "candidate", labels[1]: "reference"} if int(digest[0], 16) % 2 == 0 else {labels[0]: "reference", labels[1]: "candidate"}
         for label, identity in mapping.items():
             directory = output / label; directory.mkdir()
-            html_file = directory / "deck.html"; html_file.write_text(candidates[identity], encoding="utf-8")
-            export(html_file, directory)
+            work, audit_file = ((candidate_work, candidate_audit) if identity == "candidate" else (reference_work, reference_audit))
+            audit = read_json(audit_file)
+            if audit.get("geometryStatus") != "PASS" or audit.get("errors"):
+                raise RuntimeError(f"{identity} QA failed: {audit.get('errors')}")
+            html_file = pathlib.Path(audit["htmlArtifact"]["path"])
+            shutil.copy2(html_file, directory / "deck.html")
+            shutil.copy2(audit_file, directory / "qa-audit.json")
+            base = audit_file.parent
+            pdf = pathlib.Path(audit["pdfArtifact"]["path"])
+            shutil.copy2(pdf, directory / "deck.pdf")
+            for index, row in enumerate(audit["rows"], 1):
+                shutil.copy2(base / row["screenshot"], directory / f"page-{index:02d}.png")
+            contact_sheet(directory, len(audit["rows"]))
         packet = {"version": 1, "inputSha256": config["materializedInputSha256"], "blueprintSha256": digest,
                   "labels": labels, "pageCount": len(candidate["pages"]), "compositionContract": candidate,
+                  "referenceProvenance": author,
                   "files": {p.relative_to(output).as_posix(): sha(p) for p in sorted(output.rglob("*")) if p.is_file()}}
         write_json(output / "anonymous-manifest.json", packet)
         mapping_file = pathlib.Path(tempfile.gettempdir()) / f"allen-deck-benchmark-map-{digest[:12]}.json"

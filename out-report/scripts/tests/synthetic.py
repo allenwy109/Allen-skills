@@ -42,7 +42,7 @@ def planning(d, item, requirement):
                               "reason": "合成夹具：按蓝图证据关系选择兼容形式"})
         obs["chartDecisions"] = decisions
     if item == "layout-plan":
-        layouts = ("chart-sidebar", "comparison-columns", "process-roadmap", "prose-aside")
+        layouts = ("L01", "L02", "L03", "L04")
         obs["layoutDecisions"] = [{"pageId": slide["id"], "layout": layouts[index % len(layouts)],
                                     "readingPath": slide["visual"]["readingPath"],
                                     "regions": [region["slot"] for region in slide["visual"]["regions"]],

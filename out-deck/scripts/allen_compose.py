@@ -29,6 +29,8 @@ FALLBACKS = [
 MAX_ITEMS = 12
 FORM_LIMITS = {"trend-bars": 6, "comparison-matrix": 8, "roadmap": 6, "evidence-quote": 4}
 CN_NUMBERS = ("一", "二", "三", "四", "五", "六", "七", "八")
+CATALOG = pathlib.Path(__file__).resolve().parents[2] / "vendor/report-forge/assets/layout-atlas/catalog.json"
+APPROVED_LAYOUTS = frozenset(item["id"] for item in json.loads(CATALOG.read_text(encoding="utf-8"))["layouts"])
 
 
 def _sha(path):
@@ -58,16 +60,24 @@ def _validate_plans(deck_dir, blueprint_sha, body_ids):
             raise ComposeError(f"REPORT_DECK_PLAN_STALE: {name}")
         documents[name] = doc
     plan_path = deck_dir / "execution-plan.json"
-    if plan_path.is_file():
-        plan = _load(plan_path)
-        for name in documents:
-            item = next((item for item in plan.get("items", []) if item.get("id") == name), None)
-            if not item or item.get("state") != "done" or len(item.get("evidenceRefs", [])) != 1:
-                raise ComposeError(f"REPORT_DECK_PLAN_NOT_ACCEPTED: {name}")
-            evidence = item["evidenceRefs"][0]
-            evidence_path = (deck_dir / evidence.get("record", "")).resolve()
-            if not evidence_path.is_file() or _sha(evidence_path) != evidence.get("sha256"):
-                raise ComposeError(f"REPORT_DECK_PLAN_STALE: {name}")
+    if not plan_path.is_file():
+        raise ComposeError("REPORT_DECK_PLAN_MISSING: execution-plan")
+    plan = _load(plan_path)
+    for name, document in documents.items():
+        item = next((item for item in plan.get("items", []) if item.get("id") == name), None)
+        if not item or item.get("state") != "done" or len(item.get("evidenceRefs", [])) != 1:
+            raise ComposeError(f"REPORT_DECK_PLAN_NOT_ACCEPTED: {name}")
+        acceptance = item.get("acceptance") or {}
+        if not isinstance(acceptance.get("reviewer"), str) or not acceptance["reviewer"].strip() or not isinstance(acceptance.get("basis"), str) or not acceptance["basis"].strip():
+            raise ComposeError(f"REPORT_DECK_PLAN_NOT_ACCEPTED: {name} missing engine acceptance identity or basis")
+        evidence = item["evidenceRefs"][0]
+        evidence_path = (deck_dir / evidence.get("record", "")).resolve()
+        if evidence_path != (deck_dir / "obs" / f"{name}.json").resolve():
+            raise ComposeError(f"REPORT_DECK_PLAN_WRONG_EVIDENCE: {name}")
+        if not evidence_path.is_file() or _sha(evidence_path) != evidence.get("sha256"):
+            raise ComposeError(f"REPORT_DECK_PLAN_STALE: {name}")
+        if not isinstance(document.get("reviewer"), str) or not document["reviewer"].strip() or not isinstance(document.get("basis"), str) or not document["basis"].strip():
+            raise ComposeError(f"REPORT_DECK_PLAN_NOT_ACCEPTED: {name} missing acceptance identity or basis")
 
     def indexed(name, field, required):
         values = documents[name].get(field)
@@ -83,6 +93,9 @@ def _validate_plans(deck_dir, blueprint_sha, body_ids):
 
     charts = indexed("chart-plan", "chartDecisions", ("form", "relationship", "reason"))
     layouts = indexed("layout-plan", "layoutDecisions", ("layout", "readingPath", "regions", "reason"))
+    for page_id, decision in layouts.items():
+        if decision["layout"] not in APPROVED_LAYOUTS:
+            raise ComposeError(f"REPORT_DECK_PLAN_INVALID: {page_id} layout={decision['layout']}")
     modules = indexed("module-fill-plan", "modulePlans", ("regions",))
     for page_id, plan in modules.items():
         if any(not isinstance(region, dict) or any(not isinstance(region.get(key), str) or not region[key].strip()
@@ -207,6 +220,8 @@ def _selection(page, decision, recent):
         raise ComposeError(f"REPORT_DECK_PLAN_INVALID: {page.get('id')} relationship changed")
     actual = {"trend-bars": len(page.get("metricRefs", [])), "comparison-matrix": len(page.get("claimRefs", [])),
               "roadmap": len(page.get("claimRefs", [])), "evidence-quote": len(page.get("claimRefs", []))}[form]
+    if form == "trend-bars" and len(page.get("claimRefs", [])) != 1:
+        raise ComposeError(f"REPORT_DECK_CAPACITY: {page.get('id')} trend-bars requires exactly one claim")
     if actual < 1 or actual > FORM_LIMITS[form]:
         raise ComposeError(f"REPORT_DECK_CAPACITY: {page.get('id')} {form} items={actual} hard={FORM_LIMITS[form]}")
     for panel in panels.values():
@@ -322,8 +337,8 @@ def compose(deck_dir):
                                    "readingPath": decision["layout"]["readingPath"], "regions": decision["module"]["regions"],
                                    "claimRefs": page.get("claimRefs", []), "metricRefs": page.get("metricRefs", []),
                                    "sourceIds": _source_ids(page, claims)})
-    # The engine requires a references role. A single source becomes a filled
-    # provenance audit rather than a nearly empty list page.
+    # The locked complete-report contract requires one references page. A
+    # single source therefore becomes a provenance audit, not a sparse list.
     references_page = bool(sources)
     if references_page:
         insert_at = max(0, len(html_pages) - 1)
@@ -346,7 +361,16 @@ def compose(deck_dir):
                              "metricRefs": sorted({ref for page in manifest_pages for ref in page.get("metricRefs", [])}),
                              "sourceIds": sorted({ref for page in manifest_pages for ref in page.get("sourceIds", [])})}}
     (deck_dir / ".allen").mkdir(exist_ok=True)
-    (deck_dir / "pages.html").write_text("\n".join(html_pages) + "\n", encoding="utf-8")
+    html_output = "\n".join(html_pages) + "\n"
+    keys = re.findall(r'data-content-key="([^"]+)"', html_output)
+    observed = {
+        "claimRefs": sorted({key.split(":", 1)[1] for key in keys if key.startswith("claim:")}),
+        "metricRefs": sorted({key.split(":", 1)[1] for key in keys if key.startswith("metric:")}),
+        "sourceIds": sorted({key.split(":", 1)[1] for key in keys if key.startswith("source:")}),
+    }
+    if observed != manifest["coverage"]:
+        raise ComposeError(f"REPORT_DECK_COVERAGE: rendered={observed} expected={manifest['coverage']}")
+    (deck_dir / "pages.html").write_text(html_output, encoding="utf-8")
     (deck_dir / "page.css").write_text(CSS, encoding="utf-8")
     (deck_dir / ".allen" / "composition-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return manifest

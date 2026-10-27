@@ -65,10 +65,10 @@ class AllenComposeTest(unittest.TestCase):
         obs = self.d / "obs"
         obs.mkdir()
         body = [
-            ("p02", "trend-bars", "trend", "chart-sidebar"),
-            ("p03", "comparison-matrix", "comparison", "comparison-columns"),
-            ("p04", "roadmap", "sequence", "process-roadmap"),
-            ("p05", "evidence-quote", "evidence", "prose-aside"),
+            ("p02", "trend-bars", "trend", "L01"),
+            ("p03", "comparison-matrix", "comparison", "L02"),
+            ("p04", "roadmap", "sequence", "L03"),
+            ("p05", "evidence-quote", "evidence", "L04"),
         ]
         extras = {
             "chart-plan": {"chartDecisions": [{"pageId": pid, "form": form, "relationship": relationship,
@@ -82,10 +82,20 @@ class AllenComposeTest(unittest.TestCase):
         }
         for name in ("chart-plan", "layout-plan", "module-fill-plan"):
             (obs / f"{name}.json").write_text(json.dumps({
-                "kind": "planning", "requirementRefs": [name],
+                "kind": "planning", "reviewer": "测试规划接收人", "basis": "逐页核对蓝图与规划决定",
+                "requirementRefs": [name],
                 "files": [{"record": "../deck-blueprint.json", "sha256": sha(self.bp)}],
                 **extras[name],
             }), encoding="utf-8")
+        self._refresh_plan_refs()
+
+    def _refresh_plan_refs(self):
+        obs = self.d / "obs"
+        (self.d / "execution-plan.json").write_text(json.dumps({"items": [
+            {"id": name, "state": "done", "acceptance": {"reviewer": "测试接收人", "basis": "核对当前蓝图和逐页决定"},
+             "evidenceRefs": [{"record": f"obs/{name}.json", "sha256": sha(obs / f"{name}.json")}]}
+            for name in ("chart-plan", "layout-plan", "module-fill-plan")
+        ]}), encoding="utf-8")
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -110,15 +120,17 @@ class AllenComposeTest(unittest.TestCase):
         before = allen_compose.compose(self.d)
         plan = self.d / "obs" / "layout-plan.json"
         payload = json.loads(plan.read_text())
-        payload["layoutDecisions"][0]["layout"] = "overview-detail"
+        payload["layoutDecisions"][0]["layout"] = "L05"
         payload["layoutDecisions"][0]["readingPath"] = "标题 → 总览 → 细节 → 来源"
         plan.write_text(json.dumps(payload), encoding="utf-8")
+        self._refresh_plan_refs()
         after = allen_compose.compose(self.d)
         self.assertNotEqual(before, after)
-        self.assertEqual(after["pages"][1]["layout"], "overview-detail")
+        self.assertEqual(after["pages"][1]["layout"], "L05")
         self.assertIn("标题 → 总览", (self.d / "pages.html").read_text())
         payload["layoutDecisions"].pop()
         plan.write_text(json.dumps(payload), encoding="utf-8")
+        self._refresh_plan_refs()
         with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_PLAN_INCOMPLETE"):
             allen_compose.compose(self.d)
 
@@ -141,11 +153,13 @@ class AllenComposeTest(unittest.TestCase):
             payload = json.loads(plan.read_text())
             payload["files"][0]["sha256"] = digest
             plan.write_text(json.dumps(payload), encoding="utf-8")
+        self._refresh_plan_refs()
         manifest = allen_compose.compose(self.d)
         self.assertTrue(manifest["referencesPage"])
         self.assertFalse(manifest["sparseReferences"])
         text = (self.d / "pages.html").read_text()
         self.assertIn('data-page-role="references"', text)
+        self.assertIn("访谈纪要:L10-L20", text)
         self.assertIn("绑定来源的主张", text)
 
     def test_missing_or_stale_plan_fails_before_writing(self):
@@ -155,6 +169,32 @@ class AllenComposeTest(unittest.TestCase):
         self.assertFalse((self.d / "pages.html").exists())
         (self.d / "obs" / "layout-plan.json").write_text(json.dumps({"files": [{"record": "../deck-blueprint.json", "sha256": "0" * 64}]}))
         with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_PLAN_STALE"):
+            allen_compose.compose(self.d)
+
+    def test_missing_execution_plan_fake_done_wrong_ref_and_layout_injection_fail(self):
+        execution = self.d / "execution-plan.json"
+        execution.unlink()
+        with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_PLAN_MISSING"):
+            allen_compose.compose(self.d)
+        self._refresh_plan_refs()
+        plan = json.loads(execution.read_text())
+        del plan["items"][1]["acceptance"]
+        execution.write_text(json.dumps(plan))
+        with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_PLAN_NOT_ACCEPTED"):
+            allen_compose.compose(self.d)
+        self._refresh_plan_refs()
+        plan = json.loads(execution.read_text())
+        plan["items"][1]["evidenceRefs"][0] = dict(plan["items"][0]["evidenceRefs"][0])
+        execution.write_text(json.dumps(plan))
+        with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_PLAN_WRONG_EVIDENCE"):
+            allen_compose.compose(self.d)
+        self._refresh_plan_refs()
+        layout = self.d / "obs/layout-plan.json"
+        payload = json.loads(layout.read_text())
+        payload["layoutDecisions"][0]["layout"] = 'L01" onmouseover="alert(1)'
+        layout.write_text(json.dumps(payload))
+        self._refresh_plan_refs()
+        with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_PLAN_INVALID"):
             allen_compose.compose(self.d)
 
     def test_capacity_overflow_fails_instead_of_shrinking(self):
@@ -172,6 +212,7 @@ class AllenComposeTest(unittest.TestCase):
             payload = json.loads(plan.read_text())
             payload["files"][0]["sha256"] = digest
             plan.write_text(json.dumps(payload), encoding="utf-8")
+        self._refresh_plan_refs()
         with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_CAPACITY"):
             allen_compose.compose(self.d)
 

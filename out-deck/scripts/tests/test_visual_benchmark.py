@@ -20,8 +20,13 @@ class VisualBenchmarkTest(unittest.TestCase):
             for label in manifest["labels"]:
                 pages = sorted((output / label).glob("page-*.png"))
                 self.assertEqual(len(pages), manifest["pageCount"])
-                for name in ("deck.html", "deck.pdf", "contact-sheet.png"):
+                for name in ("deck.html", "deck.pdf", "contact-sheet.png", "qa-audit.json"):
                     self.assertTrue((output / label / name).is_file())
+                audit = json.loads((output / label / "qa-audit.json").read_text())
+                self.assertEqual(audit["tier"], "acceptance")
+                self.assertTrue(audit["acceptance"]["complete"])
+                self.assertEqual(audit["geometryStatus"], "PASS")
+                self.assertEqual(audit["errors"], [])
             self.assertNotEqual((output / "Atlas/deck.html").read_bytes(), (output / "Juniper/deck.html").read_bytes())
             anonymous = json.loads((output / "anonymous-manifest.json").read_text())
             self.assertNotIn("mapping", anonymous)
