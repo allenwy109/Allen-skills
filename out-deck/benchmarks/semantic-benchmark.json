@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "fixture": "tests/report-output-fixtures/quantitative-heavy.snapshot.json",
+  "fixtureSha256": "8244084bd7da18b1a5ab65c797a9b63533122c6bc24388bdb7337a251c0529d1",
+  "materializedInputSha256": "8ce14c480ef6269b2fdf0241f3c30ac2a962c9081ad644ca9b43410ced95c5a0",
+  "referenceStrategy": "upstream-compatible conservative authoring",
+  "candidateStrategy": "Allen evidence-led composer",
+  "note": "report-forge does not author pages from plans; the reference uses its conservative page contract and the candidate uses the Allen composer. Both consume the same generated blueprint."
+}

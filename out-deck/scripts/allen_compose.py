@@ -27,6 +27,7 @@ FALLBACKS = [
     ("evidence-quote", "prose-aside"),
 ]
 MAX_ITEMS = 12
+FORM_LIMITS = {"trend-bars": 6, "comparison-matrix": 8, "roadmap": 6, "evidence-quote": 4}
 CN_NUMBERS = ("一", "二", "三", "四", "五", "六", "七", "八")
 
 
@@ -45,7 +46,8 @@ def _esc(value):
     return html.escape(str(value or ""), quote=True)
 
 
-def _validate_plans(deck_dir, blueprint_sha):
+def _validate_plans(deck_dir, blueprint_sha, body_ids):
+    documents = {}
     for name in ("chart-plan", "layout-plan", "module-fill-plan"):
         path = deck_dir / "obs" / f"{name}.json"
         if not path.is_file():
@@ -54,6 +56,39 @@ def _validate_plans(deck_dir, blueprint_sha):
         bindings = [item for item in doc.get("files", []) if item.get("record", "").endswith("deck-blueprint.json")]
         if not bindings or bindings[0].get("sha256") != blueprint_sha:
             raise ComposeError(f"REPORT_DECK_PLAN_STALE: {name}")
+        documents[name] = doc
+    plan_path = deck_dir / "execution-plan.json"
+    if plan_path.is_file():
+        plan = _load(plan_path)
+        for name in documents:
+            item = next((item for item in plan.get("items", []) if item.get("id") == name), None)
+            if not item or item.get("state") != "done" or len(item.get("evidenceRefs", [])) != 1:
+                raise ComposeError(f"REPORT_DECK_PLAN_NOT_ACCEPTED: {name}")
+            evidence = item["evidenceRefs"][0]
+            evidence_path = (deck_dir / evidence.get("record", "")).resolve()
+            if not evidence_path.is_file() or _sha(evidence_path) != evidence.get("sha256"):
+                raise ComposeError(f"REPORT_DECK_PLAN_STALE: {name}")
+
+    def indexed(name, field, required):
+        values = documents[name].get(field)
+        if not isinstance(values, list) or len(values) != len(body_ids):
+            raise ComposeError(f"REPORT_DECK_PLAN_INCOMPLETE: {name}.{field}")
+        by_id = {item.get("pageId"): item for item in values if isinstance(item, dict)}
+        if set(by_id) != set(body_ids):
+            raise ComposeError(f"REPORT_DECK_PLAN_INCOMPLETE: {name}.{field}")
+        for page_id, item in by_id.items():
+            if any(not isinstance(item.get(key), (str, list)) or not item.get(key) for key in required):
+                raise ComposeError(f"REPORT_DECK_PLAN_INCOMPLETE: {name}.{page_id}")
+        return by_id
+
+    charts = indexed("chart-plan", "chartDecisions", ("form", "relationship", "reason"))
+    layouts = indexed("layout-plan", "layoutDecisions", ("layout", "readingPath", "regions", "reason"))
+    modules = indexed("module-fill-plan", "modulePlans", ("regions",))
+    for page_id, plan in modules.items():
+        if any(not isinstance(region, dict) or any(not isinstance(region.get(key), str) or not region[key].strip()
+               for key in ("id", "content", "layout", "whitespace")) for region in plan["regions"]):
+            raise ComposeError(f"REPORT_DECK_PLAN_INCOMPLETE: module-fill-plan.{page_id}")
+    return {page_id: {"chart": charts[page_id], "layout": layouts[page_id], "module": modules[page_id]} for page_id in body_ids}
 
 
 def _claim_maps(doc):
@@ -61,12 +96,13 @@ def _claim_maps(doc):
     metrics = {}
     for claim in claims.values():
         for metric in claim.get("metrics", []):
-            if "value" in metric:
-                metrics[metric["id"]] = metric
+            metrics[metric["id"]] = metric
     return claims, metrics
 
 
 def _metric_text(metric):
+    if "value" not in metric:
+        return metric.get("id", "待计算")
     value = metric.get("value")
     decimals = metric.get("decimals", 0)
     if isinstance(value, (int, float)):
@@ -104,13 +140,13 @@ def _claims(page, claims, metrics):
 
 
 def _trend(page, page_claims, metrics):
-    values = [metrics[mid] for mid in page.get("metricRefs", []) if mid in metrics]
+    values = [metrics[mid] for mid in page.get("metricRefs", []) if mid in metrics and "value" in metrics[mid]]
     if not values:
         return _quote(page, page_claims, metrics)
     numeric = [float(v["value"]) for v in values]
     maximum = max(numeric) or 1
     bars = []
-    for index, metric in enumerate(values[:4]):
+    for index, metric in enumerate(values):
         height = max(8, round(float(metric["value"]) / maximum * 210))
         x = 75 + index * 120
         y = 245 - height
@@ -127,7 +163,7 @@ def _trend(page, page_claims, metrics):
 
 def _matrix(page, page_claims, metrics):
     rows = []
-    for index, claim in enumerate(page_claims[:5], 1):
+    for index, claim in enumerate(page_claims, 1):
         rows.append(f'<tr><td>{CN_NUMBERS[index - 1]}</td><td data-content-key="claim:{_esc(claim["id"])}">{_esc(claim["statement"])}</td>'
                     f'<td data-content-key="limitation:{_esc(claim["id"])}">{_esc(claim.get("limitation", "待验证"))}</td></tr>')
     return ('<div class="exhibit matrix-exhibit"><table aria-label="方案与证据比较"><thead><tr><th>#</th><th>判断／选项</th><th>边界／验证条件</th></tr></thead>'
@@ -136,7 +172,7 @@ def _matrix(page, page_claims, metrics):
 
 def _roadmap(page, page_claims, metrics):
     steps = []
-    for index, claim in enumerate(page_claims[:4], 1):
+    for index, claim in enumerate(page_claims, 1):
         steps.append(f'<article class="roadmap-step"><div class="step-no">阶段{CN_NUMBERS[index - 1]}</div>'
                      f'<h2 data-content-key="claim:{_esc(claim["id"])}">{_esc(claim["statement"])}</h2>'
                      f'<p>门槛：<span data-content-key="limitation:{_esc(claim["id"])}">{_esc(claim.get("limitation", "完成核验后进入下一阶段"))}</span></p></article>')
@@ -144,37 +180,43 @@ def _roadmap(page, page_claims, metrics):
 
 
 def _quote(page, page_claims, metrics):
-    claim = page_claims[0] if page_claims else {"statement": page.get("proves", ""), "limitation": ""}
-    return ('<div class="exhibit quote-exhibit"><div class="quote-mark">“</div>'
-            f'<blockquote data-content-key="claim:{_esc(claim.get("id", ""))}">{_esc(claim["statement"])}</blockquote><aside><div class="eyebrow">WHY IT MATTERS</div>'
-            f'<p>{_esc(page.get("adds") or page.get("proves") or claim.get("limitation", ""))}</p>'
-            f'<p class="limitation">边界：<span data-content-key="limitation:{_esc(claim.get("id", ""))}">{_esc(claim.get("limitation", "待进一步核验"))}</span></p></aside></div>')
+    quotes = "".join(f'<blockquote data-content-key="claim:{_esc(claim["id"])}">{_esc(claim["statement"])}</blockquote>'
+                     f'<p class="limitation">边界：<span data-content-key="limitation:{_esc(claim["id"])}">{_esc(claim.get("limitation", "待进一步核验"))}</span></p>'
+                     for claim in page_claims)
+    return ('<div class="exhibit quote-exhibit"><div class="quote-mark">“</div><div>' + quotes + '</div>'
+            f'<aside><div class="eyebrow">WHY IT MATTERS</div><p>{_esc(page.get("adds") or page.get("proves") or "")}</p></aside></div>')
 
 
 RENDERERS = {"trend-bars": _trend, "comparison-matrix": _matrix, "roadmap": _roadmap, "evidence-quote": _quote}
 
 
-def _selection(page, body_index, recent):
+def _selection(page, decision, recent):
     composition = (((page.get("exhibit") or {}).get("semantics") or {}).get("composition") or {})
     panels = composition.get("panels") or {}
     anchor = panels.get(composition.get("anchorPanel")) or next(iter(panels.values()), {})
     relationship = ((anchor.get("selection") or {}).get("relationship") or "text").lower()
     declared_form = anchor.get("form")
-    if declared_form == "svg.custom":
-        selection = ("trend-bars", "chart-sidebar")
-    elif declared_form == "html.text":
-        selection = ("evidence-quote", "prose-aside")
-    else:
-        selection = FORMS.get(relationship, FALLBACKS[body_index % len(FALLBACKS)])
-    if len(recent) >= 2 and recent[-1] == recent[-2] == selection[1]:
-        selection = FALLBACKS[body_index % len(FALLBACKS)]
-        if selection[1] == recent[-1]:
-            selection = FALLBACKS[(body_index + 1) % len(FALLBACKS)]
+    form, layout = decision["chart"]["form"], decision["layout"]["layout"]
+    if form not in RENDERERS:
+        raise ComposeError(f"REPORT_DECK_PLAN_INVALID: {page.get('id')} form={form}")
+    compatible = {"svg.custom": {"trend-bars"}, "html.text": {"evidence-quote"},
+                  "html.table": {"comparison-matrix", "roadmap"}, "html.kpi": {"comparison-matrix"}}
+    if declared_form in compatible and form not in compatible[declared_form]:
+        raise ComposeError(f"REPORT_DECK_PLAN_INVALID: {page.get('id')} {form} incompatible with {declared_form}")
+    if decision["chart"]["relationship"] != relationship:
+        raise ComposeError(f"REPORT_DECK_PLAN_INVALID: {page.get('id')} relationship changed")
+    actual = {"trend-bars": len(page.get("metricRefs", [])), "comparison-matrix": len(page.get("claimRefs", [])),
+              "roadmap": len(page.get("claimRefs", [])), "evidence-quote": len(page.get("claimRefs", []))}[form]
+    if actual < 1 or actual > FORM_LIMITS[form]:
+        raise ComposeError(f"REPORT_DECK_CAPACITY: {page.get('id')} {form} items={actual} hard={FORM_LIMITS[form]}")
     for panel in panels.values():
-        count = (panel.get("capacity") or {}).get("items", len(panel.get("claimRefs", [])))
-        if not isinstance(count, int) or count > MAX_ITEMS:
-            raise ComposeError(f"REPORT_DECK_CAPACITY: {page.get('id')} exceeds {MAX_ITEMS} items")
-    return selection
+        planned = (panel.get("capacity") or {}).get("items")
+        used = len(panel.get("claimRefs", []))
+        if planned is not None and (not isinstance(planned, int) or planned < used):
+            raise ComposeError(f"REPORT_DECK_CAPACITY: {page.get('id')} panel capacity under-reports {used}")
+    if len(recent) >= 2 and recent[-1] == recent[-2] == layout:
+        raise ComposeError(f"REPORT_DECK_LAYOUT_REPEAT: {page.get('id')} repeats {layout} three times")
+    return form, layout
 
 
 def _body_page(page, form, layout, claims, metrics, sources):
@@ -245,12 +287,19 @@ def compose(deck_dir):
     blueprint_path = deck_dir / "deck-blueprint.json"
     blueprint = _load(blueprint_path)
     digest = _sha(blueprint_path)
-    _validate_plans(deck_dir, digest)
+    ordered_slides = sorted(blueprint.get("slides", []), key=lambda item: item.get("sequence", 0))
+    body_ids = [page["id"] for page in ordered_slides if page.get("pageRole") not in ("cover", "close")]
+    decisions = _validate_plans(deck_dir, digest, body_ids)
     claims, metrics = _claim_maps(blueprint)
     sources = blueprint.get("sources") or {}
+    for page in ordered_slides:
+        unknown_claims = set(page.get("claimRefs", [])) - set(claims)
+        unknown_metrics = set(page.get("metricRefs", [])) - set(metrics)
+        unknown_sources = set(_source_ids(page, claims)) - set(sources)
+        if unknown_claims or unknown_metrics or unknown_sources:
+            raise ComposeError(f"REPORT_DECK_COVERAGE: {page.get('id')} unknown refs")
     html_pages, manifest_pages, recent = [], [], []
-    body_index = 0
-    for page in sorted(blueprint.get("slides", []), key=lambda item: item.get("sequence", 0)):
+    for page in ordered_slides:
         role = page.get("pageRole")
         if role == "cover":
             cover = deck_dir / "bookend-cover.html"
@@ -261,11 +310,18 @@ def compose(deck_dir):
             html_pages.append(back.read_text(encoding="utf-8") if back.is_file() else _simple_page(page, "close"))
             manifest_pages.append({"id": page["id"], "role": "close", "form": "bookend", "layout": "back"})
         else:
-            form, layout = _selection(page, body_index, recent)
-            recent.append(layout); body_index += 1
-            html_pages.append(_body_page(page, form, layout, claims, metrics, sources))
+            decision = decisions[page["id"]]
+            form, layout = _selection(page, decision, recent)
+            recent.append(layout)
+            page_html = _body_page(page, form, layout, claims, metrics, sources)
+            metadata = (f' data-reading-path="{_esc(decision["layout"]["readingPath"])}"'
+                        f' data-module-plan="{_esc(json.dumps(decision["module"]["regions"], ensure_ascii=False, sort_keys=True))}"')
+            page_html = page_html.replace(' data-frame-boundary="line">', metadata + ' data-frame-boundary="line">', 1)
+            html_pages.append(page_html)
             manifest_pages.append({"id": page["id"], "role": "body", "form": form, "layout": layout,
-                                   "claimRefs": page.get("claimRefs", []), "sourceIds": _source_ids(page, claims)})
+                                   "readingPath": decision["layout"]["readingPath"], "regions": decision["module"]["regions"],
+                                   "claimRefs": page.get("claimRefs", []), "metricRefs": page.get("metricRefs", []),
+                                   "sourceIds": _source_ids(page, claims)})
     # The engine requires a references role. A single source becomes a filled
     # provenance audit rather than a nearly empty list page.
     references_page = bool(sources)
@@ -285,7 +341,10 @@ def compose(deck_dir):
         manifest_pages.insert(insert_at, {"id": "references", "role": "references", "form": "source-list", "layout": "references"})
     manifest = {"version": 1, "blueprintSha256": digest, "referencesPage": references_page, "sparseReferences": False, "pages": manifest_pages,
                 "forms": sorted({p["form"] for p in manifest_pages if p["role"] == "body"}),
-                "layouts": sorted({p["layout"] for p in manifest_pages if p["role"] == "body"})}
+                "layouts": sorted({p["layout"] for p in manifest_pages if p["role"] == "body"}),
+                "coverage": {"claimRefs": sorted({ref for page in manifest_pages for ref in page.get("claimRefs", [])}),
+                             "metricRefs": sorted({ref for page in manifest_pages for ref in page.get("metricRefs", [])}),
+                             "sourceIds": sorted({ref for page in manifest_pages for ref in page.get("sourceIds", [])})}}
     (deck_dir / ".allen").mkdir(exist_ok=True)
     (deck_dir / "pages.html").write_text("\n".join(html_pages) + "\n", encoding="utf-8")
     (deck_dir / "page.css").write_text(CSS, encoding="utf-8")

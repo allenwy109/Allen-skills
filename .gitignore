@@ -6,3 +6,4 @@ __pycache__/
 .probe.json
 .worktrees/
 out-report/golden/build/
+out-deck/build/

@@ -25,9 +25,29 @@ def _write(d, name, doc):
 
 def planning(d, item, requirement):
     bp = json.loads((d / "deck-blueprint.json").read_text(encoding="utf-8"))
+    body = [s for s in bp["slides"] if s["pageRole"] in BODY]
     obs = {"kind": "planning", "reviewer": WHO, "basis": "合成规划观察", "requirementRefs": [requirement],
            "alternatives": [{"pageId": s["id"], "considered": "合成候选", "decision": "见蓝图 selection 与 layoutReason"} for s in bp["slides"]],
            "files": [{"record": "../deck-blueprint.json", "sha256": sha(d / "deck-blueprint.json")}]}
+    if item == "chart-plan":
+        decisions = []
+        for slide in body:
+            comp = slide["exhibit"]["semantics"]["composition"]
+            anchor = comp["panels"][comp["anchorPanel"]]
+            relationship = anchor["selection"]["relationship"]
+            form = ("trend-bars" if anchor["form"] == "svg.custom" else
+                    "evidence-quote" if anchor["form"] == "html.text" else
+                    "roadmap" if relationship in ("sequence", "roadmap") else "comparison-matrix")
+            decisions.append({"pageId": slide["id"], "form": form, "relationship": relationship,
+                              "reason": "合成夹具：按蓝图证据关系选择兼容形式"})
+        obs["chartDecisions"] = decisions
+    if item == "layout-plan":
+        layouts = ("chart-sidebar", "comparison-columns", "process-roadmap", "prose-aside")
+        obs["layoutDecisions"] = [{"pageId": slide["id"], "layout": layouts[index % len(layouts)],
+                                    "readingPath": slide["visual"]["readingPath"],
+                                    "regions": [region["slot"] for region in slide["visual"]["regions"]],
+                                    "reason": "合成夹具：布局匹配蓝图区域与阅读路径"}
+                                   for index, slide in enumerate(body)]
     if item == "module-fill-plan":
         obs["modulePlans"] = [{"pageId": s["id"], "regions": [{"id": r["slot"], "content": "合成内容", "layout": "合成布局", "whitespace": "无预留"}
                                                              for r in s["visual"]["regions"]]}

@@ -64,10 +64,27 @@ class AllenComposeTest(unittest.TestCase):
         self.bp.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
         obs = self.d / "obs"
         obs.mkdir()
+        body = [
+            ("p02", "trend-bars", "trend", "chart-sidebar"),
+            ("p03", "comparison-matrix", "comparison", "comparison-columns"),
+            ("p04", "roadmap", "sequence", "process-roadmap"),
+            ("p05", "evidence-quote", "evidence", "prose-aside"),
+        ]
+        extras = {
+            "chart-plan": {"chartDecisions": [{"pageId": pid, "form": form, "relationship": relationship,
+                                                   "reason": "关系与图形匹配"} for pid, form, relationship, _ in body]},
+            "layout-plan": {"layoutDecisions": [{"pageId": pid, "layout": layout,
+                                                     "readingPath": "标题 → 主证据 → 来源", "regions": ["main"],
+                                                     "reason": "版式匹配证据形状"} for pid, _, _, layout in body]},
+            "module-fill-plan": {"modulePlans": [{"pageId": pid, "regions": [{"id": "main", "content": "主证据完整呈现",
+                                                                                     "layout": layout, "whitespace": "保留来源安全区"}]}
+                                                        for pid, _, _, layout in body]},
+        }
         for name in ("chart-plan", "layout-plan", "module-fill-plan"):
             (obs / f"{name}.json").write_text(json.dumps({
                 "kind": "planning", "requirementRefs": [name],
                 "files": [{"record": "../deck-blueprint.json", "sha256": sha(self.bp)}],
+                **extras[name],
             }), encoding="utf-8")
 
     def tearDown(self):
@@ -85,6 +102,25 @@ class AllenComposeTest(unittest.TestCase):
         self.assertNotIn("<script>alert(1)</script>", html1.decode())
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", html1.decode())
         self.assertNotIn("deck-analysis-status=preview", html1.decode())
+        self.assertEqual(first["coverage"]["claimRefs"], ["c1", "c2", "c3", "c4"])
+        self.assertEqual(first["coverage"]["metricRefs"], ["m1", "m2"])
+        self.assertEqual(first["coverage"]["sourceIds"], ["S1", "S2"])
+
+    def test_plan_changes_drive_output_and_incomplete_decisions_fail(self):
+        before = allen_compose.compose(self.d)
+        plan = self.d / "obs" / "layout-plan.json"
+        payload = json.loads(plan.read_text())
+        payload["layoutDecisions"][0]["layout"] = "overview-detail"
+        payload["layoutDecisions"][0]["readingPath"] = "标题 → 总览 → 细节 → 来源"
+        plan.write_text(json.dumps(payload), encoding="utf-8")
+        after = allen_compose.compose(self.d)
+        self.assertNotEqual(before, after)
+        self.assertEqual(after["pages"][1]["layout"], "overview-detail")
+        self.assertIn("标题 → 总览", (self.d / "pages.html").read_text())
+        payload["layoutDecisions"].pop()
+        plan.write_text(json.dumps(payload), encoding="utf-8")
+        with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_PLAN_INCOMPLETE"):
+            allen_compose.compose(self.d)
 
     def test_sources_are_near_evidence_and_multiple_sources_get_references(self):
         manifest = allen_compose.compose(self.d)
@@ -123,7 +159,13 @@ class AllenComposeTest(unittest.TestCase):
 
     def test_capacity_overflow_fails_instead_of_shrinking(self):
         doc = json.loads(self.bp.read_text())
-        doc["slides"][1]["exhibit"]["semantics"]["composition"]["panels"]["p02-main"]["capacity"]["items"] = 13
+        claim_template = doc["claims"][0]
+        for index in range(2, 9):
+            clone = dict(claim_template, id=f"c1-{index}", statement=f"补充趋势主张 {index}", metrics=[])
+            doc["claims"].append(clone)
+            doc["slides"][1]["claimRefs"].append(clone["id"])
+            doc["slides"][1]["exhibit"]["semantics"]["composition"]["panels"]["p02-main"]["claimRefs"].append(clone["id"])
+        doc["slides"][1]["exhibit"]["semantics"]["composition"]["panels"]["p02-main"]["capacity"]["items"] = 1
         self.bp.write_text(json.dumps(doc), encoding="utf-8")
         digest = sha(self.bp)
         for plan in (self.d / "obs").glob("*.json"):
