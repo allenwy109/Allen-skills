@@ -130,6 +130,22 @@ function sourceRefs(block) {
   return declared + bindings;
 }
 
+function citationMarkers(block, context) {
+  if (context && context.renderCitations === false) return '';
+  const registry = new Map(list(context && context.citationRegistry).map(item => [item.source_id, item]));
+  const seen = new Set();
+  const markers = list(block.source_ids).filter(sourceId => {
+    if (seen.has(sourceId)) return false;
+    seen.add(sourceId);
+    return true;
+  }).map(sourceId => {
+    const citation = registry.get(sourceId);
+    if (!citation) return '';
+    return `<a class="citation-marker" href="#${escapeHtml(citation.appendix_anchor)}">[${escapeHtml(citation.number)}]</a>`;
+  }).join(' ');
+  return markers ? `<sup class="citation-markers" aria-label="Sources">${markers}</sup>` : '';
+}
+
 function identityLegend(block, context) {
   const encodings = context && context.identityEncodings ? context.identityEncodings : DEFAULT_IDENTITY_ENCODINGS;
   return list(block.identity).map(identity => {
@@ -265,7 +281,7 @@ function renderBlock(block, context = {}) {
   }
   const content = block.content || {};
   const anchor = content.anchor ? ' data-anchor="true"' : '';
-  return `<article class="report-block report-block--${escapeHtml(block.kind)}" data-block-id="${escapeHtml(block.id)}" data-block-kind="${escapeHtml(block.kind)}" data-form="${escapeHtml(content.form)}" data-role="${escapeHtml(content.role)}" aria-labelledby="${escapeHtml(block.id)}-title"${anchor}>${blockHeader(block)}${BLOCK_RENDERERS[block.kind](block)}${bindings(block, context)}</article>`;
+  return `<article class="report-block report-block--${escapeHtml(block.kind)}" data-block-id="${escapeHtml(block.id)}" data-block-kind="${escapeHtml(block.kind)}" data-form="${escapeHtml(content.form)}" data-role="${escapeHtml(content.role)}" aria-labelledby="${escapeHtml(block.id)}-title"${anchor}>${blockHeader(block)}${BLOCK_RENDERERS[block.kind](block)}${citationMarkers(block, context)}${bindings(block, context)}</article>`;
 }
 
 function renderComponent(kind, payload = {}, context = {}) {

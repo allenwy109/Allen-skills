@@ -28,6 +28,7 @@
 | panel 的 claim_refs | `claim_refs`、`identity` | identity 是所引用主张的 kind 集合；未知主张拦下 |
 | 页的 metric_refs 与 panel 主张的 metric_refs 交集 | `metric_refs` | 防止把未在正文声明的指标带入，也防止正文指标在输出消失 |
 | 主张 → claim_evidence → evidence | `source_ids`、`source_bindings`、`references` | binding 按 source_id 排序并带排序去重后的 evidence locator；references 汇总正文 evidence locator 与 A 卡 source_refs locator，保留来源标题和 URL；panel 显式 source_ids 一并保留 |
+| 正文来源与仅附录来源 | `citation_registry` | 正文按 block/source 首次出现编号并去重；仅附录来源按 source_id 排序追加。每项固定包含 `source_id`、连续 `number` 和 `source-<id>` anchor；完整来源字段只在附录显示 |
 | A 级卡片 | `executive_summary.a_card_refs` | A 卡关联的主张必须进入正文，否则覆盖失败 |
 
 coverage 的 `input` 和 `output` 都含排序后的 `claims`、`answer_claims`、`a_cards`、`panels`、`relations`、

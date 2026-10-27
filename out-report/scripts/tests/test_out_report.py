@@ -79,12 +79,21 @@ class A4OutReportPipelineTest(unittest.TestCase):
     def test_a4_workflow_is_default_and_packages_audited_outputs(self):
         self.command("init", self.task)
         self.assertTrue((self.story / "report.json").is_file())
+        report = json.loads((self.story / "report.json").read_text(encoding="utf-8"))
+        self.assertEqual([1], [item["number"] for item in report["citation_registry"]])
+        self.assertEqual("source-M001", report["citation_registry"][0]["appendix_anchor"])
         self.assertTrue((self.work / "coverage-manifest.json").is_file())
         self.assertFalse((self.story / "forge-work/pages.html").exists())
 
         preview = self.command("render", self.task, expected=1)
         self.assertIn("REPORT_VISUAL_REGRESSION", preview.stdout)
         self.assertTrue((self.work / "build/report.html").is_file())
+        html = (self.work / "build/report.html").read_text(encoding="utf-8")
+        body = html.split('aria-label="References and appendix"')[0]
+        self.assertIn('class="citation-marker" href="#source-M001">[1]</a>', body)
+        self.assertNotIn("https://", body)
+        self.assertNotIn("source-strip", body)
+        self.assertEqual(1, html.count('id="source-M001"'))
         pdf = self.work / "build/report.pdf"
         self.assertTrue(pdf.is_file())
         info = subprocess.run(["pdfinfo", str(pdf)], capture_output=True, text=True, check=True).stdout
@@ -219,6 +228,20 @@ class A4OutReportContractTest(unittest.TestCase):
             self.assertEqual(1, result.returncode, result.stdout + result.stderr)
             self.assertIn("REPORT_UNSUPPORTED_BLOCK", result.stderr)
             self.assertFalse((task / "07_storyline/a4-work").exists())
+
+    def test_renderer_rejects_body_marker_without_appendix_target(self):
+        if missing():
+            self.skipTest("missing renderer tools")
+        with tempfile.TemporaryDirectory() as temporary:
+            task = make_task(temporary)
+            self.assertEqual(0, run("init", task).returncode)
+            document_path = task / "07_storyline/a4-work/render-document.json"
+            document = json.loads(document_path.read_text(encoding="utf-8"))
+            document["components"][-1]["payload"]["references"] = []
+            document_path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+            result = run("render", task)
+            self.assertEqual(1, result.returncode)
+            self.assertIn("REPORT_CITATION_MISMATCH", result.stderr)
 
 
 if __name__ == "__main__":

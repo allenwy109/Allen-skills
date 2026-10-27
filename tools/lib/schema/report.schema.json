@@ -31,6 +31,11 @@
     "panel_ids": {"type": "array", "required": true, "items": {"type": "string"}},
     "relation_ids": {"type": "array", "required": true, "items": {"type": "string"}}
    }},
+   "citation_registry": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+    "source_id": {"type": "string", "required": true},
+    "number": {"type": "integer", "min": 1, "required": true},
+    "appendix_anchor": {"type": "string", "required": true}
+   }}},
    "sections": {"type": "array", "required": true, "items": {"type": "object", "fields": {
     "id": {"type": "string", "required": true},
     "title": {"type": "string", "required": true},
@@ -77,6 +82,12 @@
     "title": {"type": "string", "required": true},
     "url": {"type": "string"},
     "origin": {"type": "string", "required": true},
+    "author": {"type": "string"},
+    "publisher": {"type": "string"},
+    "published": {"type": "date"},
+    "accessed": {"type": "datetime"},
+    "grade": {"type": "string"},
+    "conflict_of_interest": {"type": "string"},
     "locators": {"type": "array", "required": true, "items": {"type": "string"}}
    }}},
    "appendix": {"type": "array", "required": true, "items": {"type": "object", "fields": {

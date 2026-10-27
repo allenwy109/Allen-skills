@@ -67,6 +67,20 @@ def _source_bindings(claim_ids, links, evidence, explicit=()):
             for source_id, values in sorted(locators.items())]
 
 
+def _citation_registry(sections, source_ids):
+    ordered = []
+    seen = set()
+    for section in sections:
+        for block in section["blocks"]:
+            for source_id in block["source_ids"]:
+                if source_id not in seen:
+                    seen.add(source_id)
+                    ordered.append(source_id)
+    ordered.extend(sorted(set(source_ids) - seen))
+    return [{"source_id": source_id, "number": number, "appendix_anchor": f"source-{source_id}"}
+            for number, source_id in enumerate(ordered, 1)]
+
+
 def validate_report(report):
     """Validate report structure plus uniqueness and internal reference integrity."""
     problems = schema_check.check_document(schema_check.load("report.schema.json"), report, "report.json")
@@ -106,6 +120,19 @@ def validate_report(report):
             problems.append(f"relation {relation['id']} 引用了未知 panel：{ref}")
     reference_ids = [reference["id"] for reference in report["references"]]
     _unique(reference_ids, "references source id", problems)
+    citation_ids = [item["source_id"] for item in report["citation_registry"]]
+    citation_numbers = [item["number"] for item in report["citation_registry"]]
+    citation_anchors = [item["appendix_anchor"] for item in report["citation_registry"]]
+    _unique(citation_ids, "citation_registry source id", problems)
+    _unique(citation_numbers, "citation_registry number", problems)
+    _unique(citation_anchors, "citation_registry appendix anchor", problems)
+    if set(citation_ids) != set(reference_ids):
+        problems.append("citation_registry 与 references 来源不一致")
+    if citation_numbers != list(range(1, len(citation_numbers) + 1)):
+        problems.append("citation_registry number 必须从 1 连续递增")
+    for item in report["citation_registry"]:
+        if item["appendix_anchor"] != f"source-{item['source_id']}":
+            problems.append(f"citation_registry appendix anchor 与 source 不一致：{item['source_id']}")
     actual = {
         "claim_ids": ({ref for block in blocks for ref in block["claim_refs"]}
                       | set(report["executive_summary"]["answer_claim_refs"])),
@@ -307,9 +334,13 @@ def build(task, slides, sidecar=None):
                      "metric_ids": list(expected["metrics"]),
                      "source_ids": list(expected["sources"]), "card_ids": list(expected["a_cards"]),
                      "panel_ids": list(expected["panels"]), "relation_ids": list(expected["relations"])},
+        "citation_registry": _citation_registry(sections, source_ids),
         "sections": sections,
         "references": [{k: v for k, v in {"id": sid, "title": sources[sid]["title"], "url": sources[sid].get("final_url") or sources[sid].get("url"),
-                                                "origin": sources[sid]["origin"],
+                                                "origin": sources[sid]["origin"], "author": sources[sid].get("author_org"),
+                                                "publisher": sources[sid].get("publisher"), "published": sources[sid].get("published"),
+                                                "accessed": sources[sid].get("accessed"), "grade": sources[sid].get("grade"),
+                                                "conflict_of_interest": sources[sid].get("conflict_of_interest"),
                                                 "locators": sorted(reference_locators[sid])}.items() if v is not None} for sid in sorted(source_ids)],
         "appendix": [],
     }

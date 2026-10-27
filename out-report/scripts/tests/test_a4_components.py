@@ -102,6 +102,27 @@ class A4ComponentTest(unittest.TestCase):
                 self.assertIn('data-source-id="src-1"', html)
                 self.assertIn('data-source-locator="p. 4"', html)
 
+    def test_body_sources_render_compact_linked_markers_without_reference_strip(self):
+        item = block("text")
+        item["source_ids"] = ["M002", "M010", "M002"]
+        item["source_bindings"] = [
+            {"source_id": "M002", "locators": ["p. 4"]},
+            {"source_id": "M010", "locators": ["§2"]},
+        ]
+        context = {"citationRegistry": [
+            {"source_id": "M002", "number": 1, "appendix_anchor": "source-M002"},
+            {"source_id": "M010", "number": 2, "appendix_anchor": "source-M010"},
+        ]}
+        result = run_node("component.renderBlock(payload.block, payload.context)", {"block": item, "context": context})
+        self.assertTrue(result["ok"], result)
+        html = result["value"]
+        self.assertIn('<sup class="citation-markers" aria-label="Sources">', html)
+        self.assertIn('class="citation-marker" href="#source-M002">[1]</a>', html)
+        self.assertIn('class="citation-marker" href="#source-M010">[2]</a>', html)
+        self.assertEqual(1, html.count('class="citation-marker" href="#source-M002"'))
+        self.assertNotIn("https://", html)
+        self.assertNotIn("source-strip", html)
+
     def test_twelve_semantic_components_are_frozen_and_render(self):
         result = run_node("component.APPROVED_COMPONENT_KINDS")
         self.assertTrue(result["ok"])

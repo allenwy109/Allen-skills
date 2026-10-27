@@ -184,6 +184,35 @@ class ReportContractTest(unittest.TestCase):
             json.dumps(second, ensure_ascii=False, sort_keys=True),
         )
 
+    def test_citation_registry_follows_first_body_appearance_then_appendix_order(self):
+        report, _ = self.build()
+        body_ids = []
+        for section in report["sections"]:
+            for block in section["blocks"]:
+                for source_id in block["source_ids"]:
+                    if source_id not in body_ids:
+                        body_ids.append(source_id)
+        appendix_only = sorted(set(report["registry"]["source_ids"]) - set(body_ids))
+        expected = body_ids + appendix_only
+        self.assertEqual(expected, [item["source_id"] for item in report["citation_registry"]])
+        self.assertEqual(list(range(1, len(expected) + 1)), [item["number"] for item in report["citation_registry"]])
+        self.assertEqual([f"source-{source_id}" for source_id in expected],
+                         [item["appendix_anchor"] for item in report["citation_registry"]])
+
+    def test_citation_registry_contains_each_source_once(self):
+        report, _ = self.build()
+        registry_ids = [item["source_id"] for item in report["citation_registry"]]
+        self.assertEqual(len(registry_ids), len(set(registry_ids)))
+
+    def test_reference_records_preserve_full_audit_fields(self):
+        self.ledger.patch("sources", "M001", {"author_org": "Research team", "publisher": "Exchange",
+                                                "conflict_of_interest": "Issuer-authored"})
+        report, _ = self.build()
+        reference = report["references"][0]
+        for field in ("title", "author", "publisher", "published", "accessed", "url", "locators", "grade",
+                      "conflict_of_interest"):
+            self.assertIn(field, reference)
+
     def test_validate_report_rejects_duplicate_and_unknown_internal_refs(self):
         report, _ = self.build()
         cases = []

@@ -10,7 +10,7 @@ const { renderComponent } = require('./components.cjs');
 const { PAGE, reportError, expandComponents, paginateMeasured, resolveNavigation } = require('./paginate.cjs');
 
 const CSS = `
-@page{size:210mm 297mm;margin:0}*{box-sizing:border-box}html,body{margin:0;color:#262d31;font-family:NotoSansSC,Arial,sans-serif;font-size:10.75pt;line-height:1.58}.page{width:210mm;height:297mm;padding:18mm 17mm 18mm 20mm;background:#f7f5ef;position:relative;break-after:page;overflow:hidden}.page__body{width:173mm;height:261mm;overflow:visible}.report-component{display:block;margin:0 0 6mm;border-top:.7pt solid #bdc5c3;padding-top:3mm}.report-component>h1{font:600 26pt/1.22 NotoSerifSC,serif;margin:0 0 7mm}.report-component>h2{font:600 20pt/1.35 NotoSerifSC,serif;margin:0 0 5mm}.report-block{display:block;margin:0 0 4mm}.report-block header{display:block}.report-block h3{font-size:12pt;line-height:1.45;margin:0 0 2mm}.report-block p{margin:0 0 2mm}.block-subtitle,.block-reason{color:#667176}.identity-key{display:inline-block;margin-right:2mm;font-size:8.5pt}.table-body,.source-table{width:100%;border-collapse:collapse;font-size:8.5pt;line-height:1.4}.table-body th,.table-body td,.source-table th,.source-table td{border-bottom:.35pt solid #bdc5c3;padding:1.6mm;text-align:left;vertical-align:top}.source-table .source-locator{font-size:7.5pt}.block-figure{margin:0}.block-figure svg{width:100%;height:38mm;stroke:#0b6b66;fill:#d8e7e3}.folio{position:absolute;right:17mm;bottom:3mm;font-size:7.5pt}.intentional-blank{display:grid;place-items:center;color:#667176;font-size:8.5pt}.toc-list{margin:0;padding-left:0;list-style:none}.toc-list a{color:inherit}.toc-page{float:right;min-width:3ch;text-align:right}.page-item,.measure-item{display:flow-root;width:173mm}.measure-root{width:173mm}`;
+@page{size:210mm 297mm;margin:0}*{box-sizing:border-box}html,body{margin:0;color:#262d31;font-family:NotoSansSC,Arial,sans-serif;font-size:10.75pt;line-height:1.58}.page{width:210mm;height:297mm;padding:18mm 17mm 18mm 20mm;background:#f7f5ef;position:relative;break-after:page;overflow:hidden}.page__body{width:173mm;height:261mm;overflow:visible}.report-component{display:block;margin:0 0 6mm;border-top:.7pt solid #bdc5c3;padding-top:3mm}.report-component>h1{font:600 26pt/1.22 NotoSerifSC,serif;margin:0 0 7mm}.report-component>h2{font:600 20pt/1.35 NotoSerifSC,serif;margin:0 0 5mm}.report-block{display:block;margin:0 0 4mm}.report-block header{display:block}.report-block h3{font-size:12pt;line-height:1.45;margin:0 0 2mm}.report-block p{margin:0 0 2mm}.block-subtitle,.block-reason{color:#667176}.citation-markers{margin-left:1mm}.citation-marker{color:#0b6b66;text-decoration:none;margin-right:.5mm}.identity-key{display:inline-block;margin-right:2mm;font-size:8.5pt}.table-body,.source-table{width:100%;border-collapse:collapse;font-size:8.5pt;line-height:1.4}.table-body th,.table-body td,.source-table th,.source-table td{border-bottom:.35pt solid #bdc5c3;padding:1.6mm;text-align:left;vertical-align:top}.source-table .source-locator{font-size:7.5pt}.block-figure{margin:0}.block-figure svg{width:100%;height:38mm;stroke:#0b6b66;fill:#d8e7e3}.folio{position:absolute;right:17mm;bottom:3mm;font-size:7.5pt}.intentional-blank{display:grid;place-items:center;color:#667176;font-size:8.5pt}.toc-list{margin:0;padding-left:0;list-style:none}.toc-list a{color:inherit}.toc-page{float:right;min-width:3ch;text-align:right}.page-item,.measure-item{display:flow-root;width:173mm}.measure-root{width:173mm}`;
 
 const FONTS = Object.freeze([
   { family: 'NotoSansSC', weight: 400, file: 'noto-sans-sc-400.woff2', hash: '758dff09a5625dd659ea4c529ffdb7741bdbc182b54957a7007f1cfcfd450820' },
@@ -45,14 +45,19 @@ function lockedRuntime() {
   return { chromium: require(modulePath).chromium, fontCss };
 }
 
-function sourceTable(fragment) {
+function sourceTable(fragment, context) {
   if (!fragment.table) return '';
+  const citations = new Map(context.citationRegistry.map(item => [item.source_id, item]));
   const rows = fragment.payload.references.map(reference => {
+    const citation = citations.get(reference.id);
     const locators = (reference.locators || []).map(value => `<span data-source-locator="${escapeHtml(value)}">${escapeHtml(value)}</span>`).join('、');
-    return `<tr data-source-record="${escapeHtml(reference.id || '')}"><th scope="row">${escapeHtml(reference.id || '')}</th><td>${escapeHtml(reference.title || '')}</td><td class="source-locator">${locators}</td></tr>`;
+    const byline = [reference.author, reference.publisher, reference.published || reference.accessed].filter(Boolean).map(escapeHtml).join(' · ');
+    const audit = [reference.grade && `Grade ${reference.grade}`, reference.conflict_of_interest].filter(Boolean).map(escapeHtml).join(' · ');
+    const url = reference.url ? `<a href="${escapeHtml(reference.url)}">${escapeHtml(reference.url)}</a>` : '';
+    return `<tr id="${escapeHtml(citation.appendix_anchor)}" data-source-record="${escapeHtml(reference.id || '')}"><th scope="row">[${escapeHtml(citation.number)}]</th><td>${escapeHtml(reference.title || '')}${byline ? `<br>${byline}` : ''}${url ? `<br>${url}` : ''}<br><span class="source-locator">${locators}</span>${audit ? `<br>${audit}` : ''}</td></tr>`;
   }).join('');
   const continuation = fragment.continuation ? '<caption data-table-continuation="true">来源（续）</caption>' : '';
-  return `<table class="source-table">${continuation}<thead><tr><th scope="col">编号</th><th scope="col">来源</th><th scope="col">定位</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table class="source-table">${continuation}<thead><tr><th scope="col">编号</th><th scope="col">完整来源与定位</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function tocList(fragment) {
@@ -61,9 +66,47 @@ function tocList(fragment) {
   return `<ol class="toc-list">${entries}</ol>`;
 }
 
-function fragmentHtml(fragment) {
-  const base = renderComponent(fragment.kind, fragment.payload, {});
-  return base.replace(/<\/(section|nav|aside)>$/, `${tocList(fragment)}${sourceTable(fragment)}</$1>`);
+function fragmentHtml(fragment, context) {
+  const renderContext = fragment.kind === 'references-appendix' ? { ...context, renderCitations: false } : context;
+  const base = renderComponent(fragment.kind, fragment.payload, renderContext);
+  return base.replace(/<\/(section|nav|aside)>$/, `${tocList(fragment)}${sourceTable(fragment, context)}</$1>`);
+}
+
+function citationContext(document) {
+  const hasAppendix = document.components.some(item => item.kind === 'references-appendix');
+  if (!document.citation_registry && !hasAppendix) return { citationRegistry: [] };
+  const bodyIds = [];
+  const seen = new Set();
+  for (const component of document.components) {
+    if (component.kind === 'references-appendix') continue;
+    for (const block of (component.payload.blocks || [])) {
+      for (const sourceId of (block.source_ids || [])) {
+        if (!seen.has(sourceId)) {
+          seen.add(sourceId);
+          bodyIds.push(sourceId);
+        }
+      }
+    }
+  }
+  const references = document.components.filter(item => item.kind === 'references-appendix')
+    .flatMap(item => item.payload.references || []);
+  const referenceIds = references.map(item => item.id);
+  const counts = new Map();
+  for (const sourceId of referenceIds) counts.set(sourceId, (counts.get(sourceId) || 0) + 1);
+  if (bodyIds.some(sourceId => counts.get(sourceId) !== 1) || referenceIds.some(sourceId => counts.get(sourceId) !== 1)) {
+    throw reportError('REPORT_CITATION_MISMATCH', 'body sources and appendix targets must match, with one target per source');
+  }
+  const ordered = [...bodyIds, ...[...new Set(referenceIds.filter(sourceId => !seen.has(sourceId)))].sort()];
+  const generated = ordered.map((source_id, index) => ({ source_id, number: index + 1, appendix_anchor: `source-${source_id}` }));
+  if (document.citation_registry) {
+    const supplied = document.citation_registry;
+    const matches = supplied.length === generated.length && supplied.every((item, index) =>
+      item.source_id === generated[index].source_id && item.number === generated[index].number &&
+      item.appendix_anchor === generated[index].appendix_anchor
+    );
+    if (!matches) throw reportError('REPORT_CITATION_MISMATCH', 'citation registry does not match body and appendix order');
+  }
+  return { citationRegistry: generated };
 }
 
 function blockMetadata(fragment) {
@@ -130,9 +173,10 @@ async function renderDocument(document) {
       seen.add(id);
     }
   }
+  const context = citationContext(document);
   const runtime = lockedRuntime();
   const css = `${runtime.fontCss}${CSS}`;
-  let fragments = expandComponents(document.components).map(blockMetadata).map(fragment => ({ ...fragment, html: fragmentHtml(fragment) }));
+  let fragments = expandComponents(document.components).map(blockMetadata).map(fragment => ({ ...fragment, html: fragmentHtml(fragment, context) }));
   let measured;
   for (;;) {
     measured = await measure(fragments, css, runtime.chromium);
@@ -152,7 +196,7 @@ async function renderDocument(document) {
         blocks: fragment.sourceBlocks.map(block => ({ ...block, id: `${block.id}${suffix}` })),
       };
       const part = blockMetadata({ ...fragment, payload, continuation: continued, startRow, endRow: startRow + records.length - 1, rowCount: records.length });
-      return { ...part, html: fragmentHtml(part) };
+      return { ...part, html: fragmentHtml(part, context) };
     };
     const records = fragment.payload.references;
     fragments.splice(overflowing, 1,
