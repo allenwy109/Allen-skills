@@ -49,6 +49,8 @@ description: 创业想法或技术尚未形成企业和完整 BP，需要先澄�
 
 L2/L3 中需求或竞争会影响路径取舍，按 `../core-evidence/references/decision-research-contracts.md` 建 `03_evidence/decision-research.json`，引用证据账而不复制证据。core-review 完成后、进入综合前运行 `python3 <运行时>/tools/research_quality.py check <任务文件夹>`；失败就补证据、缩窄主张或降级结论。
 
+固定门禁顺序：core-review → research_quality check → core-synthesis。L1 不创建合同、不运行该检查。
+
 ## 审查与交付
 
 L2 起用 `../core-review/` 检查事实、反方和成品，特别检查是否漏掉替代方案、把热度当需求、把假设写成事实或只看短期窗口。之后用 `../core-synthesis/` 给每条路径下“值得推进 / 有条件推进 / 建议调整方向 / 暂不建议”之一，并给推荐路径的最小验证实验、成功、失败和停止标准。

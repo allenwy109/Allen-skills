@@ -160,14 +160,20 @@ def check(task):
 
     for ref in sorted(referenced & assessment_by_claim.keys() & claims.keys()):
         assessment = assessment_by_claim[ref]
-        if assessment["risk_type"] == "none":
-            continue
         support_links = [
             x for x in links
             if x.get("claim_id") == ref and x.get("relation") == "supports" and valid_evidence_link(x, evidences, sources)
         ]
-        support_sources = [sources[evidences[x["evidence_id"]]["source_id"]] for x in support_links]
-        issuer_only = bool(support_sources) and all(x.get("source_type") == "company" for x in support_sources)
+        support_source_ids = {evidences[x["evidence_id"]]["source_id"] for x in support_links}
+        issuer_source_ids = set(assessment.get("issuer_source_ids", []))
+        for source_id in sorted(issuer_source_ids):
+            if source_id not in sources:
+                errors.append(issue("QUALITY_ISSUER_SOURCE", f"{ref} names unknown issuer source: {source_id}"))
+            elif source_id not in support_source_ids:
+                errors.append(issue("QUALITY_ISSUER_SOURCE", f"{source_id} does not support assessed claim {ref}"))
+        if assessment["risk_type"] == "none":
+            continue
+        issuer_only = bool(support_source_ids) and support_source_ids <= issuer_source_ids
         exception = assessment["narrowed"] and assessment["limited_confidence"] and claims[ref].get("confidence") == "low"
         if issuer_only and not exception:
             errors.append(issue("QUALITY_ISSUER_ONLY", f"{ref} is a high-risk claim supported only by issuer sources"))

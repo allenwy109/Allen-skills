@@ -62,7 +62,8 @@
         "claim_ref": {"type": "string", "required": true},
         "risk_type": {"type": "string", "enum": "risk_type", "required": true},
         "narrowed": {"type": "boolean", "required": true},
-        "limited_confidence": {"type": "boolean", "required": true}
+        "limited_confidence": {"type": "boolean", "required": true},
+        "issuer_source_ids": {"type": "array", "required": true, "items": {"type": "string"}}
       }}}
     }
   }

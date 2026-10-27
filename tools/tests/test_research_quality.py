@@ -1,5 +1,6 @@
 import json
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -41,8 +42,10 @@ def valid_contract():
         }],
         "critical_claim_refs": ["cl-0001"],
         "claim_risk_assessments": [
-            {"claim_ref": "cl-0001", "risk_type": "none", "narrowed": False, "limited_confidence": False},
-            {"claim_ref": "cl-0002", "risk_type": "none", "narrowed": False, "limited_confidence": False},
+            {"claim_ref": "cl-0001", "risk_type": "none", "narrowed": False, "limited_confidence": False,
+             "issuer_source_ids": []},
+            {"claim_ref": "cl-0002", "risk_type": "none", "narrowed": False, "limited_confidence": False,
+             "issuer_source_ids": []},
         ],
     }
 
@@ -103,7 +106,10 @@ class ResearchQualityTest(unittest.TestCase):
                 self.assertIn("decision-research.json", text)
                 self.assertIn("research_quality.py", text)
                 self.assertRegex(text, r"L2/L3|L2、L3|L2 和 L3")
-                self.assertIn("综合", text)
+                sequence = "core-review → research_quality check → core-synthesis"
+                self.assertIn(sequence, text)
+                self.assertLess(text.index("core-review", text.index(sequence)), text.index("research_quality check", text.index(sequence)))
+                self.assertLess(text.index("research_quality check", text.index(sequence)), text.index("core-synthesis", text.index(sequence)))
 
     def test_method_plan_requires_prerequisite_status_output_and_downgrade(self):
         text = METHOD_TEMPLATE.read_text(encoding="utf-8")
@@ -112,25 +118,40 @@ class ResearchQualityTest(unittest.TestCase):
 
     def test_shared_guide_covers_decision_research_judgments(self):
         text = SHARED_GUIDE.read_text(encoding="utf-8")
-        for term in (
-            "触发", "权宜办法", "后果", "购买或切换信号", "证据边界",
-            "直接", "间接", "自建", "相邻", "不行动",
-            "3C", "五力", "STP", "定价三角", "客户旅程", "KSF",
-            "critical_claim_refs", "不强制全用",
-        ):
-            self.assertIn(term, text)
+        self.assertIn("细分客户 → 触发情境 → 当前权宜办法 → 可观察后果 → 购买或切换信号 → 证据边界", text)
+        for key in ("direct（直接）", "indirect（间接）", "diy（自建）", "adjacent（相邻）", "do_nothing（不行动）"):
+            self.assertRegex(text, rf"(?m)^- {re.escape(key)}：")
+        for method in ("3C", "五力 / 替代品", "STP", "定价三角", "客户旅程", "KSF / 能力差距"):
+            self.assertRegex(text, rf"(?m)^\| {re.escape(method)} \|")
+        self.assertIn("不强制全用", text)
+        self.assertIn("issuer_source_ids", text)
 
     def test_review_rechecks_gate_and_challenges_known_failure_modes(self):
-        text = REVIEW_PROMPTS.read_text(encoding="utf-8") + REVIEW_STANDARD.read_text(encoding="utf-8")
-        self.assertIn("research_quality.py", text)
-        for term in ("发布方偏差", "替代层", "强度措辞", "只列方法名"):
-            self.assertIn(term, text)
+        prompts = REVIEW_PROMPTS.read_text(encoding="utf-8")
+        standard = REVIEW_STANDARD.read_text(encoding="utf-8")
+        self.assertIn("审查开始先独立运行 `python3 <运行时>/tools/research_quality.py check <任务文件夹>`", prompts)
+        self.assertRegex(prompts, r"独立挑战发布方偏差：.*发行方、卖方或被评企业")
+        self.assertRegex(prompts, r"检查是否漏了直接、间接、自建、相邻、不行动中的任何替代层")
+        self.assertRegex(prompts, r"找出没有证据支持的强度措辞")
+        self.assertRegex(prompts, r"是否只列方法名，却没有可检查的实际产出")
+        self.assertIn("决策研究门禁失败", standard)
 
     def test_pressure_suite_contains_five_required_cases(self):
         text = PRESSURE_CASES.read_text(encoding="utf-8")
-        for term in ("供应商案例", "自建", "不购买", "TAM", "法律义务", "L1"):
-            self.assertIn(term, text)
-        self.assertEqual(text.count("## Case "), 5)
+        cases = re.findall(r"(?ms)^## Case \d+：.*?(?=^## Case |\Z)", text)
+        self.assertEqual(len(cases), 5)
+        for expected_depth, case in zip(("L2", "L2", "L2", "L3", "L1"), cases):
+            self.assertRegex(case, r"(?m)^- Depth: L[123]$")
+            self.assertIn(f"- Depth: {expected_depth}", case)
+            self.assertRegex(case, r"(?m)^- Input: \S.+$")
+            required = re.search(r"(?ms)^- Required outcomes:\n((?:  - .+\n?)+)", case)
+            forbidden = re.search(r"(?ms)^- Forbidden outcomes:\n((?:  - .+\n?)+)", case)
+            self.assertIsNotNone(required)
+            self.assertIsNotNone(forbidden)
+            self.assertGreaterEqual(required.group(1).count("  - "), 2)
+            self.assertGreaterEqual(forbidden.group(1).count("  - "), 1)
+            self.assertRegex(required.group(1), r"QUALITY_|issuer_source_ids|purchase_signal|research_quality\.py|decision-research\.json")
+            self.assertRegex(forbidden.group(1), r"(?m)^  - 不得")
 
     def test_complete_contract_passes(self):
         result = run_quality_check(valid_contract(), valid_ledger())
@@ -212,6 +233,7 @@ class ResearchQualityTest(unittest.TestCase):
     def test_issuer_only_high_risk_claim_is_rejected(self):
         contract = valid_contract()
         contract["claim_risk_assessments"][0]["risk_type"] = "willingness_to_pay"
+        contract["claim_risk_assessments"][0]["issuer_source_ids"] = ["M001"]
         ledger = valid_ledger(issuer_only=True, statement="Buyers show strong commercial intent")
         result = run_quality_check(contract, ledger)
         self.assertIn("QUALITY_ISSUER_ONLY", result.stderr)
@@ -219,24 +241,50 @@ class ResearchQualityTest(unittest.TestCase):
     def test_issuer_only_high_risk_claim_outside_critical_refs_is_rejected(self):
         contract = valid_contract()
         contract["claim_risk_assessments"][1]["risk_type"] = "prevalence"
+        contract["claim_risk_assessments"][1]["issuer_source_ids"] = ["M001"]
         result = run_quality_check(contract, valid_ledger(issuer_only=True))
         self.assertIn("QUALITY_ISSUER_ONLY", result.stderr)
 
     def test_ordinary_wording_does_not_bypass_structured_high_risk_check(self):
         contract = valid_contract()
         contract["claim_risk_assessments"][0]["risk_type"] = "causality"
+        contract["claim_risk_assessments"][0]["issuer_source_ids"] = ["M001"]
         result = run_quality_check(contract, valid_ledger(issuer_only=True, statement="Result improved after rollout"))
         self.assertIn("QUALITY_ISSUER_ONLY", result.stderr)
 
     def test_issuer_only_narrowed_low_confidence_claim_is_allowed(self):
         contract = valid_contract()
         contract["claim_risk_assessments"][0].update(
-            risk_type="competitive_intensity", narrowed=True, limited_confidence=True
+            risk_type="competitive_intensity", narrowed=True, limited_confidence=True,
+            issuer_source_ids=["M001"],
         )
         ledger = valid_ledger(issuer_only=True)
         ledger["claims.jsonl"][0]["confidence"] = "low"
         result = run_quality_check(contract, ledger)
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_independent_buyer_company_source_is_not_treated_as_issuer(self):
+        contract = valid_contract()
+        contract["claim_risk_assessments"][0]["risk_type"] = "willingness_to_pay"
+        result = run_quality_check(contract, valid_ledger(issuer_only=True))
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_unknown_issuer_source_is_rejected(self):
+        contract = valid_contract()
+        contract["claim_risk_assessments"][0]["issuer_source_ids"] = ["M999"]
+        result = run_quality_check(contract, valid_ledger())
+        self.assertIn("QUALITY_ISSUER_SOURCE", result.stderr)
+
+    def test_issuer_source_must_support_assessed_claim(self):
+        contract = valid_contract()
+        contract["claim_risk_assessments"][1]["issuer_source_ids"] = ["M001"]
+        ledger = valid_ledger()
+        ledger["claim_evidence.jsonl"] = [
+            link for link in ledger["claim_evidence.jsonl"]
+            if not (link["claim_id"] == "cl-0002" and link["relation"] == "supports")
+        ]
+        result = run_quality_check(contract, ledger)
+        self.assertIn("QUALITY_ISSUER_SOURCE", result.stderr)
 
     def test_every_referenced_claim_needs_risk_assessment(self):
         contract = valid_contract()
@@ -247,7 +295,8 @@ class ResearchQualityTest(unittest.TestCase):
     def test_risk_assessment_claim_reference_must_resolve(self):
         contract = valid_contract()
         contract["claim_risk_assessments"].append(
-            {"claim_ref": "cl-9999", "risk_type": "none", "narrowed": False, "limited_confidence": False}
+            {"claim_ref": "cl-9999", "risk_type": "none", "narrowed": False, "limited_confidence": False,
+             "issuer_source_ids": []}
         )
         result = run_quality_check(contract, valid_ledger())
         self.assertIn("QUALITY_CLAIM_REF", result.stderr)
