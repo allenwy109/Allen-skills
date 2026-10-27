@@ -36,6 +36,21 @@ def _unique(values, label, problems):
     return seen
 
 
+def _index(records, table, problems):
+    """Index only after duplicate IDs have been reported; never silently overwrite."""
+    seen = set()
+    duplicate = False
+    for record in records:
+        rid = record.get("id")
+        if rid in seen:
+            problems.append(f"{table} 重复 id：{rid}")
+            duplicate = True
+        seen.add(rid)
+    if duplicate:
+        return {}
+    return {record["id"]: record for record in records}
+
+
 def _refs_for_claims(claim_ids, links, evidence):
     evidence_ids = {link["evidence_id"] for link in links if link["claim_id"] in claim_ids}
     return {evidence[eid]["source_id"] for eid in evidence_ids if eid in evidence}
@@ -48,12 +63,19 @@ def build(task, slides, sidecar=None):
         raise ReportError("REPORT_COVERAGE_MISMATCH", problems)
 
     ledger = Ledger(task)
-    claims = {item["id"]: item for item in ledger.read("claims")}
-    metrics = {item["id"]: item for item in ledger.read("metrics")}
-    sources = {item["id"]: item for item in ledger.read("sources")}
+    problems = []
+    claim_records = ledger.read("claims")
+    metric_records = ledger.read("metrics")
+    source_records = ledger.read("sources")
+    cards = ledger.read("cards")
+    claims = _index(claim_records, "claims", problems)
+    metrics = _index(metric_records, "metrics", problems)
+    sources = _index(source_records, "sources", problems)
+    _index(cards, "cards", problems)
+    if problems:
+        raise ReportError("REPORT_COVERAGE_MISMATCH", problems)
     evidence = {item["id"]: item for item in ledger.read("evidence")}
     links = ledger.read("claim_evidence")
-    cards = ledger.read("cards")
     content = sorted((slide for slide in slides["slides"] if slide["page_role"] in CONTENT_ROLES),
                      key=lambda slide: slide["page"])
 
@@ -68,6 +90,9 @@ def build(task, slides, sidecar=None):
         problems.append(f"未知 claim：{ref}")
     for ref in sorted(set(metric_refs) - set(metrics)):
         problems.append(f"未知 metric：{ref}")
+    answer_claim_refs = slides["deck"].get("answer_claim_refs", [])
+    for ref in sorted(set(answer_claim_refs) - set(claims)):
+        problems.append(f"deck.answer_claim_refs 引用了未知 claim：{ref}")
 
     for slide in content:
         panels = slide.get("panels", [])
@@ -77,6 +102,8 @@ def build(task, slides, sidecar=None):
             problems.append(f"第 {slide['page']} 页 anchor_panel 引用了未知 panel：{anchor}")
         related = set()
         for relation in slide.get("relations", []):
+            if len(set(relation["panel_refs"])) < 2:
+                problems.append(f"relation {relation['id']} 至少两个不同 panel 才能构成 relation")
             for ref in relation["panel_refs"]:
                 if ref not in local_panels:
                     problems.append(f"relation {relation['id']} 引用了未知 panel：{ref}")
@@ -93,8 +120,15 @@ def build(task, slides, sidecar=None):
                 raise ReportError("REPORT_UNSUPPORTED_BLOCK", f"不支持的 block form：{panel['form']}")
 
     a_cards = sorted(card["id"] for card in cards if card.get("value_tier") == "A")
-    a_claims = {card.get("claim_id") for card in cards if card.get("value_tier") == "A"}
-    missing_a = sorted(ref for ref in a_claims if ref and ref not in set(claim_refs))
+    a_claims = set()
+    for card in cards:
+        if card.get("value_tier") != "A":
+            continue
+        if not card.get("claim_id"):
+            problems.append(f"A 级卡片 {card['id']} 缺少 claim_id")
+        else:
+            a_claims.add(card["claim_id"])
+    missing_a = sorted(ref for ref in a_claims if ref not in set(claim_refs))
     if missing_a:
         problems.append("A 级卡片的 claim 未进入正文：" + "、".join(missing_a))
     source_ids = _refs_for_claims(set(claim_refs), links, evidence)
@@ -149,10 +183,12 @@ def build(task, slides, sidecar=None):
     expected = {
         "claims": sorted(set(claim_refs)), "a_cards": a_cards, "panels": sorted(panel_ids),
         "relations": sorted(relation_ids), "metrics": sorted(set(metric_refs)), "sources": sorted(source_ids),
+        "answer_claims": sorted(set(answer_claim_refs)),
     }
     actual = {
         "claims": sorted(output_claims), "a_cards": a_cards, "panels": sorted(output_panels),
         "relations": sorted(output_relations), "metrics": sorted(output_metrics), "sources": sorted(output_sources),
+        "answer_claims": sorted(set(answer_claim_refs)),
     }
     if expected != actual:
         differences = [f"{key}: input={expected[key]} output={actual[key]}" for key in expected if expected[key] != actual[key]]
@@ -166,7 +202,7 @@ def build(task, slides, sidecar=None):
                                         "audience": deck.get("audience"), "decision": deck.get("decision"),
                                         "date": cover.get("date")}.items() if v is not None},
         "executive_summary": {"question": deck.get("brief", {}).get("question", deck["title"]),
-                              "answer_claim_refs": sorted(set(deck.get("answer_claim_refs", []))), "a_card_refs": a_cards},
+                              "answer_claim_refs": sorted(set(answer_claim_refs)), "a_card_refs": a_cards},
         "sections": sections,
         "references": [{k: v for k, v in {"id": sid, "title": sources[sid]["title"], "url": sources[sid].get("final_url") or sources[sid].get("url"),
                                                 "origin": sources[sid]["origin"]}.items() if v is not None} for sid in sorted(source_ids)],

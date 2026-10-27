@@ -45,6 +45,7 @@ class ReportContractTest(unittest.TestCase):
         self.assertEqual(coverage["input"]["a_cards"], ["card-0001"])
         self.assertEqual(coverage["input"]["metrics"], ["m-0001", "m-0002", "m-0003", "m-0007"])
         self.assertEqual(coverage["input"]["sources"], ["M001"])
+        self.assertEqual(coverage["input"]["answer_claims"], ["cl-0001"])
 
     def test_report_matches_schema_and_schema_self_checks(self):
         schema = schema_check.load("report.schema.json")
@@ -65,6 +66,18 @@ class ReportContractTest(unittest.TestCase):
         error = self.error(slides)
         self.assertEqual(error.code, "REPORT_COVERAGE_MISMATCH")
         self.assertIn("重复 panel id", str(error))
+
+    def test_duplicate_ledger_ids_fail_before_indexing(self):
+        for table in ("claims", "metrics", "sources", "cards"):
+            with self.subTest(table=table), tempfile.TemporaryDirectory() as task:
+                ledger = F.make_report_ledger(task)
+                duplicate = ledger.read(table)[0]
+                with ledger.path(table).open("a", encoding="utf-8") as stream:
+                    stream.write(json.dumps(duplicate, ensure_ascii=False) + "\n")
+                with self.assertRaises(T.ReportError) as cm:
+                    T.build(task, F.report_slides(), F.report_sidecar())
+                self.assertEqual(cm.exception.code, "REPORT_COVERAGE_MISMATCH")
+                self.assertIn(f"{table} 重复 id", str(cm.exception))
 
     def test_unknown_and_orphan_panel_references_fail(self):
         slides = copy.deepcopy(self.slides)
@@ -89,12 +102,34 @@ class ReportContractTest(unittest.TestCase):
         self.assertEqual(error.code, "REPORT_COVERAGE_MISMATCH")
         self.assertIn("A 级卡片", str(error))
 
+    def test_a_card_without_claim_id_fails_coverage(self):
+        self.ledger.add("cards", {"type": "background", "content": "核心背景", "meaning": "影响结论",
+                                  "value_tier": "A", "topic": "背景", "nature": "fact",
+                                  "confidence": "high", "confidence_reason": "虚构测试"})
+        error = self.error(self.slides)
+        self.assertEqual(error.code, "REPORT_COVERAGE_MISMATCH")
+        self.assertIn("缺少 claim_id", str(error))
+
+    def test_unknown_answer_claim_reference_fails(self):
+        slides = copy.deepcopy(self.slides)
+        slides["deck"]["answer_claim_refs"].append("cl-9999")
+        error = self.error(slides)
+        self.assertEqual(error.code, "REPORT_COVERAGE_MISMATCH")
+        self.assertIn("answer_claim_refs 引用了未知 claim：cl-9999", str(error))
+
     def test_unknown_claim_reference_fails(self):
         slides = copy.deepcopy(self.slides)
         slides["slides"][1]["claim_refs"].append("cl-9999")
         error = self.error(slides)
         self.assertEqual(error.code, "REPORT_COVERAGE_MISMATCH")
         self.assertIn("未知 claim", str(error))
+
+    def test_relation_requires_two_distinct_panels(self):
+        slides = copy.deepcopy(self.slides)
+        slides["slides"][1]["relations"][0]["panel_refs"] = ["bars", "bars"]
+        error = self.error(slides)
+        self.assertEqual(error.code, "REPORT_COVERAGE_MISMATCH")
+        self.assertIn("至少两个不同 panel", str(error))
 
     def test_build_is_deterministic(self):
         first = self.build()

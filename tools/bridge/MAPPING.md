@@ -30,8 +30,9 @@
 | 主张 → claim_evidence → evidence | `source_ids`、`references` | panel 显式 source_ids 一并保留；未知来源拦下 |
 | A 级卡片 | `executive_summary.a_card_refs` | A 卡关联的主张必须进入正文，否则覆盖失败 |
 
-coverage 的 `input` 和 `output` 都含排序后的 `claims`、`a_cards`、`panels`、`relations`、
-`metrics`、`sources` 集合。两侧必须完全相等；重复 ID、孤儿 panel、未知引用或集合差异统一报
+coverage 的 `input` 和 `output` 都含排序后的 `claims`、`answer_claims`、`a_cards`、`panels`、`relations`、
+`metrics`、`sources` 集合。deck.answer_claim_refs 必须存在于证据账；A 卡必须有 claim_id 且对应主张进入正文。
+两侧必须完全相等；ledger 关键表或内容对象的重复 ID、孤儿 panel、relation 内重复 panel、未知引用或集合差异统一报
 `REPORT_COVERAGE_MISMATCH`。未列入上表的 form 报 `REPORT_UNSUPPORTED_BLOCK`，不做猜测性降级。
 
 ## thinkcell（`tools/bridge/to_thinkcell.py`，用于 out-chart）
