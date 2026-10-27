@@ -63,6 +63,12 @@ description: 方法论系统的总入口。判断用户给的是一家企业、�
 - 正式报告比 Markdown 慢得多（要经过版式规划、代表页、验收和独立审查），定为 L2、L3 时在回复里先告诉用户。
 - L1 需要留档时（用户要求），按 core-research 的轻量包放在 `work/<YYYY-MM-DD>-<主题短名>-lite/`。
 
+### 输出媒介路由
+
+- 默认正式报告：`out-report`，交付适合阅读的 A4 HTML + PDF。
+- 路演或演示稿：`out-deck`，只在用户明确要求路演、汇报、投屏、幻灯片或 deck 时使用。
+- 用户明确指定媒介时以用户要求为准。同一任务可以同时交付两种媒介，二者不互相替代。
+
 ## 3. 建任务文件夹和任务单
 
 L2 和 L3 在当前工作目录下建：
@@ -82,8 +88,8 @@ work/<YYYY-MM-DD>-<主题短名>/
 ├── 04_analysis/         按卡片做的分析
 ├── 05_review-log.md     core-review
 ├── 06_synthesis.md      core-synthesis
-├── 07_storyline/        core-storyline 的稿件和 slides.json；引擎过程目录 forge-work/、poster-work/ 也在这里
-└── 08_deliverables/     主报告 report/、supporting-package.zip、按需附属交付物、acceptance.json
+├── 07_storyline/        core-storyline 稿件和 slides.json；A4 与 deck 工作目录、poster-work/ 也在这里
+└── 08_deliverables/     正式报告 report/、按需演示稿 deck/、supporting-package.zip、acceptance.json
 ```
 
 只有 `08_deliverables/acceptance.json` 能判定"已完成"（由 `<运行时>/tools/acceptance.py` 维护，规则见 `../core-review/references/output-standard.md`）。

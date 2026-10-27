@@ -43,6 +43,8 @@ cd Allen-skills
 
 只想用一个方法时，直接点名：“用 SWOT 分析一下……”。默认（L2）就交正式报告；说“简单说说”是对话里快答（L1），说“深入分析”是 L3。正式报告要经过版式规划、验收和独立审查，比 Markdown 慢得多。
 
+默认正式阅读报告由 `out-report` 交付 A4 HTML + PDF。用户明确要路演或演示稿、汇报、投屏、幻灯片或 deck 时，改用 `out-deck`。同一任务可以同时交付两种媒介，二者不互相替代。
+
 ## 目录
 
 | 层 | Skill | 用途 |
@@ -67,7 +69,8 @@ cd Allen-skills
 | 能力 | [core-synthesis](core-synthesis/) | 综合：冲突与依赖、路线图、事前验尸，完整正文加附录 |
 | 能力 | [core-storyline](core-storyline/) | 故事线：信息卡片、主线、内容稿、拆页和整册图表版式规划 |
 | 质量 | [core-review](core-review/) | 独立子代理审查：事实核查员、红队、方法审查员、决策者视角、成品审查员；统一输出标准 |
-| 输出 | [out-report](out-report/) | 正式报告（HTML + PDF + 讲者备注），report-forge 引擎 |
+| 输出 | [out-report](out-report/) | 正式阅读报告（A4 HTML + PDF） |
+| 输出 | [out-deck](out-deck/) | 路演或演示稿（HTML + PDF + 讲者备注），report-forge 引擎 |
 | 输出 | [out-chart](out-chart/) | 可编辑咨询图表（PPTX + PNG + HTML），thinkcell-charts 引擎 |
 | 输出 | [out-poster](out-poster/) | 一页海报（PNG + HTML），onepager 引擎 |
 | 方法库 | [lib-consulting](lib-consulting/) | 管理咨询方法，28 张卡片 |

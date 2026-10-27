@@ -51,4 +51,10 @@ description: 创业想法或技术尚未形成企业和完整 BP，需要先澄�
 
 L2 起用 `../core-review/` 检查事实、反方和成品，特别检查是否漏掉替代方案、把热度当需求、把假设写成事实或只看短期窗口。之后用 `../core-synthesis/` 给每条路径下“值得推进 / 有条件推进 / 建议调整方向 / 暂不建议”之一，并给推荐路径的最小验证实验、成功、失败和停止标准。
 
-最后用 `../core-storyline/` 和 `../out-report/` 生成主报告，并用运行时 `tools/package_support.py` 生成支撑包。只有二者都经过成品审查且 `08_deliverables/acceptance.json` 通过，任务才完成。
+最后用 `../core-storyline/` 组织内容，再按媒介交付：
+
+- 默认正式报告：`out-report`，交付适合阅读的 A4 HTML + PDF。
+- 路演或演示稿：`out-deck`，只在用户明确要路演、汇报、投屏、幻灯片或 deck 时使用。
+- 用户明确指定媒介时以用户要求为准。同一任务可以同时交付两种媒介，二者不互相替代。
+
+用运行时 `tools/package_support.py` 生成支撑包。主交付物和支撑包都经成品审查且 `08_deliverables/acceptance.json` 通过后，任务才完成。

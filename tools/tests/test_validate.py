@@ -91,6 +91,37 @@ class ValidateTest(unittest.TestCase):
             self.assertIn("allen-idea/assets/app.json：id 必须等于 allen-idea", p.stdout)
             self.assertIn("allen-idea/assets/app.json：scene 指向不存在的 skill missing", p.stdout)
 
+    def test_formal_reports_default_to_out_report_and_decks_are_explicit(self):
+        routed_skills = [
+            "router/SKILL.md",
+            "core-storyline/SKILL.md",
+            "scene-idea/SKILL.md",
+            "scene-company/SKILL.md",
+            "scene-topic/SKILL.md",
+            "scene-bp-review/SKILL.md",
+        ]
+        for relative in routed_skills:
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            with self.subTest(skill=relative):
+                self.assertIn("默认正式报告：`out-report`", text)
+                self.assertIn("路演或演示稿：`out-deck`", text)
+                self.assertIn("同一任务可以同时交付两种媒介，二者不互相替代", text)
+                self.assertNotIn("pages.html", text)
+                self.assertNotIn("forge-work", text)
+
+        storyline_description = (ROOT / "core-storyline/SKILL.md").read_text(encoding="utf-8").split("---", 2)[1]
+        self.assertIn("out-report 正式阅读报告", storyline_description)
+        self.assertIn("用户明确要求的 out-deck 演示稿", storyline_description)
+
+    def test_architecture_and_readme_describe_separate_outputs(self):
+        for relative in ["ARCHITECTURE.md", "README.md"]:
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            with self.subTest(document=relative):
+                self.assertIn("out-report", text)
+                self.assertIn("out-deck", text)
+                self.assertIn("正式阅读报告", text)
+                self.assertIn("路演或演示稿", text)
+
 
 if __name__ == "__main__":
     unittest.main()
