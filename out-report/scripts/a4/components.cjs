@@ -18,14 +18,16 @@ const APPROVED_COMPONENT_KINDS = Object.freeze([
   'references-appendix',
 ]);
 
-function componentContract(allowedBlocks, visualHierarchy, allowedLayouts, capacity, splitStrategy, failureConditions) {
+function componentContract(allowedBlocks, visualHierarchy, allowedLayouts, capacity, splitStrategy, failureConditions, requiredFields = [], predicates = []) {
   return Object.freeze({
     allowed_blocks: Object.freeze(allowedBlocks),
     visual_hierarchy: Object.freeze(visualHierarchy),
     allowed_layouts: Object.freeze(allowedLayouts),
-    capacity_dimensions: Object.freeze(capacity),
+    capacity_dimensions: Object.freeze({ ...capacity, field: capacity.field || 'blocks' }),
     split_strategy: splitStrategy,
     failure_conditions: Object.freeze(failureConditions),
+    required_fields: Object.freeze(requiredFields),
+    predicates: Object.freeze(predicates),
   });
 }
 
@@ -37,8 +39,8 @@ const COMPONENT_CONTRACTS = Object.freeze({
   ),
   toc: componentContract(
     ['text'], ['title', 'chapter list', 'page reference'], ['full-evidence'],
-    { soft: 8, hard: 12, unit: 'entries' }, 'Continue the entry list with the heading repeated.',
-    ['Entry without a destination', 'More than twelve entries on one page'],
+    { soft: 8, hard: 12, unit: 'entries', field: 'entries' }, 'Continue the entry list with the heading repeated.',
+    ['Entry without a destination', 'More than twelve entries on one page'], ['entries'], ['entry_destination'],
   ),
   'executive-summary': componentContract(
     ['text', 'metric', 'chart'], ['answer', 'decisions', 'evidence chain'], ['overview-detail', 'small-multiples'],
@@ -57,13 +59,13 @@ const COMPONENT_CONTRACTS = Object.freeze({
   ),
   'data-chart': componentContract(
     ['chart', 'table', 'text'], ['claim', 'plot', 'annotation', 'source'], ['full-evidence', 'chart-sidebar', 'chart-table', 'small-multiples', 'decision-matrix'],
-    { soft: 5, hard: 7, unit: 'chart categories or steps' }, 'Continue detail after the plot; do not shrink the plot below its form minimum.',
-    ['Unlabelled unit or period', 'Color-only identity', 'Plot above hard capacity'],
+    { soft: 5, hard: 7, unit: 'chart categories or steps', field: 'items' }, 'Continue detail after the plot; do not shrink the plot below its form minimum.',
+    ['Unlabelled unit or period', 'Color-only identity', 'Plot above hard capacity'], ['unit', 'period', 'items'], ['unit_period'],
   ),
   comparison: componentContract(
     ['table', 'metric', 'text'], ['decision claim', 'shared criteria', 'preferred option', 'implication'], ['comparison-columns'],
-    { soft: 3, hard: 4, unit: 'alternatives' }, 'Start a second comparison page with criteria repeated.',
-    ['Alternatives use different criteria', 'Preference encoded by color alone'],
+    { soft: 3, hard: 4, unit: 'alternatives', field: 'alternatives' }, 'Start a second comparison page with criteria repeated.',
+    ['Alternatives use different criteria', 'Preference encoded by color alone'], ['criteria', 'alternatives'], ['shared_criteria'],
   ),
   'pain-demand': componentContract(
     ['text', 'metric', 'chart', 'table'], ['pain claim', 'customer evidence', 'demand strength', 'limitation'], ['chart-sidebar', 'small-multiples', 'prose-aside', 'full-evidence'],
@@ -82,13 +84,13 @@ const COMPONENT_CONTRACTS = Object.freeze({
   ),
   'recommendation-roadmap': componentContract(
     ['text', 'metric', 'table'], ['recommendation', 'stages', 'decision gates', 'stop condition'], ['process-roadmap'],
-    { soft: 3, hard: 5, unit: 'stages' }, 'Continue only after a stage boundary and repeat the time context.',
-    ['Stage without a gate', 'Date without an accountable output'],
+    { soft: 3, hard: 5, unit: 'stages', field: 'stages' }, 'Continue only after a stage boundary and repeat the time context.',
+    ['Stage without a gate', 'Date without an accountable output'], ['stages'], ['stage_gate'],
   ),
   'references-appendix': componentContract(
     ['table', 'text', 'metric'], ['section heading', 'auditable records', 'notes'], ['continued-table', 'full-evidence'],
-    { soft: 7, hard: 8, unit: 'rows per page' }, 'Continue at a row boundary with headers and context repeated.',
-    ['Changed columns across pages', 'Missing source locator'],
+    { soft: 7, hard: 8, unit: 'rows per page', field: 'references' }, 'Continue at a row boundary with headers and context repeated.',
+    ['Changed columns across pages', 'Missing source locator'], ['references'], ['source_locator'],
   ),
 });
 
@@ -181,6 +183,54 @@ function tableBody(block) {
 
 const BLOCK_RENDERERS = Object.freeze({ chart: chartBody, text: textBody, metric: metricBody, table: tableBody });
 
+function present(value) {
+  return typeof value === 'string' ? value.trim().length > 0 : value !== undefined && value !== null;
+}
+
+const COMPONENT_PREDICATES = Object.freeze({
+  entry_destination(payload) {
+    return Array.isArray(payload.entries) && payload.entries.length > 0 && payload.entries.every(entry => entry && present(entry.destination));
+  },
+  unit_period(payload) {
+    return present(payload.unit) && present(payload.period);
+  },
+  shared_criteria(payload) {
+    if (!Array.isArray(payload.criteria) || payload.criteria.length === 0 || !Array.isArray(payload.alternatives) || payload.alternatives.length === 0) return false;
+    return payload.criteria.every(present) && payload.alternatives.every(alternative => {
+      const values = alternative && alternative.values;
+      return values && payload.criteria.every(criterion => Object.hasOwn(values, criterion));
+    });
+  },
+  stage_gate(payload) {
+    return Array.isArray(payload.stages) && payload.stages.length > 0 && payload.stages.every(stage => stage && present(stage.gate));
+  },
+  source_locator(payload) {
+    return Array.isArray(payload.references) && payload.references.length > 0 && payload.references.every(reference =>
+      reference && Array.isArray(reference.locators) && reference.locators.length > 0 && reference.locators.every(present)
+    );
+  },
+});
+
+function validateComponentContent(kind, payload, contract) {
+  for (const field of contract.required_fields) {
+    if (!present(payload[field])) {
+      throw reportError('REPORT_COMPONENT_CONTRACT', `${kind} requires field: ${field}`);
+    }
+  }
+  for (const predicateName of contract.predicates) {
+    const predicate = COMPONENT_PREDICATES[predicateName];
+    if (!predicate || !predicate(payload)) {
+      throw reportError('REPORT_COMPONENT_CONTRACT', `${kind} failed predicate: ${predicateName}`);
+    }
+  }
+}
+
+function deriveCapacity(payload, contract, componentBlocks) {
+  const field = contract.capacity_dimensions.field;
+  if (field === 'blocks') return componentBlocks.length;
+  return Array.isArray(payload[field]) ? payload[field].length : 0;
+}
+
 function renderBlock(block, context = {}) {
   if (!block || !Object.hasOwn(BLOCK_RENDERERS, block.kind)) {
     throw reportError('REPORT_UNSUPPORTED_BLOCK', `unsupported block kind: ${block && block.kind}`);
@@ -204,7 +254,11 @@ function renderComponent(kind, payload = {}, context = {}) {
   if (invalidBlock) {
     throw reportError('REPORT_COMPONENT_CONTRACT', `${kind} does not allow block kind: ${invalidBlock.kind}`);
   }
-  const capacityCount = payload.capacity_count === undefined ? componentBlocks.length : payload.capacity_count;
+  validateComponentContent(kind, payload, contract);
+  const capacityCount = deriveCapacity(payload, contract, componentBlocks);
+  if (payload.capacity_count !== undefined && payload.capacity_count !== capacityCount) {
+    throw reportError('REPORT_COMPONENT_CONTRACT', `${kind} capacity_count ${payload.capacity_count} does not match derived capacity ${capacityCount}`);
+  }
   if (!Number.isInteger(capacityCount) || capacityCount < 0) {
     throw reportError('REPORT_COMPONENT_CONTRACT', `${kind} capacity_count must be a non-negative integer`);
   }
@@ -214,7 +268,7 @@ function renderComponent(kind, payload = {}, context = {}) {
   const id = payload.id || kind;
   const title = payload.title || '';
   const blocks = componentBlocks.map(block => renderBlock(block, context)).join('');
-  const tag = kind === 'toc' ? 'nav' : kind === 'references-appendix' ? 'aside' : kind === 'cover' || kind === 'section-title' ? 'header' : 'section';
+  const tag = kind === 'toc' ? 'nav' : kind === 'references-appendix' ? 'aside' : 'section';
   const landmarkLabel = kind === 'toc' ? ' aria-label="Table of contents"' : kind === 'references-appendix' ? ' aria-label="References and appendix"' : '';
   const headingTag = kind === 'cover' ? 'h1' : 'h2';
   return `<${tag} class="report-component report-component--${escapeHtml(kind)}" data-component-kind="${escapeHtml(kind)}" data-component-id="${escapeHtml(id)}" data-layout-id="${escapeHtml(layoutId)}" data-capacity-count="${capacityCount}" data-capacity-soft="${contract.capacity_dimensions.soft}" data-capacity-hard="${contract.capacity_dimensions.hard}" data-capacity-unit="${escapeHtml(contract.capacity_dimensions.unit)}" data-split-strategy="${escapeHtml(contract.split_strategy)}" aria-labelledby="${escapeHtml(id)}-title"${landmarkLabel}><${headingTag} id="${escapeHtml(id)}-title">${escapeHtml(title)}</${headingTag}>${blocks}</${tag}>`;

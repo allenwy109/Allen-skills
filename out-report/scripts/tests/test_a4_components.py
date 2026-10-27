@@ -55,6 +55,24 @@ def block(kind="text"):
     }
 
 
+def component_payload(kind, contract):
+    permitted_kind = contract["allowed_blocks"][0]
+    payload = {
+        "id": "page-1", "title": "标题",
+        "layout_id": contract["allowed_layouts"][0],
+        "blocks": [block(permitted_kind)],
+    }
+    required = {
+        "toc": {"entries": [{"title": "第一章", "destination": "section-1"}]},
+        "data-chart": {"unit": "percent", "period": "2026", "items": [{"label": "A", "value": 1}]},
+        "comparison": {"criteria": ["cost"], "alternatives": [{"id": "a", "values": {"cost": 1}}]},
+        "recommendation-roadmap": {"stages": [{"title": "POC", "gate": "two paid pilots"}]},
+        "references-appendix": {"references": [{"id": "s1", "locators": ["p. 4"]}]},
+    }
+    payload.update(required.get(kind, {}))
+    return payload
+
+
 class A4ComponentTest(unittest.TestCase):
     def test_red_components_module_exists(self):
         result = run_node("Object.keys(component).sort()")
@@ -93,6 +111,7 @@ class A4ComponentTest(unittest.TestCase):
                 self.assertEqual({
                     "allowed_blocks", "visual_hierarchy", "allowed_layouts",
                     "capacity_dimensions", "split_strategy", "failure_conditions",
+                    "required_fields", "predicates",
                 }, set(contract))
                 self.assertTrue(contract["allowed_blocks"])
                 self.assertTrue(contract["visual_hierarchy"])
@@ -100,14 +119,9 @@ class A4ComponentTest(unittest.TestCase):
                 self.assertGreaterEqual(contract["capacity_dimensions"]["hard"], contract["capacity_dimensions"]["soft"])
                 self.assertTrue(contract["split_strategy"])
                 self.assertTrue(contract["failure_conditions"])
-                permitted_kind = contract["allowed_blocks"][0]
                 rendered = run_node(
                     "component.renderComponent(payload.kind, payload.payload, {})",
-                    {"kind": kind, "payload": {
-                        "id": "page-1", "title": "标题",
-                        "layout_id": contract["allowed_layouts"][0],
-                        "blocks": [block(permitted_kind)],
-                    }}
+                    {"kind": kind, "payload": component_payload(kind, contract)}
                 )
                 self.assertTrue(rendered["ok"], rendered)
                 self.assertIn(f'data-component-kind="{kind}"', rendered["value"])
@@ -135,7 +149,37 @@ class A4ComponentTest(unittest.TestCase):
             {"id": "c", "title": "C", "layout_id": contract["allowed_layouts"][0], "capacity_count": contract["capacity_dimensions"]["hard"] + 1, "blocks": [block("text")]},
         )
         self.assertFalse(over_capacity["ok"])
-        self.assertEqual("REPORT_COMPONENT_CAPACITY", over_capacity["code"])
+        self.assertEqual("REPORT_COMPONENT_CONTRACT", over_capacity["code"])
+
+    def test_capacity_is_derived_and_cannot_be_underreported(self):
+        contract = run_node("component.COMPONENT_CONTRACTS['comparison']")["value"]
+        payload = component_payload("comparison", contract)
+        payload["alternatives"] = [{"id": str(index), "values": {"cost": index}} for index in range(5)]
+        payload["capacity_count"] = 1
+        mismatch = run_node("component.renderComponent('comparison', payload, {})", payload)
+        self.assertFalse(mismatch["ok"])
+        self.assertEqual("REPORT_COMPONENT_CONTRACT", mismatch["code"])
+        del payload["capacity_count"]
+        overflow = run_node("component.renderComponent('comparison', payload, {})", payload)
+        self.assertFalse(overflow["ok"])
+        self.assertEqual("REPORT_COMPONENT_CAPACITY", overflow["code"])
+
+    def test_critical_component_predicates_reject_invalid_content(self):
+        cases = {
+            "toc": {"entries": [{"title": "No link", "destination": ""}]},
+            "data-chart": {"unit": "", "period": "", "items": [{"label": "A", "value": 1}]},
+            "comparison": {"criteria": [], "alternatives": [{"id": "a", "values": {}}]},
+            "recommendation-roadmap": {"stages": [{"title": "POC", "gate": ""}]},
+            "references-appendix": {"references": [{"id": "s1", "locators": []}]},
+        }
+        for kind, mutation in cases.items():
+            with self.subTest(kind=kind):
+                contract = run_node("component.COMPONENT_CONTRACTS[payload]", kind)["value"]
+                payload = component_payload(kind, contract)
+                payload.update(mutation)
+                result = run_node("component.renderComponent(payload.kind, payload.payload, {})", {"kind": kind, "payload": payload})
+                self.assertFalse(result["ok"])
+                self.assertEqual("REPORT_COMPONENT_CONTRACT", result["code"])
 
     def test_component_contracts_only_reference_frozen_layouts_and_schema_blocks(self):
         layouts = json.loads((ROOT / "out-report" / "assets" / "layout-atlas" / "catalog.json").read_text())["layouts"]
@@ -152,19 +196,29 @@ class A4ComponentTest(unittest.TestCase):
         cases = {
             "toc": ("<nav ", 'aria-label="Table of contents"'),
             "references-appendix": ("<aside ", 'aria-label="References and appendix"'),
-            "cover": ("<header ", 'aria-labelledby="page-1-title"'),
+            "cover": ("<section ", 'aria-labelledby="page-1-title"'),
             "executive-summary": ("<section ", 'aria-labelledby="page-1-title"'),
         }
         for kind, expected in cases.items():
             with self.subTest(kind=kind):
                 contract = run_node("component.COMPONENT_CONTRACTS[payload]", kind)["value"]
-                permitted_kind = contract["allowed_blocks"][0]
                 result = run_node(
                     "component.renderComponent(payload.kind, payload.payload, {})",
-                    {"kind": kind, "payload": {"id": "page-1", "title": "标题", "layout_id": contract["allowed_layouts"][0], "blocks": [block(permitted_kind)]}},
+                    {"kind": kind, "payload": component_payload(kind, contract)},
                 )
                 self.assertIn(expected[0], result["value"])
                 self.assertIn(expected[1], result["value"])
+
+    def test_component_does_not_nest_header_landmarks(self):
+        for kind in ("cover", "section-title"):
+            contract = run_node("component.COMPONENT_CONTRACTS[payload]", kind)["value"]
+            result = run_node(
+                "component.renderComponent(payload.kind, payload.payload, {})",
+                {"kind": kind, "payload": component_payload(kind, contract)},
+            )
+            self.assertTrue(result["ok"])
+            self.assertTrue(result["value"].startswith("<section "))
+            self.assertEqual(1, result["value"].count("<header>"))
 
     def test_unknown_kinds_have_stable_error(self):
         result = run_node("component.renderBlock(payload, {})", {"id": "x", "kind": "video"})
