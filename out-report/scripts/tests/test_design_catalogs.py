@@ -24,7 +24,7 @@ LAYOUT_FIELDS = {
 FORM_FIELDS = {
     "id", "status", "relationship", "priority", "avoid", "min_plot", "labels",
     "baseline", "sort", "identity_encodings", "value_encodings", "missing_zero_negative",
-    "capacity", "grayscale", "golden_page_refs",
+    "unit_and_period", "annotation", "capacity", "grayscale", "golden_page_refs",
 }
 
 
@@ -83,15 +83,35 @@ class DesignCatalogTest(unittest.TestCase):
         self.assertTrue(FORM_IDS <= set(ids))
         identities = set(self.schema["enums"]["claim_identity"]["values"])
         required_identity_keys = {"actual", "estimate", "forecast", "target"}
+        identity_semantics = {"actual": "fact", "estimate": "estimate", "forecast": "forecast", "target": "target"}
+        encoding_fields = {"semantic", "line", "fill", "marker", "text"}
+        executable = {
+            "line": {"solid", "dashed", "dotted", "double"},
+            "fill": {"solid", "outline", "hatch", "none"},
+            "marker": {"circle", "triangle", "diamond", "target-ring"},
+        }
         for item in self.forms:
             self.assertTrue(FORM_FIELDS <= set(item), item["id"])
             self.assertEqual(item["status"], "approved-design")
             self.assertTrue(item["relationship"] and item["priority"] and item["avoid"])
             self.assertTrue(item["min_plot"] and item["labels"] and item["baseline"] and item["sort"])
             self.assertEqual(set(item["identity_encodings"]), required_identity_keys)
-            self.assertTrue(set(item["identity_encodings"].values()) <= identities | {"target"})
+            signatures = []
+            for identity, encoding in item["identity_encodings"].items():
+                self.assertEqual(set(encoding), encoding_fields, (item["id"], identity))
+                self.assertEqual(encoding["semantic"], identity_semantics[identity])
+                self.assertIn(encoding["semantic"], identities | {"target"})
+                for channel, allowed in executable.items():
+                    self.assertIn(encoding[channel], allowed, (item["id"], identity, channel))
+                self.assertIn(identity, encoding["text"].lower())
+                signatures.append(tuple(encoding[channel] for channel in ("line", "fill", "marker", "text")))
+            self.assertEqual(len(signatures), len(set(signatures)), item["id"])
             self.assertTrue(item["value_encodings"])
             self.assertEqual(set(item["missing_zero_negative"]), {"missing", "zero", "negative"})
+            self.assertEqual(set(item["unit_and_period"]), {"unit", "period", "scope"})
+            self.assertTrue(all(item["unit_and_period"].values()))
+            self.assertEqual(set(item["annotation"]), {"placement", "content", "leader", "overflow"})
+            self.assertTrue(all(item["annotation"].values()))
             self.assertLessEqual(item["capacity"]["soft"], item["capacity"]["hard"])
             self.assertTrue(item["grayscale"] and item["golden_page_refs"])
             for ref in item["golden_page_refs"]:
