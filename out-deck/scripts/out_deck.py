@@ -6,6 +6,7 @@
            写 task 字段（kind=report、complex、majorConclusion、independent）→ 写蓝图、首尾页（bookend-cover/references/back.html）→ 激活执行清单
   refresh  slides.json 或证据账改动后重新生成蓝图和首尾页（引擎会把受影响的已完成项标为需要重新核实）
   plan     提交并接收执行清单项：chart-plan、layout-plan、module-fill-plan、representatives、production、delivery
+  compose  用已接收的三项规划和当前蓝图生成 Allen 证据驱动页面
   step     ready | compile | assemble | smoke | iteration | acceptance | review-pack | aggregate | snapshot | package | archive |
            status | next | resume —— 派生 task、HTML、验收记录、聚合审查的路径从执行清单的 productionRefs 读取
   finish   打包之后：生成 08_deliverables/deck/ 本地交付物、讲者备注并登记验收；不代表实际发送
@@ -45,6 +46,7 @@ from tools import report_capabilities  # noqa: E402
 from tools.bridge import poster_numbers, to_forge  # noqa: E402
 from tools.lib import office, runtime  # noqa: E402
 from tools.lib.ledger import Ledger  # noqa: E402
+import allen_compose  # noqa: E402
 
 
 class StepError(Exception):
@@ -177,7 +179,7 @@ def cmd_init(a):
     for n in result["notes"]:
         print(f"说明：{n}")
     print(f"已建报告任务：{d}")
-    print("下一步：写三项规划观察，用 plan 提交 chart-plan、layout-plan、module-fill-plan；然后 step ready、step compile。")
+    print("下一步：写三项规划观察并分别提交；然后 step ready、step compile、compose、step assemble。")
     return 0
 
 
@@ -266,6 +268,18 @@ def cmd_plan(a):
     plan_update(d, [{"action": "submit", "id": a.item, "attemptId": attempt, "evidence": os.path.relpath(evidence, d)},
                     {"action": "accept", "id": a.item, "reviewer": a.reviewer, "basis": a.basis}])
     print(f"{a.item} 已提交并接收")
+    return 0
+
+
+def cmd_compose(a):
+    """Compose finished page fragments from the accepted blueprint and three plans."""
+    d = forge_dir(a.task)
+    try:
+        manifest = allen_compose.compose(d)
+    except allen_compose.ComposeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print(json.dumps(manifest, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -453,6 +467,8 @@ def main(argv=None):
     p.add_argument("--reviewer", required=True, help="接收者身份（主笔）")
     p.add_argument("--basis", required=True, help="接收依据：核对了哪些文件、看到了什么")
     p.add_argument("--reason", help="重新提交时的原因")
+    p = sub.add_parser("compose")
+    p.add_argument("task", help="从已接收的三项规划生成 pages.html 和 page.css")
     p = sub.add_parser("step")
     p.add_argument("task")
     p.add_argument("op")
@@ -464,7 +480,7 @@ def main(argv=None):
     p.add_argument("--slug", help="验收条目 report-<slug>，默认 main")
     a = ap.parse_args(argv)
     try:
-        return {"capabilities": cmd_capabilities, "init": cmd_init, "refresh": cmd_refresh, "plan": cmd_plan,
+        return {"capabilities": cmd_capabilities, "init": cmd_init, "refresh": cmd_refresh, "plan": cmd_plan, "compose": cmd_compose,
                 "step": cmd_step, "finish": cmd_finish}[a.cmd](a)
     except StepError as e:
         print(str(e), file=sys.stderr)

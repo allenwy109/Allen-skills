@@ -52,9 +52,10 @@ out_deck plan <任务> module-fill-plan <观察.json> --reviewer <主笔> --basi
 ```bash
 out_deck step <任务> ready
 out_deck step <任务> compile
+out_deck compose <任务>
 ```
 
-根据 compile 产物制作 `deck-work/pages.html` 和 `page.css`。每页、展品、内容叶节点、收束句必须保留引擎要求的 ID 和 data attributes；只用内联 SVG 与 data: 资源，不用脚本、canvas、外链图片或字体。
+`compose` 会核对三项规划是否绑定当前蓝图，再生成 `deck-work/pages.html`、`page.css` 和 composition manifest。它从证据关系选择趋势图、比较矩阵、路线图和证据引文等不同形式，把来源定位放在主证据附近，并在单一来源时取消稀疏参考页。所有文字默认转义；只允许渲染器自有 SVG，不用脚本、canvas、外链图片或字体。容量超限会失败，不会靠缩字或截断通过。
 
 ```bash
 out_deck step <任务> assemble

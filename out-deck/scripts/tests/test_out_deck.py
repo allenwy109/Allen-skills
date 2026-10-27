@@ -192,9 +192,7 @@ class OutDeckPipelineTest(unittest.TestCase):
         step("step", cls.task, "compile")
         cls.early_finish = run("finish", cls.task)
         pages_json = d / refs()["compile"]["files"]["pages"]["record"]
-        parts = [d / "bookend-cover.html", HERE / "fixture_body.html", d / "bookend-references.html", d / "bookend-back.html"]
-        (d / "pages.html").write_text("\n".join(f.read_text(encoding="utf-8") for f in parts), encoding="utf-8")
-        shutil.copy2(HERE / "fixture_page.css", d / "page.css")
+        step("compose", cls.task)
         step("step", cls.task, "assemble")
         step("step", cls.task, "smoke")
         step("step", cls.task, "iteration", "--pages", "2")
@@ -259,7 +257,7 @@ class OutDeckPipelineTest(unittest.TestCase):
         self.assertTrue((out / "deck" / "星河数据科技经营概览.pdf").is_file())
         self.assertTrue((out / "deck" / "speaker-notes.pdf").is_file())
         pages = subprocess.run(["pdfinfo", str(out / "deck" / "星河数据科技经营概览.pdf")], capture_output=True, text=True).stdout
-        self.assertRegex(pages, r"Pages:\s+5")                     # 封面、两页正文、参考资料、封底
+        self.assertRegex(pages, r"Pages:\s+5")                     # 单一来源以证据审计填实参考页
         html = (out / "deck" / "星河数据科技经营概览.html").read_text(encoding="utf-8")
         self.assertIn("主要客户已签三年合同（待确认）", html)
         self.assertIn("4100 万元（预测）", html)
