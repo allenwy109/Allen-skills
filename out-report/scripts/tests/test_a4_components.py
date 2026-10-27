@@ -89,13 +89,82 @@ class A4ComponentTest(unittest.TestCase):
         ], kinds)
         for kind in kinds:
             with self.subTest(kind=kind):
+                contract = run_node("component.COMPONENT_CONTRACTS[payload.kind]", {"kind": kind})["value"]
+                self.assertEqual({
+                    "allowed_blocks", "visual_hierarchy", "allowed_layouts",
+                    "capacity_dimensions", "split_strategy", "failure_conditions",
+                }, set(contract))
+                self.assertTrue(contract["allowed_blocks"])
+                self.assertTrue(contract["visual_hierarchy"])
+                self.assertTrue(contract["allowed_layouts"])
+                self.assertGreaterEqual(contract["capacity_dimensions"]["hard"], contract["capacity_dimensions"]["soft"])
+                self.assertTrue(contract["split_strategy"])
+                self.assertTrue(contract["failure_conditions"])
+                permitted_kind = contract["allowed_blocks"][0]
                 rendered = run_node(
                     "component.renderComponent(payload.kind, payload.payload, {})",
-                    {"kind": kind, "payload": {"id": "page-1", "title": "标题", "blocks": [block()]}}
+                    {"kind": kind, "payload": {
+                        "id": "page-1", "title": "标题",
+                        "layout_id": contract["allowed_layouts"][0],
+                        "blocks": [block(permitted_kind)],
+                    }}
                 )
                 self.assertTrue(rendered["ok"], rendered)
                 self.assertIn(f'data-component-kind="{kind}"', rendered["value"])
                 self.assertIn('aria-labelledby="page-1-title"', rendered["value"])
+                self.assertIn(f'data-layout-id="{contract["allowed_layouts"][0]}"', rendered["value"])
+                self.assertIn(f'data-capacity-unit="{contract["capacity_dimensions"]["unit"]}"', rendered["value"])
+                self.assertIn('data-split-strategy=', rendered["value"])
+
+    def test_component_contract_rejects_invalid_layout_block_and_capacity(self):
+        contract = run_node("component.COMPONENT_CONTRACTS['cover']")["value"]
+        bad_layout = run_node(
+            "component.renderComponent('cover', payload, {})",
+            {"id": "c", "title": "C", "layout_id": "decision-matrix", "blocks": [block("text")]},
+        )
+        self.assertFalse(bad_layout["ok"])
+        self.assertEqual("REPORT_COMPONENT_CONTRACT", bad_layout["code"])
+        bad_block = run_node(
+            "component.renderComponent('cover', payload, {})",
+            {"id": "c", "title": "C", "layout_id": contract["allowed_layouts"][0], "blocks": [block("chart")]},
+        )
+        self.assertFalse(bad_block["ok"])
+        self.assertEqual("REPORT_COMPONENT_CONTRACT", bad_block["code"])
+        over_capacity = run_node(
+            "component.renderComponent('cover', payload, {})",
+            {"id": "c", "title": "C", "layout_id": contract["allowed_layouts"][0], "capacity_count": contract["capacity_dimensions"]["hard"] + 1, "blocks": [block("text")]},
+        )
+        self.assertFalse(over_capacity["ok"])
+        self.assertEqual("REPORT_COMPONENT_CAPACITY", over_capacity["code"])
+
+    def test_component_contracts_only_reference_frozen_layouts_and_schema_blocks(self):
+        layouts = json.loads((ROOT / "out-report" / "assets" / "layout-atlas" / "catalog.json").read_text())["layouts"]
+        schema = json.loads((ROOT / "tools" / "lib" / "schema" / "report.schema.json").read_text())
+        layout_ids = {item["id"] for item in layouts}
+        block_kinds = set(schema["enums"]["block_kind"]["values"])
+        contracts = run_node("component.COMPONENT_CONTRACTS")["value"]
+        for kind, contract in contracts.items():
+            with self.subTest(kind=kind):
+                self.assertLessEqual(set(contract["allowed_layouts"]), layout_ids)
+                self.assertLessEqual(set(contract["allowed_blocks"]), block_kinds)
+
+    def test_component_landmarks_are_native_and_heading_is_bound(self):
+        cases = {
+            "toc": ("<nav ", 'aria-label="Table of contents"'),
+            "references-appendix": ("<aside ", 'aria-label="References and appendix"'),
+            "cover": ("<header ", 'aria-labelledby="page-1-title"'),
+            "executive-summary": ("<section ", 'aria-labelledby="page-1-title"'),
+        }
+        for kind, expected in cases.items():
+            with self.subTest(kind=kind):
+                contract = run_node("component.COMPONENT_CONTRACTS[payload]", kind)["value"]
+                permitted_kind = contract["allowed_blocks"][0]
+                result = run_node(
+                    "component.renderComponent(payload.kind, payload.payload, {})",
+                    {"kind": kind, "payload": {"id": "page-1", "title": "标题", "layout_id": contract["allowed_layouts"][0], "blocks": [block(permitted_kind)]}},
+                )
+                self.assertIn(expected[0], result["value"])
+                self.assertIn(expected[1], result["value"])
 
     def test_unknown_kinds_have_stable_error(self):
         result = run_node("component.renderBlock(payload, {})", {"id": "x", "kind": "video"})

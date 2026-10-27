@@ -18,6 +18,80 @@ const APPROVED_COMPONENT_KINDS = Object.freeze([
   'references-appendix',
 ]);
 
+function componentContract(allowedBlocks, visualHierarchy, allowedLayouts, capacity, splitStrategy, failureConditions) {
+  return Object.freeze({
+    allowed_blocks: Object.freeze(allowedBlocks),
+    visual_hierarchy: Object.freeze(visualHierarchy),
+    allowed_layouts: Object.freeze(allowedLayouts),
+    capacity_dimensions: Object.freeze(capacity),
+    split_strategy: splitStrategy,
+    failure_conditions: Object.freeze(failureConditions),
+  });
+}
+
+const COMPONENT_CONTRACTS = Object.freeze({
+  cover: componentContract(
+    ['text'], ['title', 'decision', 'date'], ['overview-detail'],
+    { soft: 1, hard: 1, unit: 'title groups' }, 'Never split the cover.',
+    ['More than one title group', 'Analytical exhibits on the cover'],
+  ),
+  toc: componentContract(
+    ['text'], ['title', 'chapter list', 'page reference'], ['full-evidence'],
+    { soft: 8, hard: 12, unit: 'entries' }, 'Continue the entry list with the heading repeated.',
+    ['Entry without a destination', 'More than twelve entries on one page'],
+  ),
+  'executive-summary': componentContract(
+    ['text', 'metric', 'chart'], ['answer', 'decisions', 'evidence chain'], ['overview-detail', 'small-multiples'],
+    { soft: 3, hard: 4, unit: 'decisions or metrics' }, 'Move supporting analysis to dedicated evidence pages.',
+    ['More than one governing answer', 'Metric without qualification'],
+  ),
+  'section-title': componentContract(
+    ['text'], ['chapter number', 'chapter claim', 'reading cue'], ['overview-detail'],
+    { soft: 1, hard: 1, unit: 'chapter claims' }, 'Never split a chapter opener.',
+    ['More than one chapter claim', 'Evidence table on a chapter opener'],
+  ),
+  'claim-evidence': componentContract(
+    ['text', 'table', 'chart'], ['claim', 'primary evidence', 'limitation', 'source'], ['full-evidence', 'prose-aside'],
+    { soft: 4, hard: 6, unit: 'evidence groups' }, 'Split after the primary exhibit and repeat the claim context.',
+    ['Evidence without a claim', 'Source detached from evidence'],
+  ),
+  'data-chart': componentContract(
+    ['chart', 'table', 'text'], ['claim', 'plot', 'annotation', 'source'], ['full-evidence', 'chart-sidebar', 'chart-table', 'small-multiples', 'decision-matrix'],
+    { soft: 5, hard: 7, unit: 'chart categories or steps' }, 'Continue detail after the plot; do not shrink the plot below its form minimum.',
+    ['Unlabelled unit or period', 'Color-only identity', 'Plot above hard capacity'],
+  ),
+  comparison: componentContract(
+    ['table', 'metric', 'text'], ['decision claim', 'shared criteria', 'preferred option', 'implication'], ['comparison-columns'],
+    { soft: 3, hard: 4, unit: 'alternatives' }, 'Start a second comparison page with criteria repeated.',
+    ['Alternatives use different criteria', 'Preference encoded by color alone'],
+  ),
+  'pain-demand': componentContract(
+    ['text', 'metric', 'chart', 'table'], ['pain claim', 'customer evidence', 'demand strength', 'limitation'], ['chart-sidebar', 'small-multiples', 'prose-aside', 'full-evidence'],
+    { soft: 4, hard: 6, unit: 'pain or evidence groups' }, 'Keep one pain cluster per page and carry limitations forward.',
+    ['Anonymous evidence without limitation', 'Demand strength without observable behavior'],
+  ),
+  'market-trend': componentContract(
+    ['chart', 'table', 'text', 'metric'], ['market claim', 'trend exhibit', 'drivers', 'uncertainty'], ['chart-sidebar', 'full-evidence', 'small-multiples'],
+    { soft: 4, hard: 6, unit: 'series or drivers' }, 'Split by horizon or driver while repeating unit and period.',
+    ['Mixed units without normalization', 'Forecast shown as actual'],
+  ),
+  'risk-boundary': componentContract(
+    ['chart', 'table', 'text'], ['risk claim', 'risk field', 'counter-evidence', 'boundary'], ['decision-matrix', 'full-evidence'],
+    { soft: 5, hard: 8, unit: 'risks' }, 'Move lower-priority risks to a continued register.',
+    ['Risk without response priority', 'Qualitative position presented as measured probability'],
+  ),
+  'recommendation-roadmap': componentContract(
+    ['text', 'metric', 'table'], ['recommendation', 'stages', 'decision gates', 'stop condition'], ['process-roadmap'],
+    { soft: 3, hard: 5, unit: 'stages' }, 'Continue only after a stage boundary and repeat the time context.',
+    ['Stage without a gate', 'Date without an accountable output'],
+  ),
+  'references-appendix': componentContract(
+    ['table', 'text', 'metric'], ['section heading', 'auditable records', 'notes'], ['continued-table', 'full-evidence'],
+    { soft: 7, hard: 8, unit: 'rows per page' }, 'Continue at a row boundary with headers and context repeated.',
+    ['Changed columns across pages', 'Missing source locator'],
+  ),
+});
+
 const DEFAULT_IDENTITY_ENCODINGS = Object.freeze({
   fact: { line: 'solid', fill: 'solid', marker: 'circle', text: 'Fact' },
   data: { line: 'solid', fill: 'solid', marker: 'square', text: 'Data' },
@@ -120,17 +194,36 @@ function renderComponent(kind, payload = {}, context = {}) {
   if (!APPROVED_COMPONENT_KINDS.includes(kind)) {
     throw reportError('REPORT_UNSUPPORTED_COMPONENT', `unsupported component kind: ${kind}`);
   }
+  const contract = COMPONENT_CONTRACTS[kind];
+  const layoutId = payload.layout_id;
+  if (!contract.allowed_layouts.includes(layoutId)) {
+    throw reportError('REPORT_COMPONENT_CONTRACT', `${kind} does not allow layout: ${layoutId}`);
+  }
+  const componentBlocks = list(payload.blocks);
+  const invalidBlock = componentBlocks.find(block => !contract.allowed_blocks.includes(block && block.kind));
+  if (invalidBlock) {
+    throw reportError('REPORT_COMPONENT_CONTRACT', `${kind} does not allow block kind: ${invalidBlock.kind}`);
+  }
+  const capacityCount = payload.capacity_count === undefined ? componentBlocks.length : payload.capacity_count;
+  if (!Number.isInteger(capacityCount) || capacityCount < 0) {
+    throw reportError('REPORT_COMPONENT_CONTRACT', `${kind} capacity_count must be a non-negative integer`);
+  }
+  if (capacityCount > contract.capacity_dimensions.hard) {
+    throw reportError('REPORT_COMPONENT_CAPACITY', `${kind} capacity ${capacityCount} exceeds ${contract.capacity_dimensions.hard}`);
+  }
   const id = payload.id || kind;
   const title = payload.title || '';
-  const blocks = list(payload.blocks).map(block => renderBlock(block, context)).join('');
-  const tag = kind === 'cover' || kind === 'section-title' ? 'header' : 'section';
-  const navLabel = kind === 'toc' ? ' aria-label="Table of contents"' : '';
-  return `<${tag} class="report-component report-component--${escapeHtml(kind)}" data-component-kind="${escapeHtml(kind)}" data-component-id="${escapeHtml(id)}" aria-labelledby="${escapeHtml(id)}-title"${navLabel}><h2 id="${escapeHtml(id)}-title">${escapeHtml(title)}</h2>${blocks}</${tag}>`;
+  const blocks = componentBlocks.map(block => renderBlock(block, context)).join('');
+  const tag = kind === 'toc' ? 'nav' : kind === 'references-appendix' ? 'aside' : kind === 'cover' || kind === 'section-title' ? 'header' : 'section';
+  const landmarkLabel = kind === 'toc' ? ' aria-label="Table of contents"' : kind === 'references-appendix' ? ' aria-label="References and appendix"' : '';
+  const headingTag = kind === 'cover' ? 'h1' : 'h2';
+  return `<${tag} class="report-component report-component--${escapeHtml(kind)}" data-component-kind="${escapeHtml(kind)}" data-component-id="${escapeHtml(id)}" data-layout-id="${escapeHtml(layoutId)}" data-capacity-count="${capacityCount}" data-capacity-soft="${contract.capacity_dimensions.soft}" data-capacity-hard="${contract.capacity_dimensions.hard}" data-capacity-unit="${escapeHtml(contract.capacity_dimensions.unit)}" data-split-strategy="${escapeHtml(contract.split_strategy)}" aria-labelledby="${escapeHtml(id)}-title"${landmarkLabel}><${headingTag} id="${escapeHtml(id)}-title">${escapeHtml(title)}</${headingTag}>${blocks}</${tag}>`;
 }
 
 module.exports = {
   APPROVED_BLOCK_KINDS,
   APPROVED_COMPONENT_KINDS,
+  COMPONENT_CONTRACTS,
   renderBlock,
   renderComponent,
 };
