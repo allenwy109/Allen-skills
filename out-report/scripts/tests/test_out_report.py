@@ -12,6 +12,8 @@ SCRIPTS = pathlib.Path(__file__).resolve().parents[1]
 ROOT = SCRIPTS.parents[1]
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(SCRIPTS))
+import out_report  # noqa: E402
 from tools.acceptance import Acceptance  # noqa: E402
 from tools.tests import fixtures as F  # noqa: E402
 
@@ -93,6 +95,7 @@ class A4OutReportPipelineTest(unittest.TestCase):
         artifacts = json.loads((self.work / "artifact-manifest.json").read_text(encoding="utf-8"))
         pagination_digest = artifacts["paginationDigest"]
         artifact_digest = artifacts["artifactDigest"]
+        self.assertTrue({"coverage-manifest.json", "build/geometry-manifest.json", "build/media-manifest.json"}.issubset(artifacts["artifacts"]))
         author = self.work / "author-review.json"
         author.write_text(json.dumps({
             "type": "author", "reviewer": "Synthetic author", "reviewedAt": "2026-10-27T12:00:00+10:30",
@@ -143,14 +146,16 @@ class A4OutReportPipelineTest(unittest.TestCase):
             self.assertIn("REPORT_REVIEW_INVALID", rejected.stderr)
         author.write_text(json.dumps(valid_author), encoding="utf-8")
 
-        for target in (self.work / "build/report.html", self.work / "build/report.pdf", next((self.work / "build").glob("page-*.png"))):
+        for target in (self.work / "build/report.html", self.work / "build/report.pdf", next((self.work / "build").glob("page-*.png")),
+                       self.work / "coverage-manifest.json", self.work / "build/geometry-manifest.json", self.work / "build/media-manifest.json"):
             original = target.read_bytes()
             target.write_bytes(original + b"tampered")
             rejected = run("package", self.task)
             self.assertEqual(1, rejected.returncode, target.name)
             self.assertIn("REPORT_ARTIFACT_MISMATCH", rejected.stderr)
             target.write_bytes(original)
-        self.command("package", self.task)
+        package = self.command("package", self.task)
+        self.assertIn("passed", package.stdout)
 
         out = self.task / "08_deliverables/report"
         for name in ("report.html", "report.pdf", "coverage-manifest.json", "pagination-manifest.json",
@@ -162,6 +167,8 @@ class A4OutReportPipelineTest(unittest.TestCase):
         names = [check["name"] for check in entry["upstream_checks"]]
         self.assertEqual(names, ["storyline", "coverage", "pagination", "geometry", "visual-regression", "author-review", "independent-review"])
         self.assertEqual([check["result"] for check in entry["upstream_checks"]], ["passed"] * 7)
+        self.assertEqual("passed", entry["status"])
+        self.assertEqual("independent", entry["reviewer"]["type"])
         recorded_paths = [item["path"] if isinstance(item, dict) else item for item in entry["files"]]
         self.assertTrue(any(path.endswith("artifact-manifest.json") for path in recorded_paths))
         self.assertEqual(len([path for path in recorded_paths if path.endswith(".png")]), artifacts["pageCount"])
@@ -178,6 +185,25 @@ class A4OutReportPipelineTest(unittest.TestCase):
 
 
 class A4OutReportContractTest(unittest.TestCase):
+    def test_atomic_delivery_replaces_ten_pages_with_eight_without_residue(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            destination = root / "report"
+            first = root / "first"; first.mkdir()
+            second = root / "second"; second.mkdir()
+            first_sources = {}
+            second_sources = {}
+            for index in range(1, 11):
+                page = first / f"page-{index:03d}.png"; page.write_bytes(str(index).encode())
+                first_sources[page.name] = page
+            for index in range(1, 9):
+                page = second / f"page-{index:03d}.png"; page.write_bytes(f"new-{index}".encode())
+                second_sources[page.name] = page
+            out_report.replace_delivery(destination, first_sources)
+            self.assertEqual(10, len(list(destination.glob("page-*.png"))))
+            out_report.replace_delivery(destination, second_sources)
+            self.assertEqual([f"page-{index:03d}.png" for index in range(1, 9)], sorted(path.name for path in destination.glob("page-*.png")))
+
     def test_skill_routes_reports_to_a4_not_forge_author_pages(self):
         text = (ROOT / "out-report/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("A4", text)

@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import datetime
+import tempfile
 
 SKILL_DIR = pathlib.Path(__file__).resolve().parents[1]
 A4_DIR = SKILL_DIR / "scripts" / "a4"
@@ -220,7 +221,9 @@ def _qa(work):
 
 def artifact_paths(work):
     build = work / "build"
-    paths = [build / "report.html", build / "report.pdf", build / "visual-candidate.json"]
+    paths = [work.parent / "report.json", work / "render-document.json", work / "coverage-manifest.json",
+             build / "report.html", build / "report.pdf", build / "pagination-manifest.json",
+             build / "geometry-manifest.json", build / "media-manifest.json", build / "visual-candidate.json"]
     paths.extend(sorted(build.glob("page-*.png")))
     return paths
 
@@ -231,7 +234,7 @@ def capture_artifacts(work):
     paths = artifact_paths(work)
     if not paths or any(not path.is_file() for path in paths):
         raise StepError("REPORT_ARTIFACT_MISSING: rendered HTML, PDF, candidate and page PNGs are required")
-    hashes = {str(path.relative_to(work)): file_sha256(path) for path in paths}
+    hashes = {os.path.relpath(path, work): file_sha256(path) for path in paths}
     manifest = {"schemaVersion": "1.0", "pageCount": len(list(build.glob("page-*.png"))),
                 "paginationDigest": file_sha256(pagination), "artifacts": hashes}
     manifest["artifactDigest"] = structured_digest({"paginationDigest": manifest["paginationDigest"], "artifacts": hashes})
@@ -245,13 +248,42 @@ def verify_artifacts(work):
         raise StepError("REPORT_ARTIFACT_MISSING: artifact-manifest.json")
     expected = read_json(manifest_file)
     current_paths = artifact_paths(work)
-    current = {str(path.relative_to(work)): file_sha256(path) for path in current_paths if path.is_file()}
+    current = {os.path.relpath(path, work): file_sha256(path) for path in current_paths if path.is_file()}
     pagination = work / "build/pagination-manifest.json"
     pagination_digest = file_sha256(pagination) if pagination.is_file() else ""
     digest = structured_digest({"paginationDigest": pagination_digest, "artifacts": current})
     if current != expected.get("artifacts") or pagination_digest != expected.get("paginationDigest") or digest != expected.get("artifactDigest"):
         raise StepError("REPORT_ARTIFACT_MISMATCH: reviewed HTML, PDF, PNG, candidate or pagination artifact changed")
     return expected
+
+
+def replace_delivery(destination, sources):
+    """Build a complete managed directory, then swap it into place without stale files."""
+    destination = pathlib.Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    staging = pathlib.Path(tempfile.mkdtemp(prefix=f".{destination.name}-staging-", dir=destination.parent))
+    backup = None
+    try:
+        for name, source in sources.items():
+            target = staging / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+        if destination.exists():
+            backup = pathlib.Path(tempfile.mkdtemp(prefix=f".{destination.name}-previous-", dir=destination.parent))
+            backup.rmdir()
+            destination.replace(backup)
+        staging.replace(destination)
+        if backup is not None:
+            shutil.rmtree(backup)
+    except Exception:
+        if not destination.exists() and backup is not None and backup.exists():
+            backup.replace(destination)
+        raise
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
+        if backup is not None and backup.exists():
+            shutil.rmtree(backup)
 
 
 def cmd_render(args):
@@ -429,7 +461,6 @@ def cmd_package(args):
         return 1
     build = work / "build"
     out = task / "08_deliverables/report"
-    out.mkdir(parents=True, exist_ok=True)
     sources = {
         "report.html": build / "report.html", "report.pdf": build / "report.pdf",
         "coverage-manifest.json": work / "coverage-manifest.json",
@@ -442,8 +473,7 @@ def cmd_package(args):
     }
     for page in sorted(build.glob("page-*.png")):
         sources[page.name] = page
-    for name, source in sources.items():
-        shutil.copy2(source, out / name)
+    replace_delivery(out, sources)
     checks = [
         storyline_check(task), *diligence_checks(task),
         {"name": "coverage", "result": "passed", "detail": "input/output sets equal; duplicates rejected"},
@@ -453,13 +483,15 @@ def cmd_package(args):
         {"name": "author-review", "result": "passed", "detail": read_json(work / "author-review.json")["reviewer"]},
         {"name": "independent-review", "result": "passed", "detail": read_json(work / "independent-review.json")["reviewer"]},
     ]
+    independent = read_json(work / "independent-review.json")
+    acceptance_reviewer = {key: independent[key] for key in ("type", "reviewer", "at", "conclusion", "issues")}
     entry = Acceptance(task).record({
         "id": f"report-{args.slug}", "kind": "report", "title": read_json(story_dir(task) / "report.json")["metadata"]["title"],
-        "files": [str((out / name).relative_to(task)) for name in sources], "upstream_checks": checks,
+        "files": [str((out / name).relative_to(task)) for name in sources], "upstream_checks": checks, "reviewer": acceptance_reviewer,
     })
     print(f"已打包 A4 报告：{out}")
     print(f"统一验收状态：{entry['status']}")
-    return 0 if all(check["result"] == "passed" for check in checks) else 1
+    return 0 if entry["status"] == "passed" else 1
 
 
 def main(argv=None):
