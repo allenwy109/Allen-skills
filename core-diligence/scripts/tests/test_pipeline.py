@@ -133,15 +133,25 @@ class DiligenceReportPipelineTest(unittest.TestCase):
         if preview.returncode != 1:
             raise AssertionError(f"render 应因未审视觉差异失败关闭：{preview.stdout}{preview.stderr}")
         regression = json.loads((d / "visual-regression.json").read_text(encoding="utf-8"))
+        artifacts = json.loads((d / "artifact-manifest.json").read_text(encoding="utf-8"))
+        pages = [page["id"] for page in json.loads((d / "build/pagination-manifest.json").read_text(encoding="utf-8"))["pages"]]
         author = d / "author-review.json"
         author.write_text(json.dumps({"type": "author", "reviewer": "合成主笔", "reviewedAt": "2026-10-21T09:00:00+08:00",
                                       "decision": "accepted", "reason": "合成夹具逐页复核",
                                       "baselineDigest": regression["baselineDigest"], "candidateDigest": regression["candidateDigest"],
-                                      "differenceDigest": regression["differenceDigest"]}, ensure_ascii=False), encoding="utf-8")
+                                      "differenceDigest": regression["differenceDigest"], "artifactDigest": artifacts["artifactDigest"]}, ensure_ascii=False), encoding="utf-8")
         run("review", task, "author", author)
         independent = d / "independent-review.json"
         independent.write_text(json.dumps({"type": "independent", "reviewer": "成品审查员（合成）", "at": "2026-10-21T10:00:00+08:00",
-                                           "conclusion": "合成结论", "issues": []}, ensure_ascii=False), encoding="utf-8")
+                                           "conclusion": "合成夹具的整册证据、层级和阅读顺序已经逐页复核。", "issues": [],
+                                           "artifactDigest": artifacts["artifactDigest"], "paginationDigest": artifacts["paginationDigest"],
+                                           "page_ids": pages, "media": ["html", "pdf"], "scales": ["100%", "thumbnail"],
+                                           "chapter_contact_sheets": [{"chapter": "whole-book", "page_ids": pages,
+                                                                       "observation": "全册缩略图的章节节奏、留白和证据密度已经按顺序检查。"}],
+                                           "headline_chain": {"status": "reviewed", "observation": "标题链从公司身份、经营表现逐步收束到风险与补齐动作。"},
+                                           "observations": [{"page_id": page, "media": ["html", "pdf"], "scale": ["100%", "thumbnail"],
+                                                             "observation": f"{page} 的标题、证据、限制和来源已在两种媒介逐项查看。",
+                                                             "reason": "页面信息完整，未发现裁切、遗漏或误导性视觉强调。"} for page in pages]}, ensure_ascii=False), encoding="utf-8")
         run("review", task, "independent", independent)
         cls.finish = subprocess.run([sys.executable, str(OUT_REPORT), "package", str(task)], capture_output=True, text=True)
 

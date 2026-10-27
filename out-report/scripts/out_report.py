@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import pathlib
 import shutil
 import subprocess
 import sys
+import datetime
 
 SKILL_DIR = pathlib.Path(__file__).resolve().parents[1]
 A4_DIR = SKILL_DIR / "scripts" / "a4"
@@ -56,6 +58,19 @@ def write_json(path, value):
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with pathlib.Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def structured_digest(value):
+    payload = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(payload).hexdigest()
 
 
 def load_story(task):
@@ -203,6 +218,42 @@ def _qa(work):
     return json.loads(result.stdout)
 
 
+def artifact_paths(work):
+    build = work / "build"
+    paths = [build / "report.html", build / "report.pdf", build / "visual-candidate.json"]
+    paths.extend(sorted(build.glob("page-*.png")))
+    return paths
+
+
+def capture_artifacts(work):
+    build = work / "build"
+    pagination = build / "pagination-manifest.json"
+    paths = artifact_paths(work)
+    if not paths or any(not path.is_file() for path in paths):
+        raise StepError("REPORT_ARTIFACT_MISSING: rendered HTML, PDF, candidate and page PNGs are required")
+    hashes = {str(path.relative_to(work)): file_sha256(path) for path in paths}
+    manifest = {"schemaVersion": "1.0", "pageCount": len(list(build.glob("page-*.png"))),
+                "paginationDigest": file_sha256(pagination), "artifacts": hashes}
+    manifest["artifactDigest"] = structured_digest({"paginationDigest": manifest["paginationDigest"], "artifacts": hashes})
+    write_json(work / "artifact-manifest.json", manifest)
+    return manifest
+
+
+def verify_artifacts(work):
+    manifest_file = work / "artifact-manifest.json"
+    if not manifest_file.is_file():
+        raise StepError("REPORT_ARTIFACT_MISSING: artifact-manifest.json")
+    expected = read_json(manifest_file)
+    current_paths = artifact_paths(work)
+    current = {str(path.relative_to(work)): file_sha256(path) for path in current_paths if path.is_file()}
+    pagination = work / "build/pagination-manifest.json"
+    pagination_digest = file_sha256(pagination) if pagination.is_file() else ""
+    digest = structured_digest({"paginationDigest": pagination_digest, "artifacts": current})
+    if current != expected.get("artifacts") or pagination_digest != expected.get("paginationDigest") or digest != expected.get("artifactDigest"):
+        raise StepError("REPORT_ARTIFACT_MISMATCH: reviewed HTML, PDF, PNG, candidate or pagination artifact changed")
+    return expected
+
+
 def cmd_render(args):
     work = work_dir(args.task)
     if not (work / "render-document.json").is_file():
@@ -213,6 +264,7 @@ def cmd_render(args):
     try:
         run(["node", A4_DIR / "render.cjs", work / "render-document.json", build])
         run(["node", A4_DIR / "export.cjs", build / "report.html", build])
+        capture_artifacts(work)
         result = _qa(work)
     except StepError as error:
         print(str(error), file=sys.stderr)
@@ -225,23 +277,59 @@ def cmd_render(args):
     return 0 if result["status"] != "failed" else 1
 
 
-def _validate_independent(review):
-    required = (review.get("type") == "independent" and isinstance(review.get("reviewer"), str) and review["reviewer"].strip()
-                and isinstance(review.get("at"), str) and review["at"].strip() and isinstance(review.get("conclusion"), str)
-                and isinstance(review.get("issues"), list) and not any(not issue.get("resolved", False) for issue in review["issues"]))
+def useful_observation(value):
+    text = str(value or "").strip()
+    generic = {"pass", "passed", "ok", "normal", "正常", "通过", "无问题", "没问题"}
+    return len(text) >= 20 and text.lower() not in generic
+
+
+def _validate_independent(review, work, artifacts):
+    pagination = read_json(work / "build/pagination-manifest.json")
+    page_ids = [page["id"] for page in pagination["pages"]]
+    try:
+        reviewed_at = datetime.datetime.fromisoformat(str(review.get("at", "")).replace("Z", "+00:00"))
+    except ValueError:
+        reviewed_at = None
+    observations = review.get("observations")
+    sheets = review.get("chapter_contact_sheets")
+    headline = review.get("headline_chain") or {}
+    observed_ids = [item.get("page_id") for item in observations] if isinstance(observations, list) else []
+    sheet_ids = [page for sheet in sheets for page in sheet.get("page_ids", [])] if isinstance(sheets, list) else []
+    required = (
+        review.get("type") == "independent" and isinstance(review.get("reviewer"), str) and review["reviewer"].strip()
+        and reviewed_at is not None and reviewed_at.tzinfo is not None and useful_observation(review.get("conclusion"))
+        and review.get("artifactDigest") == artifacts["artifactDigest"]
+        and review.get("paginationDigest") == artifacts["paginationDigest"]
+        and review.get("page_ids") == page_ids and set(review.get("media") or []) == {"html", "pdf"}
+        and "100%" in (review.get("scales") or []) and bool({"contact-sheet", "thumbnail"} & set(review.get("scales") or []))
+        and isinstance(sheets, list) and sheets and len(sheet_ids) == len(page_ids) and set(sheet_ids) == set(page_ids)
+        and all(useful_observation(sheet.get("observation")) for sheet in sheets)
+        and headline.get("status") == "reviewed" and useful_observation(headline.get("observation"))
+        and isinstance(observations, list) and observed_ids == page_ids
+        and all(set(item.get("media") or []) == {"html", "pdf"} and "100%" in (item.get("scale") or [])
+                and bool({"contact-sheet", "thumbnail"} & set(item.get("scale") or []))
+                and useful_observation(item.get("observation")) and useful_observation(item.get("reason")) for item in observations)
+        and isinstance(review.get("issues"), list) and not any(not issue.get("resolved", False) for issue in review["issues"])
+    )
     if not required:
-        raise StepError("REPORT_REVIEW_INVALID: independent review fields are incomplete or issues remain unresolved")
+        raise StepError("REPORT_REVIEW_INVALID: independent review must bind artifacts and pagination, cover every page in HTML/PDF at 100% and contact-sheet/thumbnail scales, review chapter sheets and headline chain, and record specific observations/reasons with no unresolved issues")
 
 
 def cmd_review(args):
     work = work_dir(args.task)
     source = pathlib.Path(args.review).resolve()
     review = read_json(source)
+    try:
+        artifacts = verify_artifacts(work)
+    except StepError as error:
+        print(str(error), file=sys.stderr)
+        return 1
     if args.kind == "author":
         regression = read_json(work / "visual-regression.json")
         expected = (regression["baselineDigest"], regression["candidateDigest"], regression["differenceDigest"])
         actual = (review.get("baselineDigest"), review.get("candidateDigest"), review.get("differenceDigest"))
-        if review.get("type") != "author" or review.get("decision") != "accepted" or actual != expected:
+        if (review.get("type") != "author" or review.get("decision") != "accepted" or actual != expected
+                or review.get("artifactDigest") != artifacts["artifactDigest"]):
             print("REPORT_REVIEW_INVALID: author review must accept and bind the current visual digests", file=sys.stderr)
             return 1
         write_json(work / "author-review.json", review)
@@ -255,7 +343,7 @@ def cmd_review(args):
             return 1
     else:
         try:
-            _validate_independent(review)
+            _validate_independent(review, work, artifacts)
         except StepError as error:
             print(str(error), file=sys.stderr)
             return 1
@@ -311,6 +399,8 @@ def cmd_package(args):
         print("REPORT_REVIEW_REQUIRED: " + "、".join(name.removesuffix(".json") for name in missing), file=sys.stderr)
         return 1
     try:
+        artifacts = verify_artifacts(work)
+        _validate_independent(read_json(work / "independent-review.json"), work, artifacts)
         qa = _qa(work)
     except StepError as error:
         print(str(error), file=sys.stderr)
@@ -326,9 +416,13 @@ def cmd_package(args):
         "coverage-manifest.json": work / "coverage-manifest.json",
         "pagination-manifest.json": build / "pagination-manifest.json",
         "geometry-manifest.json": build / "geometry-manifest.json",
-        "visual-regression.json": work / "visual-regression.json", "qa-result.json": work / "qa-result.json",
+        "media-manifest.json": build / "media-manifest.json", "visual-candidate.json": build / "visual-candidate.json",
+        "visual-regression.json": work / "visual-regression.json", "qa-evidence.json": work / "qa-evidence.json",
+        "qa-result.json": work / "qa-result.json", "artifact-manifest.json": work / "artifact-manifest.json",
         "author-review.json": work / "author-review.json", "independent-review.json": work / "independent-review.json",
     }
+    for page in sorted(build.glob("page-*.png")):
+        sources[page.name] = page
     for name, source in sources.items():
         shutil.copy2(source, out / name)
     checks = [

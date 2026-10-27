@@ -90,12 +90,15 @@ class A4OutReportPipelineTest(unittest.TestCase):
         self.assertFalse((self.story / "forge-work/pages.html").exists())
 
         regression = json.loads((self.work / "visual-regression.json").read_text(encoding="utf-8"))
+        artifacts = json.loads((self.work / "artifact-manifest.json").read_text(encoding="utf-8"))
+        pagination_digest = artifacts["paginationDigest"]
+        artifact_digest = artifacts["artifactDigest"]
         author = self.work / "author-review.json"
         author.write_text(json.dumps({
             "type": "author", "reviewer": "Synthetic author", "reviewedAt": "2026-10-27T12:00:00+10:30",
             "decision": "accepted", "reason": "Synthetic fixture visually reviewed",
             "baselineDigest": regression["baselineDigest"], "candidateDigest": regression["candidateDigest"],
-            "differenceDigest": regression["differenceDigest"],
+            "differenceDigest": regression["differenceDigest"], "artifactDigest": artifact_digest,
         }), encoding="utf-8")
         self.command("review", self.task, "author", author)
 
@@ -103,18 +106,50 @@ class A4OutReportPipelineTest(unittest.TestCase):
         independent.write_text(json.dumps({
             "type": "independent", "reviewer": "Synthetic independent reviewer",
             "at": "2026-10-27T12:05:00+10:30", "conclusion": "Synthetic fixture accepted", "issues": [],
+            "artifactDigest": artifact_digest, "paginationDigest": pagination_digest,
+            "page_ids": [page["id"] for page in json.loads((self.work / "build/pagination-manifest.json").read_text())["pages"]],
+            "media": ["html", "pdf"], "scales": ["100%", "contact-sheet"],
+            "chapter_contact_sheets": [{"chapter": "whole-book", "page_ids": [page["id"] for page in json.loads((self.work / "build/pagination-manifest.json").read_text())["pages"]],
+                                         "observation": "The booklet rhythm and chapter transitions were inspected as a complete sequence."}],
+            "headline_chain": {"status": "reviewed", "observation": "The headline sequence forms a coherent evidence-to-decision argument."},
+            "observations": [{"page_id": page["id"], "media": ["html", "pdf"], "scale": ["100%", "contact-sheet"],
+                              "observation": f"Page {page['id']} hierarchy, evidence and footer were inspected in both media.",
+                              "reason": "No clipping, semantic omission or misleading emphasis was observed."}
+                             for page in json.loads((self.work / "build/pagination-manifest.json").read_text())["pages"]],
         }), encoding="utf-8")
+        invalid = self.work / "invalid-independent.json"
+        invalid.write_text(json.dumps({"type": "independent", "reviewer": "Reviewer", "at": "2026-10-27T12:05:00+10:30",
+                                       "conclusion": "PASS", "issues": [], "artifactDigest": artifact_digest,
+                                       "paginationDigest": pagination_digest, "page_ids": [], "media": ["html"], "scales": ["100%"],
+                                       "chapter_contact_sheets": [], "headline_chain": {"status": "reviewed", "observation": "正常"},
+                                       "observations": []}), encoding="utf-8")
+        invalid_result = run("review", self.task, "independent", invalid)
+        self.assertEqual(1, invalid_result.returncode)
+        self.assertIn("REPORT_REVIEW_INVALID", invalid_result.stderr)
         self.command("review", self.task, "independent", independent)
+
+        for target in (self.work / "build/report.html", self.work / "build/report.pdf", next((self.work / "build").glob("page-*.png"))):
+            original = target.read_bytes()
+            target.write_bytes(original + b"tampered")
+            rejected = run("package", self.task)
+            self.assertEqual(1, rejected.returncode, target.name)
+            self.assertIn("REPORT_ARTIFACT_MISMATCH", rejected.stderr)
+            target.write_bytes(original)
         self.command("package", self.task)
 
         out = self.task / "08_deliverables/report"
         for name in ("report.html", "report.pdf", "coverage-manifest.json", "pagination-manifest.json",
-                     "geometry-manifest.json", "visual-regression.json", "qa-result.json"):
+                     "geometry-manifest.json", "media-manifest.json", "visual-candidate.json", "visual-regression.json",
+                     "qa-evidence.json", "qa-result.json", "artifact-manifest.json"):
             self.assertTrue((out / name).is_file(), name)
+        self.assertEqual(len(list(out.glob("page-*.png"))), artifacts["pageCount"])
         entry = next(item for item in Acceptance(self.task).load()["deliverables"] if item["id"] == "report-main")
         names = [check["name"] for check in entry["upstream_checks"]]
         self.assertEqual(names, ["storyline", "coverage", "pagination", "geometry", "visual-regression", "author-review", "independent-review"])
         self.assertEqual([check["result"] for check in entry["upstream_checks"]], ["passed"] * 7)
+        recorded_paths = [item["path"] if isinstance(item, dict) else item for item in entry["files"]]
+        self.assertTrue(any(path.endswith("artifact-manifest.json") for path in recorded_paths))
+        self.assertEqual(len([path for path in recorded_paths if path.endswith(".png")]), artifacts["pageCount"])
 
     def test_package_fails_closed_before_both_reviews(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -17,8 +17,8 @@ python3 <本 skill>/scripts/out_report.py <命令> <任务文件夹>
 
 1. `init`：同时运行原有数字追溯检查与 `report.json` 覆盖合同；生成 `07_storyline/report.json`、`a4-work/coverage-manifest.json` 和渲染文档。检查失败时不创建任务。
 2. `render`：用锁定字体和 Chromium 两遍分页，生成 A4 HTML、PDF、逐页 PNG、pagination、geometry、media、visual-regression 和 QA 记录。首次报告与批准黄金样册通常存在视觉差异，因此会失败关闭，但仍留下可审查预览。
-3. 作者逐页查看 PDF/PNG 后提交 `review <任务> author <review.json>`。作者记录必须接受并绑定当前 `baselineDigest`、`candidateDigest`、`differenceDigest`，不能复用旧审批。
-4. 成品审查员独立查看最终 HTML/PDF，只把结论写入 `review <任务> independent <review.json>`。未解决问题不能通过。
+3. 作者逐页查看 PDF/PNG 后提交 `review <任务> author <review.json>`。作者记录必须接受并绑定当前 `baselineDigest`、`candidateDigest`、`differenceDigest` 和 `artifactDigest`，不能复用旧审批。
+4. 成品审查员独立查看最终 HTML/PDF，只把结论写入 `review <任务> independent <review.json>`。记录必须绑定当前 artifact 与 pagination digest，逐页覆盖 HTML/PDF，同时记录 100% 和整册缩略图尺度、章节 contact sheet、标题链、具体观察和理由；“PASS”“正常”等泛化文字无效。未解决问题不能通过。
 5. `package`：仅在 QA、作者审查和独立审查均通过后复制正式成品与全部审计清单到 `08_deliverables/report/`，并登记统一验收。
 
 故事线或证据变化后运行 `refresh`，再从渲染与审查重新开始。视觉差异只允许人工处置，脚本永不自动更新批准基线。
@@ -28,13 +28,13 @@ python3 <本 skill>/scripts/out_report.py <命令> <任务文件夹>
 作者记录：
 
 ```json
-{"type":"author","reviewer":"主笔","reviewedAt":"2026-10-27T12:00:00+10:30","decision":"accepted","reason":"逐页检查后的判断","baselineDigest":"…","candidateDigest":"…","differenceDigest":"…"}
+{"type":"author","reviewer":"主笔","reviewedAt":"2026-10-27T12:00:00+10:30","decision":"accepted","reason":"逐页检查后的判断","baselineDigest":"…","candidateDigest":"…","differenceDigest":"…","artifactDigest":"…"}
 ```
 
-独立记录遵循 `core-review/references/output-standard.md`：`type=independent`，包含 reviewer、带时区时间、结论和问题；所有问题必须已解决。没有独立审查时只能向用户说明预览位置，不能运行正式打包或宣称完成。
+独立记录遵循 `core-review/references/output-standard.md`：`type=independent`，包含 reviewer、带时区时间、结论、artifact/pagination digest、page_ids、media、scales、chapter_contact_sheets、headline_chain、逐页 observations 和 issues；所有问题必须已解决。没有独立审查时只能向用户说明预览位置，不能运行正式打包或宣称完成。
 
 ## 输出门禁
 
-系统机械检查 A4 MediaBox、溢出、遮挡、裁切、空页、最小字号、内嵌资源、HTML/PDF 页序与文字清单、claim/A 卡/panel/relation/metric/source 覆盖集合和逐页视觉哈希。缺测量证据本身就是失败。
+系统机械检查 A4 MediaBox、溢出、遮挡、裁切、空页、最小字号、内嵌资源、HTML/PDF 页序与文字清单、claim/A 卡/panel/relation/metric/source 覆盖集合和逐页视觉哈希。审查时锁定 HTML、PDF、逐页 PNG、visual candidate 与分页摘要；打包前重新计算，任何篡改都失败。正式包保留 media、candidate、QA evidence 和逐页 PNG。缺测量证据本身就是失败。
 
 四个企业应用完成主报告后，仍需运行 `tools/package_support.py <任务>` 生成并验收支撑文件包。
