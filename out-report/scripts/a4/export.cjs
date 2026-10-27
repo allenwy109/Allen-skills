@@ -50,6 +50,7 @@ function tool(name) {
   const dom = await page.evaluate(() => {
     const overlap = (a, b) => a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
     return [...document.querySelectorAll('section.page[data-page-id]')].map(section => {
+      const role = section.dataset.pageRole || (section.querySelector('[data-component-kind="references-appendix"]') ? 'references' : 'body');
       const body = section.querySelector('.page__body') || section;
       const bounds = body.getBoundingClientRect();
       const items = [...body.querySelectorAll(':scope > .page-item')];
@@ -67,11 +68,21 @@ function tool(name) {
         return nodes.length ? Math.min(...nodes.map(node => parseFloat(getComputedStyle(node).fontSize) * .75)) : null;
       };
       const sourceMinimum = fontMinimum('.source-locator, [data-source-locator]');
+      const citationMinimum = fontMinimum('.citation-marker, .citation-markers');
       const text = section.innerText.replace(/\s+/g, ' ').trim()
         .replace(/(?<=\p{Script=Han})\s+(?=\d)|(?<=\d)\s+(?=\p{Script=Han})/gu, '');
-      const fonts = [{ role: 'body', minimumPt: Math.round((fontMinimum('*:not(.folio):not(.source-locator):not([data-source-locator])') || 10.75) * 1000) / 1000 }];
+      const fonts = [{ role: 'body', minimumPt: Math.round((fontMinimum('*:not(.folio):not(.source-locator):not([data-source-locator]):not(.citation-marker):not(.citation-markers)') || 10.75) * 1000) / 1000 }];
       if (sourceMinimum !== null) fonts.push({ role: 'source', minimumPt: Math.round(sourceMinimum * 1000) / 1000 });
-      return { id: section.dataset.pageId, text, empty: !text, overlaps, clipped: [...new Set(clipped)], fonts };
+      if (citationMinimum !== null) fonts.push({ role: 'citation', minimumPt: Math.round(citationMinimum * 1000) / 1000 });
+      const visible = section.cloneNode(true);
+      visible.querySelectorAll('[hidden]').forEach(node => node.remove());
+      return {
+        id: section.dataset.pageId, role, text,
+        visibleHtml: visible.innerHTML, empty: !text, overlaps, clipped: [...new Set(clipped)], fonts,
+        appendixDestinations: role === 'references'
+          ? [...section.querySelectorAll('[data-source-record][id], .ref[id]')].map(node => node.id)
+          : [],
+      };
     });
   });
   await page.pdf({ path: pdf, format: 'A4', printBackground: true, preferCSSPageSize: true,
@@ -99,7 +110,8 @@ function tool(name) {
     empty: record.empty, fonts: record.fonts,
   })) };
   const media = {
-    schemaVersion: '1.0', htmlPages: dom.map(({ id, text }) => ({ id, text })), pdfPages,
+    schemaVersion: '1.0', htmlPages: dom.map(({ id, role, text, visibleHtml }) => ({ id, role, text, visibleHtml })), pdfPages,
+    appendixDestinations: dom.flatMap(record => record.appendixDestinations),
     resources: [
       { type: 'font', url: 'data:font/woff2;base64,embedded-noto-sans-400', embedded: true },
       { type: 'font', url: 'data:font/woff2;base64,embedded-noto-sans-600', embedded: true },

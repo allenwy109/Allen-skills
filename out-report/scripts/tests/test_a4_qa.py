@@ -1,6 +1,8 @@
 import importlib.util
 import hashlib
 import json
+import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -10,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 QA = ROOT / "out-report" / "scripts" / "a4" / "qa.cjs"
 VISUAL = ROOT / "out-report" / "scripts" / "a4" / "visual_regression.py"
+EXPORT = ROOT / "out-report" / "scripts" / "a4" / "export.cjs"
 PAGE_DIGEST = "c" * 64
 
 
@@ -180,6 +183,9 @@ class A4QualityGateTest(unittest.TestCase):
             lambda value: value["geometry"]["pages"][0].update(empty="false"),
             lambda value: value["geometry"]["pages"][0].update(fonts=[{"role": "body", "minimumPt": None}]),
             lambda value: value["media"].pop("resources"),
+            lambda value: value["media"].pop("appendixDestinations"),
+            lambda value: value["media"]["htmlPages"][0].pop("role"),
+            lambda value: value["media"]["htmlPages"][0].pop("visibleHtml"),
         ]
         for mutate in mutations:
             with self.subTest(mutation=mutate):
@@ -187,6 +193,50 @@ class A4QualityGateTest(unittest.TestCase):
                 mutate(evidence)
                 result = run_qa(evidence)
                 self.assertIn("REPORT_QA_EVIDENCE_INVALID", {item["code"] for item in result["blocking"]})
+
+    def test_exported_dom_evidence_drives_all_reference_clutter_gates(self):
+        runtime = Path(os.environ.get("ALLEN_RUNTIME", ROOT))
+        if not (runtime / "vendor" / "report-forge" / "node_modules" / "playwright").exists() or any(not shutil.which(name) for name in ("pdftoppm", "pdftotext")):
+            self.skipTest("A4 export runtime required")
+        pages = [
+            ("page-001", "body", '<p>Read https://example.invalid/raw</p>'),
+            ("page-002", "body", '<div class="source-strip">Source A<br>Source B</div>'),
+            ("page-003", "body", '<a class="citation-marker" href="#missing">[9]</a>'),
+            ("page-004", "body", '<a class="citation-marker tiny" href="#ref-ok">[1]</a>'),
+            ("page-005", "references", '<div class="ref" id="ref-ok" data-row-split="continued">Reference</div>'),
+        ]
+        sections = "".join(
+            f'<section class="page" data-page-id="{page_id}" data-page-role="{role}"><div class="page__body">{body}</div></section>'
+            for page_id, role, body in pages
+        )
+        html = ('<!doctype html><style>@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0}'
+                '.page{width:210mm;height:297mm;break-after:page;padding:20mm;font:12pt Arial}.tiny{font-size:7pt}</style>' + sections)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, build = root / "report.html", root / "build"
+            source.write_text(html)
+            process = subprocess.run(["node", str(EXPORT), str(source), str(build)], cwd=ROOT,
+                                     env=dict(os.environ, ALLEN_RUNTIME=str(runtime)), capture_output=True, text=True)
+            self.assertEqual(0, process.returncode, process.stderr)
+            media = json.loads((build / "media-manifest.json").read_text())
+            geometry = json.loads((build / "geometry-manifest.json").read_text())
+            evidence = good_evidence()
+            evidence["pagination"] = {"pageCount": len(pages), "pages": [
+                {"id": page_id, "number": index + 1, "intentionalBlank": False,
+                 "usedHeightPx": 500, "contentHeightPx": 986, "geometry": {"widthMm": 210, "heightMm": 297}}
+                for index, (page_id, _, _) in enumerate(pages)
+            ]}
+            evidence["geometry"], evidence["media"] = geometry, media
+            page_hashes = json.loads((build / "visual-candidate.json").read_text())["artifacts"]["pagePngSha256"]
+            candidate_pages = [{"id": page_id, "digest": page_hashes[page_id]} for page_id, _, _ in pages]
+            summary = {item["id"]: item["digest"] for item in candidate_pages}
+            evidence["regression"].update(
+                baselineDigest=json_digest(summary), candidateDigest=json_digest(summary),
+                baselinePages=candidate_pages, candidatePages=candidate_pages,
+            )
+            result = run_qa(evidence)
+            self.assertTrue({"REPORT_BODY_RAW_REFERENCE", "REPORT_BODY_SOURCE_STRIP", "REPORT_CITATION_MISMATCH",
+                             "REPORT_FONT_TOO_SMALL", "REPORT_PAGE_OVERFLOW"} <= {item["code"] for item in result["blocking"]})
 
     def test_html_pdf_and_pagination_page_ids_and_order_must_match(self):
         evidence = good_evidence()
@@ -200,7 +250,7 @@ class A4QualityGateTest(unittest.TestCase):
             "id": "page-002", "mediaBoxMm": [210, 297], "overlaps": [],
             "clipped": [], "empty": False, "fonts": [{"role": "body", "minimumPt": 8.5}],
         })
-        evidence["media"]["htmlPages"].append({"id": "page-002", "text": "Second"})
+        evidence["media"]["htmlPages"].append({"id": "page-002", "role": "body", "text": "Second", "visibleHtml": "<p>Second</p>"})
         evidence["media"]["pdfPages"].append({"id": "page-002", "text": "Second"})
         evidence["media"]["htmlPages"].reverse()
         codes = {item["code"] for item in run_qa(evidence)["blocking"]}
@@ -389,7 +439,7 @@ class A4QualityGateTest(unittest.TestCase):
         evidence["pagination"]["pageCount"] = 2
         evidence["pagination"]["pages"].append({"id": "page-002", "number": 2, "intentionalBlank": False, "usedHeightPx": 10, "contentHeightPx": 986, "geometry": {"widthMm": 210, "heightMm": 297}})
         evidence["geometry"]["pages"].append({"id": "page-002", "mediaBoxMm": [210, 297], "overlaps": [], "clipped": [], "empty": False, "fonts": [{"role": "body", "minimumPt": 8.5}]})
-        evidence["media"]["htmlPages"].append({"id": "page-002", "text": "Second"})
+        evidence["media"]["htmlPages"].append({"id": "page-002", "role": "body", "text": "Second", "visibleHtml": "<p>Second</p>"})
         evidence["media"]["pdfPages"].append({"id": "page-002", "text": "Second"})
         evidence["regression"] = regression
         blocked = run_qa(evidence)

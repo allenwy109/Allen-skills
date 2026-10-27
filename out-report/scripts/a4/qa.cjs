@@ -122,10 +122,12 @@ function evidenceErrors(evidence) {
   } else {
     for (const name of ['htmlPages', 'pdfPages']) media[name].forEach((page, index) => {
       if (!page || typeof page.id !== 'string' || !page.id || typeof page.text !== 'string') invalid(`media.${name}[${index}]`, 'id and text strings are required');
+      if (name === 'htmlPages' && (!page || typeof page.role !== 'string' || !page.role || typeof page.visibleHtml !== 'string')) invalid(`media.${name}[${index}]`, 'role and visibleHtml strings are required');
     });
     media.resources.forEach((resource, index) => {
       if (!resource || typeof resource.type !== 'string' || typeof resource.url !== 'string' || typeof resource.embedded !== 'boolean') invalid(`media.resources[${index}]`, 'type, url, and embedded are required');
     });
+    if (!Array.isArray(media.appendixDestinations) || media.appendixDestinations.some(value => typeof value !== 'string' || !value)) invalid('media.appendixDestinations', 'must be an array of non-empty strings');
     for (const name of ['htmlPages', 'pdfPages']) {
       const ids = media[name].map(page => page && page.id);
       if (new Set(ids).size !== ids.length) invalid(`media.${name}`, 'page IDs must be unique');
