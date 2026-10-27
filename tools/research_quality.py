@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+"""Validate a task's decision-research contract against its evidence ledger."""
+import argparse
+import json
+import pathlib
+import re
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from tools.lib import schema_check
+
+
+LAYERS = ("direct", "indirect", "diy", "adjacent", "do_nothing")
+HIGH_RISK = re.compile(
+    r"prevalen|willingness[- ]to[- ]pay|competitive intensity|causal|regulatory obligation|"
+    r"普遍|渗透率|付费意愿|支付意愿|竞争强度|因果|监管义务|法定义务",
+    re.IGNORECASE,
+)
+NARROWING = re.compile(r"one segment|single segment|limited to|narrow|仅|只限|局限|范围", re.IGNORECASE)
+ADVERSARIAL = re.compile(r"adversarial|counter(?:example|evidence)?|disconfirm|反向|反证|反例|证伪", re.IGNORECASE)
+
+
+def read_jsonl(path):
+    if not path.is_file():
+        return []
+    records = []
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            records.append(json.loads(line))
+        except json.JSONDecodeError as err:
+            raise ValueError(f"{path.name}:{number}: {err.msg}") from err
+    return records
+
+
+def issue(code, message):
+    return f"{code}: {message}"
+
+
+def claim_refs(contract):
+    refs = list(contract.get("critical_claim_refs", []))
+    for pain in contract.get("pain", []):
+        refs += pain.get("support_claim_refs", []) + pain.get("counter_claim_refs", [])
+    competition = contract.get("competition", {})
+    refs += competition.get("claim_refs", [])
+    for options in competition.get("layers", {}).values():
+        for option in options if isinstance(options, list) else []:
+            refs += option.get("claim_refs", [])
+    return refs
+
+
+def check(task):
+    task = pathlib.Path(task)
+    evidence = task / "03_evidence"
+    contract_path = evidence / "decision-research.json"
+    errors = []
+    try:
+        contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as err:
+        return [issue("QUALITY_CONTRACT", str(err))]
+
+    schema = schema_check.load("decision-research.schema.json")
+    schema_errors = schema_check.check_document(schema, contract)
+    for message in schema_errors:
+        errors.append(issue("QUALITY_SCHEMA", message))
+
+    if not isinstance(contract, dict):
+        return errors
+    material = contract.get("material") if isinstance(contract.get("material"), dict) else {}
+    pains = contract.get("pain") if isinstance(contract.get("pain"), list) else []
+    if material.get("pain"):
+        for pain in pains:
+            if isinstance(pain, dict) and not str(pain.get("purchase_signal", "")).strip():
+                errors.append(issue("QUALITY_PAIN_PURCHASE_SIGNAL", f"{pain.get('id', '?')} lacks purchase_signal"))
+
+    competition = contract.get("competition") if isinstance(contract.get("competition"), dict) else {}
+    layers = competition.get("layers") if isinstance(competition.get("layers"), dict) else {}
+    if material.get("competition"):
+        for layer in LAYERS:
+            options = layers.get(layer)
+            if not isinstance(options, list) or not options:
+                errors.append(issue("QUALITY_COMPETITION_LAYER", f"missing competition layer: {layer}"))
+                continue
+            for option in options:
+                if not isinstance(option, dict):
+                    continue
+                named = bool(str(option.get("name", "")).strip())
+                explicit_na = option.get("not_applicable") is True and bool(str(option.get("rationale", "")).strip())
+                if not named and not explicit_na:
+                    errors.append(issue("QUALITY_COMPETITION_LAYER", f"{layer} needs a named option or evidenced not_applicable record"))
+
+    methods = contract.get("methods") if isinstance(contract.get("methods"), list) else []
+    for method in methods:
+        if isinstance(method, dict) and method.get("status") != "ready" and not str(method.get("downgrade_reason", "")).strip():
+            errors.append(issue("QUALITY_METHOD_DOWNGRADE", f"{method.get('method', '?')} lacks downgrade_reason"))
+
+    if schema_errors:
+        return errors
+
+    ledger = evidence / "ledger"
+    try:
+        claims = {x.get("id"): x for x in read_jsonl(ledger / "claims.jsonl")}
+        links = read_jsonl(ledger / "claim_evidence.jsonl")
+        evidences = {x.get("id"): x for x in read_jsonl(ledger / "evidence.jsonl")}
+        sources = {x.get("id"): x for x in read_jsonl(ledger / "sources.jsonl")}
+        searches = read_jsonl(ledger / "search_log.jsonl")
+    except ValueError as err:
+        return errors + [issue("QUALITY_LEDGER", str(err))]
+
+    for ref in sorted(set(claim_refs(contract))):
+        if ref not in claims:
+            errors.append(issue("QUALITY_CLAIM_REF", f"unknown claim reference: {ref}"))
+
+    for ref in contract.get("critical_claim_refs", []):
+        if ref not in claims:
+            continue
+        related = [x for x in links if x.get("claim_id") == ref]
+        supported = any(x.get("relation") == "supports" and x.get("evidence_id") in evidences for x in related)
+        contradicted = any(x.get("relation") == "contradicts" and x.get("evidence_id") in evidences for x in related)
+        searched = any(
+            ref in f"{x.get('query', '')} {x.get('purpose', '')}" and
+            ADVERSARIAL.search(f"{x.get('query', '')} {x.get('purpose', '')}")
+            for x in searches
+        )
+        if not supported or not (contradicted or searched):
+            errors.append(issue("QUALITY_CRITICAL_CLAIM", f"{ref} needs support and adversarial treatment"))
+
+        claim = claims[ref]
+        if HIGH_RISK.search(claim.get("statement", "")):
+            support_links = [x for x in related if x.get("relation") == "supports"]
+            support_sources = []
+            for link in support_links:
+                evidence_record = evidences.get(link.get("evidence_id"), {})
+                support_sources.append(sources.get(evidence_record.get("source_id"), {}))
+            issuer_only = bool(support_sources) and all(x.get("source_type") == "company" for x in support_sources)
+            narrowed_low = claim.get("confidence") == "low" and NARROWING.search(claim.get("limitation", ""))
+            if issuer_only and not narrowed_low:
+                errors.append(issue("QUALITY_ISSUER_ONLY", f"{ref} is a high-risk claim supported only by issuer sources"))
+    return errors
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser()
+    sub = parser.add_subparsers(dest="command", required=True)
+    command = sub.add_parser("check")
+    command.add_argument("task")
+    args = parser.parse_args(argv)
+    errors = check(args.task)
+    if errors:
+        print("\n".join(errors), file=sys.stderr)
+        return 1
+    print("research quality check passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
