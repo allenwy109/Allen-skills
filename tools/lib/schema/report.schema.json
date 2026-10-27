@@ -1,0 +1,64 @@
+{
+ "version": "1.0.0",
+ "comment": "媒介无关的 A4 报告内容合同；coverage manifest 由 bridge 单独返回。",
+ "enums": {
+  "block_kind": {"values": ["chart", "text", "metric", "table"], "labels": {"chart": "图表", "text": "文字", "metric": "指标", "table": "表格"}}
+ },
+ "root": {
+  "type": "object",
+  "fields": {
+   "version": {"type": "string", "pattern": "^1\\.0\\.0$", "required": true},
+   "metadata": {"type": "object", "required": true, "fields": {
+    "title": {"type": "string", "required": true},
+    "language": {"type": "string", "required": true},
+    "audience": {"type": "string"},
+    "decision": {"type": "string"},
+    "date": {"type": "date"}
+   }},
+   "executive_summary": {"type": "object", "required": true, "fields": {
+    "question": {"type": "string", "required": true},
+    "answer_claim_refs": {"type": "array", "required": true, "items": {"type": "string"}},
+    "a_card_refs": {"type": "array", "required": true, "items": {"type": "string"}}
+   }},
+   "sections": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+    "id": {"type": "string", "required": true},
+    "title": {"type": "string", "required": true},
+    "blocks": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+     "id": {"type": "string", "required": true},
+     "kind": {"type": "string", "enum": "block_kind", "required": true},
+     "claim_refs": {"type": "array", "required": true, "items": {"type": "string"}},
+     "metric_refs": {"type": "array", "required": true, "items": {"type": "string"}},
+     "source_ids": {"type": "array", "required": true, "items": {"type": "string"}},
+     "panel_refs": {"type": "array", "required": true, "items": {"type": "string"}},
+     "relation_refs": {"type": "array", "required": true, "items": {"type": "string"}},
+     "identity": {"type": "array", "required": true, "items": {"type": "string"}},
+     "content": {"type": "object", "required": true, "fields": {
+      "title": {"type": "string", "required": true},
+      "subtitle": {"type": "string"},
+      "purpose": {"type": "string", "required": true},
+      "form": {"type": "string", "required": true},
+      "relationship": {"type": "string", "required": true},
+      "reason": {"type": "string", "required": true},
+      "anchor": {"type": "boolean", "required": true}
+     }}
+    }}},
+    "relations": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+     "id": {"type": "string", "required": true},
+     "kind": {"type": "string", "required": true},
+     "panel_refs": {"type": "array", "required": true, "min_items": 2, "items": {"type": "string"}},
+     "reason": {"type": "string", "required": true}
+    }}}
+   }}},
+   "references": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+    "id": {"type": "string", "required": true},
+    "title": {"type": "string", "required": true},
+    "url": {"type": "string"},
+    "origin": {"type": "string", "required": true}
+   }}},
+   "appendix": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+    "id": {"type": "string", "required": true},
+    "title": {"type": "string", "required": true}
+   }}}
+  }
+ }
+}

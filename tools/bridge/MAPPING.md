@@ -1,6 +1,6 @@
 # 转换映射表
 
-我们的格式（证据账、slides.json、图表 spec）到三个引擎输入的映射，是转换脚本的唯一依据（设计 §6.3）。每个引擎一节，随对应的输出 skill 一起写定并配测试。目前已写定：thinkcell（out-chart）、onepager（out-poster）、report-forge（out-report），以及尽调内容到故事线母版的转换（core-diligence）。
+我们的格式（证据账、slides.json、图表 spec）到三个引擎输入的映射，是转换脚本的唯一依据（设计 §6.3）。每个引擎一节，随对应的输出 skill 一起写定并配测试。目前已写定：媒介无关 report model、thinkcell（out-chart）、onepager（out-poster）、report-forge（out-report），以及尽调内容到故事线母版的转换（core-diligence）。
 
 ## 公共规则（所有引擎）
 
@@ -12,6 +12,27 @@
 - 来源说明由 `source_ids` 生成，格式是 `<来源标题>（<来源 ID>）`，多个来源用"；"连接。
 - 估算、预测、假设、判断、建议类主张的数值进入成品时，必须注明身份。
 - 状态为 `approximate` 的指标进入成品时，必须注明"近似"。
+
+## 媒介无关 report model（`tools/bridge/to_report.py`）
+
+`build(task, slides, sidecar=None)` 返回 `(report, coverage)`。`report` 遵守
+`report.schema.json` 1.0.0；它只表达内容、身份与引用关系，不含页宽、坐标或渲染器参数。
+
+| slides.json / 证据账 | report block | 规则 |
+|---|---|---|
+| 正文页的一个 panel | 一个 block | block ID 为 `p<两位页码>-<panel id>`；panel、relation、anchor 和选型理由原样保留 |
+| `svg.custom` | `chart` | 首批支持的图表块 |
+| `html.text` | `text` | 首批支持的文字块 |
+| `html.kpi` | `metric` | 首批支持的指标块 |
+| `html.table` | `table` | 首批支持的表格块 |
+| panel 的 claim_refs | `claim_refs`、`identity` | identity 是所引用主张的 kind 集合；未知主张拦下 |
+| 页的 metric_refs 与 panel 主张的 metric_refs 交集 | `metric_refs` | 防止把未在正文声明的指标带入，也防止正文指标在输出消失 |
+| 主张 → claim_evidence → evidence | `source_ids`、`references` | panel 显式 source_ids 一并保留；未知来源拦下 |
+| A 级卡片 | `executive_summary.a_card_refs` | A 卡关联的主张必须进入正文，否则覆盖失败 |
+
+coverage 的 `input` 和 `output` 都含排序后的 `claims`、`a_cards`、`panels`、`relations`、
+`metrics`、`sources` 集合。两侧必须完全相等；重复 ID、孤儿 panel、未知引用或集合差异统一报
+`REPORT_COVERAGE_MISMATCH`。未列入上表的 form 报 `REPORT_UNSUPPORTED_BLOCK`，不做猜测性降级。
 
 ## thinkcell（`tools/bridge/to_thinkcell.py`，用于 out-chart）
 
