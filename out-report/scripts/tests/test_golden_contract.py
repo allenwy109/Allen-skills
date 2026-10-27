@@ -1,68 +1,117 @@
-"""A4 黄金小册的静态合同。"""
+"""A4 黄金小册的源、渲染与候选基准合同。"""
+import hashlib
 import json
+import os
 import pathlib
 import re
+import shutil
+import subprocess
+import tempfile
 import unittest
-
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 GOLDEN = ROOT / "out-report" / "golden"
-REQUIRED_ROLES = {
-    "cover", "toc", "executive-summary", "section", "quantitative",
-    "chart-table", "comparison", "evidence", "risk", "roadmap", "references",
-}
+BUILD = GOLDEN / "build"
+REQUIRED_ROLES = {"cover", "toc", "executive-summary", "section", "quantitative", "chart-table", "comparison", "evidence", "risk", "roadmap", "references"}
+FONT_FILES = {"__FONT_NOTO_SANS_SC_400__": "noto-sans-sc-400.woff2", "__FONT_NOTO_SANS_SC_600__": "noto-sans-sc-600.woff2", "__FONT_NOTO_SERIF_SC_600__": "noto-serif-sc-600.woff2"}
 
+def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def run_render(golden=GOLDEN, expect=0):
+    runtime = os.environ.get("ALLEN_RUNTIME", "/Users/markjackson/Repos/Allen-skills")
+    env = dict(os.environ, ALLEN_RUNTIME=runtime, GOLDEN_DIR=str(golden))
+    p = subprocess.run(["node", str(golden / "render.cjs")], capture_output=True, text=True, env=env)
+    if p.returncode != expect: raise AssertionError(p.stdout + p.stderr)
+    return p
 
 class GoldenReportContractTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.manifest = json.loads((GOLDEN / "golden-report.json").read_text(encoding="utf-8"))
-        cls.html = (GOLDEN / "golden.html").read_text(encoding="utf-8")
-        cls.css = (GOLDEN / "golden.css").read_text(encoding="utf-8")
-        cls.baseline = json.loads((GOLDEN / "visual-baseline.json").read_text(encoding="utf-8"))
+        cls.manifest = json.loads((GOLDEN / "golden-report.json").read_text())
+        cls.source_html = (GOLDEN / "golden.html").read_text()
+        cls.source_css = (GOLDEN / "golden.css").read_text()
+        cls.baseline = json.loads((GOLDEN / "visual-baseline.json").read_text())
 
-    def test_manifest_pages_and_roles(self):
+    def test_manifest_pages_and_roles_share_the_same_section_node(self):
         pages = self.manifest["pages"]
-        self.assertLessEqual(12, len(pages))
-        self.assertLessEqual(len(pages), 20)
-        self.assertTrue(REQUIRED_ROLES <= {page["role"] for page in pages})
-        self.assertEqual(self.manifest["fixtureKind"], "synthetic-example")
-        for page in pages:
-            self.assertRegex(page["id"], r"^p\d{2}$")
-            self.assertIn(f'data-page-id="{page["id"]}"', self.html)
-            self.assertIn(f'data-page-role="{page["role"]}"', self.html)
+        self.assertLessEqual(12, len(pages)); self.assertLessEqual(len(pages), 20)
+        self.assertTrue(REQUIRED_ROLES <= {p["role"] for p in pages})
+        for p in pages:
+            self.assertRegex(self.source_html, rf'<section\b(?=[^>]*data-page-id="{p["id"]}")(?=[^>]*data-page-role="{p["role"]}")[^>]*>')
 
-    def test_visual_baseline_is_captured_but_not_approved(self):
-        self.assertEqual(self.baseline["status"], "captured")
-        self.assertEqual(self.baseline["approval"]["status"], "unapproved")
-        self.assertIsNone(self.baseline["approval"]["approvedBy"])
-        self.assertIsNone(self.baseline["approval"]["approvedAt"])
-        env = self.baseline["environment"]
-        for field in ("chromiumRevision", "fontHashes", "viewport", "deviceScaleFactor", "pdf", "rasterDpi"):
-            self.assertIn(field, env)
-        self.assertEqual(env["rasterDpi"], 144)
-        self.assertIn("htmlSha256", self.baseline["artifacts"])
-        self.assertIn("pdfSha256", self.baseline["artifacts"])
-        self.assertIn("pagePngSha256", self.baseline["artifacts"])
+    def test_maintenance_sources_are_small_and_have_exact_placeholders(self):
+        self.assertLess((GOLDEN / "golden.html").stat().st_size, 100_000)
+        self.assertLess((GOLDEN / "golden.css").stat().st_size, 50_000)
+        self.assertEqual(self.source_html.count("__GOLDEN_CSS__"), 1)
+        for placeholder in FONT_FILES: self.assertEqual(self.source_css.count(placeholder), 1)
+        self.assertNotIn("data:font/woff2;base64,", self.source_css)
 
-    def test_html_is_self_contained_and_script_free(self):
-        self.assertNotRegex(self.html, r'<(?:script|iframe)\b')
-        self.assertNotRegex(self.html, r'(?:src|href)=["\']https?://')
-        self.assertNotRegex(self.css, r'url\(["\']?https?://')
-        self.assertNotIn("@import", self.css)
-        self.assertIn("data:font/woff2;base64,", self.css)
-        self.assertEqual(len(re.findall(r'<section\b[^>]*data-page-id=', self.html)), len(self.manifest["pages"]))
+    def test_source_semantics_and_chart_structures(self):
+        self.assertEqual(self.source_html.count("<main"), 1)
+        self.assertGreaterEqual(self.source_html.count("<figure"), 4)
+        self.assertGreaterEqual(self.source_html.count("<figcaption"), 4)
+        self.assertIn("<blockquote", self.source_html)
+        heatmap = re.search(r'<div class="heatmap"[^>]*data-rows="3"[^>]*data-cols="3"[^>]*>(.*?)</div><table class="visually-hidden">', self.source_html, re.S)
+        self.assertIsNotNone(heatmap)
+        self.assertEqual(len(re.findall(r'<div\b', heatmap.group(1))), 16)
+        steps = [(float(a), float(b)) for a, b in re.findall(r'data-waterfall-step[^>]*data-start="([\d.-]+)"[^>]*data-end="([\d.-]+)"', self.source_html)]
+        self.assertEqual(steps, [(0, 8.6), (8.6, 3.2), (3.2, 2.5), (2.5, 2.1), (0, 2.1)])
 
-    def test_a4_and_readability_tokens(self):
-        self.assertRegex(self.css, r"@page\s*{[^}]*size:\s*210mm\s+297mm", re.S)
-        self.assertRegex(self.css, r"--font-body:\s*10\.75pt")
-        self.assertRegex(self.css, r"--font-source:\s*7\.5pt")
-        self.assertRegex(self.css, r"\.page\s*{[^}]*width:\s*210mm[^}]*height:\s*297mm", re.S)
+    def test_approval_record_is_separate_and_unapproved(self):
+        self.assertEqual(self.baseline["status"], "unapproved")
+        self.assertIsNone(self.baseline["approvedBy"]); self.assertIsNone(self.baseline["approvedAt"])
+        self.assertNotIn("artifacts", self.baseline); self.assertNotIn("environment", self.baseline)
 
-    def test_fixture_is_explicitly_synthetic_and_has_no_runtime_network(self):
-        self.assertGreaterEqual(self.html.count("合成示例"), len(self.manifest["pages"]))
-        self.assertNotRegex(self.html + self.css, r"fetch\s*\(|XMLHttpRequest|WebSocket|EventSource")
+    def test_source_is_script_free_and_declares_a4_readability(self):
+        self.assertNotRegex(self.source_html, r'<(?:script|iframe)\b|(?:src|href)=["\']https?://')
+        self.assertNotRegex(self.source_css, r'url\(["\']?https?://|@import')
+        self.assertRegex(self.source_css, r"@page\s*{[^}]*size:\s*210mm\s+297mm")
+        self.assertRegex(self.source_css, r"--font-body:\s*10\.75pt"); self.assertRegex(self.source_css, r"--font-source:\s*7\.5pt")
 
+class GoldenRenderIntegrationTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        if any(not shutil.which(x) for x in ("node", "pdftoppm", "pdfinfo", "pdftotext")): raise unittest.SkipTest("render tools required")
+        cls.source_hashes = {n: sha(GOLDEN / n) for n in ("golden.html", "golden.css", "visual-baseline.json")}
+        run_render(); cls.first = json.loads((BUILD / "visual-candidate.json").read_text())
+        cls.first_html = sha(BUILD / "golden-report.html"); cls.first_png = dict(cls.first["artifacts"]["pagePngSha256"])
+        (BUILD / "page-99.png").write_bytes(b"stale")
+        run_render(); cls.second = json.loads((BUILD / "visual-candidate.json").read_text())
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_render_is_stable_and_does_not_mutate_sources(self):
+        self.assertEqual(self.source_hashes, {n: sha(GOLDEN / n) for n in self.source_hashes})
+        self.assertEqual(self.first_html, sha(BUILD / "golden-report.html")); self.assertEqual(self.first_png, self.second["artifacts"]["pagePngSha256"])
+        self.assertEqual(self.first, self.second)
+
+    def test_clean_rebuild_has_exact_artifacts_and_pdf_summary(self):
+        expected = [f"page-{n:02}.png" for n in range(1, 17)]
+        self.assertEqual(sorted(p.name for p in BUILD.glob("page-*.png")), expected)
+        self.assertEqual(len(expected), len(self.manifest_pages()))
+        self.assertEqual(self.second["pdfSummary"], {"pages": 16, "pageSize": "A4", "textPages": 16, "geometry": "594.96x841.92pt"})
+        self.assertNotIn("pdfSha256", self.second["artifacts"])
+
+    def test_compiled_html_is_self_contained_and_font_mapping_is_exact(self):
+        html = (BUILD / "golden-report.html").read_text()
+        self.assertNotRegex(html, r"__[A-Z0-9_]+__|<(?:script|iframe)\b|(?:src|href)=[\"\']https?://|@import")
+        self.assertEqual(html.count("data:font/woff2;base64,"), len(FONT_FILES))
+        self.assertEqual(self.second["environment"]["fontHashes"], {"NotoSansSC-400": "758dff09a5625dd659ea4c529ffdb7741bdbc182b54957a7007f1cfcfd450820", "NotoSansSC-600": "722d2f69f1b0f494148dd6a492f7efcfcc9ba9b6c0a203b39987feea076a6064", "NotoSerifSC-600": "f6e3c090225ed5372d7ca7175e4148b8f4fb676be73f932891f64a91512c7a5a"})
+
+    def test_geometry_has_no_overflow_or_source_footer_overlap(self):
+        qa = self.second["layoutQa"]
+        self.assertEqual(qa["overflowPageIds"], []); self.assertEqual(qa["sourceFooterOverlapPageIds"], []); self.assertEqual(qa["pageCount"], 16)
+
+    def test_candidate_is_captured_but_unapproved_and_tagging_limit_is_honest(self):
+        self.assertEqual(self.second["status"], "captured"); self.assertEqual(self.second["approvalStatus"], "unapproved")
+        self.assertFalse(self.second["accessibility"]["pdfTagged"]); self.assertIn("Chromium", self.second["accessibility"]["limitation"])
+
+    def test_approved_baseline_refuses_changed_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            copy = pathlib.Path(tmp) / "golden"; shutil.copytree(GOLDEN, copy, ignore=shutil.ignore_patterns("build"))
+            b = json.loads((copy / "visual-baseline.json").read_text()); b.update({"status": "approved", "approvedBy": "Test", "approvedAt": "2026-10-27T00:00:00Z", "candidateDigest": "wrong"})
+            (copy / "visual-baseline.json").write_text(json.dumps(b))
+            self.assertIn("approved baseline does not match", run_render(copy, expect=2).stderr)
+
+    @staticmethod
+    def manifest_pages(): return json.loads((GOLDEN / "golden-report.json").read_text())["pages"]
+
+if __name__ == "__main__": unittest.main()

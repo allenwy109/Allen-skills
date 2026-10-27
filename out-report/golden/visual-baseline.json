@@ -1,58 +1,8 @@
 {
   "schemaVersion": "1.0",
-  "status": "captured",
-  "fixture": "golden-report.json",
-  "environment": {
-    "chromiumRevision": "153.0.8010.12",
-    "fontHashes": {
-      "NotoSansSC-Regular": "758dff09a5625dd659ea4c529ffdb7741bdbc182b54957a7007f1cfcfd450820",
-      "NotoSansSC-Semibold": "722d2f69f1b494148dd6a492f7efcfcc9ba9b6c0a203b39987feea076a6064",
-      "NotoSerifSC-Semibold": "f6e3c090225ed5372d7ca7175e4148b8f4fb676be73f932891f64a91512c7a5a"
-    },
-    "viewport": {
-      "width": 1191,
-      "height": 1684
-    },
-    "deviceScaleFactor": 1,
-    "pdf": {
-      "format": "A4",
-      "printBackground": true,
-      "preferCSSPageSize": true,
-      "margin": {
-        "top": "0",
-        "right": "0",
-        "bottom": "0",
-        "left": "0"
-      }
-    },
-    "rasterDpi": 144
-  },
-  "artifacts": {
-    "htmlSha256": "c11441a5ef6579fc4f4977d141f8ad3c7e323334949afdc75797959a2a39302c",
-    "pdfSha256": "618feaec31bcc27b5ebc18620f4ec5e1cb1d7cf5eca1bd35d05a0d6c92a70314",
-    "pagePngSha256": {
-      "page-01.png": "f1bc157205a67989c1fad8fcba4e2e3b18528a581847ef486cdff2f469d84906",
-      "page-02.png": "9f3e71d0b5dec2c35b5afec49ed7bbdff639d1427d6363b8595ba7eca3891acc",
-      "page-03.png": "79db7f62e5aaf35afe1f9415b0da22459c2cc1177969910238fd848d60522aaa",
-      "page-04.png": "ebb221fc1908b469cae27ca9c57291138f3d219361a91820edbb21dc4d286aca",
-      "page-05.png": "66e8646f33574137299002ad9d86dc580eff0e160f893d00452f61dbbc9c9326",
-      "page-06.png": "119d87162cad5b8c4b865ef73177dc30d3895e410a59f3e0e71297e82fc8aba7",
-      "page-07.png": "7e3b7ae6a5292b9710513aece0b2bea48b6fc950e367bfba34cb14a910622a37",
-      "page-08.png": "9b96fa136d45ded332ed6cb02b8d826c8bb761c3101bc4eb6b7b822e063a1219",
-      "page-09.png": "17e544d03bac796a4a2640a0f967c82b9b1551fb8edf6d16040606eeb1d065a0",
-      "page-10.png": "93da89d83b07bf1845a131b9d5ebb46fb9a631f0370a25f7567ce566684a23ee",
-      "page-11.png": "d36cdd71bfc6370a715f7567fc62cc927d65bbeed9eb9e39c2e904912bb149ee",
-      "page-12.png": "0d4e58b761ff9250fb58273b024890cbf817802884a7dc9249dcdf98c2dc4d97",
-      "page-13.png": "cd4512a6d0be46f6396333355643d1b105bf0d2372cd893b40b5518b07b7fbfc",
-      "page-14.png": "6f82e5aa9a231edf4b08d7ee1a9bb68dbc0c58d9e3b70adf381bd8a3d3879ceb",
-      "page-15.png": "aaf45935920689772829cab8b9be179c2c6adeb1170fb855d0a5ff740c92f65a",
-      "page-16.png": "cb5e093d60705591b9fb2deecb529ab34a04a9da0ff8c6d5ff77409d3fdcc5d5"
-    }
-  },
-  "approval": {
-    "status": "unapproved",
-    "approvedBy": null,
-    "approvedAt": null,
-    "changeReason": "Initial candidate awaiting user design review."
-  }
+  "status": "unapproved",
+  "approvedBy": null,
+  "approvedAt": null,
+  "candidateDigest": null,
+  "changeReason": "Initial candidate awaiting user design review. Candidate capture is written separately under build/."
 }
