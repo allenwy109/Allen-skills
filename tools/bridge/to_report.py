@@ -80,29 +80,44 @@ def validate_report(report):
     _unique([block["id"] for block in blocks], "block id", problems)
     relations = [relation for section in report["sections"] for relation in section["relations"]]
     _unique([relation["id"] for relation in relations], "relation id", problems)
-    actual_relations = {relation["id"] for relation in relations}
     checks = (("claim_refs", "claim_ids", "claim"), ("metric_refs", "metric_ids", "metric"),
               ("source_ids", "source_ids", "source"), ("panel_refs", "panel_ids", "panel"),
               ("relation_refs", "relation_ids", "relation"))
     for block in blocks:
         for field, registry_field, label in checks:
+            _unique(block[field], f"block {block['id']} {field}", problems)
             for ref in sorted(set(block[field]) - known[registry_field]):
                 problems.append(f"block {block['id']} 引用了未知 {label}：{ref}")
-        binding_ids = {binding["source_id"] for binding in block["source_bindings"]}
-        if binding_ids != set(block["source_ids"]):
+        binding_ids = [binding["source_id"] for binding in block["source_bindings"]]
+        _unique(binding_ids, f"block {block['id']} source binding", problems)
+        for binding in block["source_bindings"]:
+            _unique(binding["locators"], f"block {block['id']} source binding locator", problems)
+        if set(binding_ids) != set(block["source_ids"]):
             problems.append(f"block {block['id']} 的 source_bindings 与 source_ids 不一致")
+    _unique(report["executive_summary"]["answer_claim_refs"], "executive_summary.answer_claim_refs", problems)
+    _unique(report["executive_summary"]["a_card_refs"], "executive_summary.a_card_refs", problems)
     for ref in sorted(set(report["executive_summary"]["answer_claim_refs"]) - known["claim_ids"]):
         problems.append(f"executive_summary 引用了未知 claim：{ref}")
+    for ref in sorted(set(report["executive_summary"]["a_card_refs"]) - known["card_ids"]):
+        problems.append(f"executive_summary 引用了未知 card：{ref}")
     for relation in relations:
+        _unique(relation["panel_refs"], f"relation {relation['id']} panel_refs", problems)
         for ref in sorted(set(relation["panel_refs"]) - known["panel_ids"]):
             problems.append(f"relation {relation['id']} 引用了未知 panel：{ref}")
-    actual_panels = {ref for block in blocks for ref in block["panel_refs"]}
-    if actual_panels != known["panel_ids"]:
-        problems.append("registry.panel_ids 与 blocks.panel_refs 不一致")
-    if actual_relations != known["relation_ids"]:
-        problems.append("registry.relation_ids 与 sections.relations 不一致")
-    if {ref["id"] for ref in report["references"]} != known["source_ids"]:
-        problems.append("references 与 registry.source_ids 不一致")
+    reference_ids = [reference["id"] for reference in report["references"]]
+    _unique(reference_ids, "references source id", problems)
+    actual = {
+        "claim_ids": ({ref for block in blocks for ref in block["claim_refs"]}
+                      | set(report["executive_summary"]["answer_claim_refs"])),
+        "metric_ids": {ref for block in blocks for ref in block["metric_refs"]},
+        "source_ids": set(reference_ids),
+        "panel_ids": {ref for block in blocks for ref in block["panel_refs"]},
+        "relation_ids": {relation["id"] for relation in relations},
+        "card_ids": set(report["executive_summary"]["a_card_refs"]),
+    }
+    for field, values in actual.items():
+        if known[field] != values:
+            problems.append(f"registry.{field} 与报告实际内容不一致")
     if problems:
         raise ReportError("REPORT_COVERAGE_MISMATCH", problems)
     return []
@@ -287,10 +302,11 @@ def build(task, slides, sidecar=None):
                                         "audience": deck.get("audience"), "decision": deck.get("decision"),
                                         "date": cover.get("date")}.items() if v is not None},
         "executive_summary": {"question": deck.get("brief", {}).get("question", deck["title"]),
-                              "answer_claim_refs": sorted(set(answer_claim_refs)), "a_card_refs": a_cards},
-        "registry": {"claim_ids": expected["claims"], "metric_ids": expected["metrics"],
-                     "source_ids": expected["sources"], "card_ids": expected["a_cards"],
-                     "panel_ids": expected["panels"], "relation_ids": expected["relations"]},
+                              "answer_claim_refs": sorted(set(answer_claim_refs)), "a_card_refs": list(a_cards)},
+        "registry": {"claim_ids": sorted(set(expected["claims"]) | set(expected["answer_claims"])),
+                     "metric_ids": list(expected["metrics"]),
+                     "source_ids": list(expected["sources"]), "card_ids": list(expected["a_cards"]),
+                     "panel_ids": list(expected["panels"]), "relation_ids": list(expected["relations"])},
         "sections": sections,
         "references": [{k: v for k, v in {"id": sid, "title": sources[sid]["title"], "url": sources[sid].get("final_url") or sources[sid].get("url"),
                                                 "origin": sources[sid]["origin"],

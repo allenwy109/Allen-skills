@@ -205,6 +205,46 @@ class ReportContractTest(unittest.TestCase):
             self.assertEqual(cm.exception.code, "REPORT_COVERAGE_MISMATCH")
             self.assertIn(message, str(cm.exception))
 
+    def test_validate_report_rejects_unregistered_a_card(self):
+        report, _ = self.build()
+        report["executive_summary"]["a_card_refs"].append("card-9999")
+        with self.assertRaises(T.ReportError) as cm:
+            T.validate_report(report)
+        self.assertIn("未知 card", str(cm.exception))
+
+    def test_validate_report_rejects_fictitious_registry_items(self):
+        additions = {"claim_ids": "cl-9999", "metric_ids": "m-9999", "source_ids": "M999",
+                     "panel_ids": "ghost", "relation_ids": "ghost-rel", "card_ids": "card-9999"}
+        for field, value in additions.items():
+            with self.subTest(field=field):
+                report, _ = self.build()
+                report["registry"][field].append(value)
+                with self.assertRaises(T.ReportError) as cm:
+                    T.validate_report(report)
+                self.assertIn(f"registry.{field} 与报告实际内容不一致", str(cm.exception))
+
+    def test_validate_report_rejects_duplicate_reference_source(self):
+        report, _ = self.build()
+        report["references"].append(copy.deepcopy(report["references"][0]))
+        with self.assertRaises(T.ReportError) as cm:
+            T.validate_report(report)
+        self.assertIn("重复 references source id", str(cm.exception))
+
+    def test_validate_report_rejects_duplicate_source_bindings_and_locators(self):
+        report, _ = self.build()
+        binding = report["sections"][0]["blocks"][0]["source_bindings"][0]
+        binding["locators"].append(binding["locators"][0])
+        with self.assertRaises(T.ReportError) as cm:
+            T.validate_report(report)
+        self.assertIn("source binding locator", str(cm.exception))
+
+        report, _ = self.build()
+        bindings = report["sections"][0]["blocks"][0]["source_bindings"]
+        bindings.append(copy.deepcopy(bindings[0]))
+        with self.assertRaises(T.ReportError) as cm:
+            T.validate_report(report)
+        self.assertIn("source binding", str(cm.exception))
+
     def test_error_string_contains_code(self):
         slides = copy.deepcopy(self.slides)
         slides["slides"][1]["panels"][0]["form"] = "canvas.magic"

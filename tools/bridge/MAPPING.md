@@ -37,6 +37,7 @@ coverage 的 `input` 和 `output` 都含排序后的 `claims`、`answer_claims`�
 
 `report.registry` 列出报告内合法的 claim、metric、source、card、panel、relation ID。JSON schema 负责字段结构和
 `identity` / `content.form` 枚举；`validate_report(report)` 负责 schema 不能表达的 block ID 唯一性和内部引用完整性，
+并先检查引用、references、source bindings 和 locator 列表没有重复，再验证 registry 与报告实际内容集合双向相等；
 生成器返回前必须通过该校验。转换前复用 `Ledger.check()` 校验实际依赖的 claims、metrics、sources、cards、evidence、
 claim_evidence 六张表，结构错误、重复 ID 和悬空引用都转成带 code 的 `ReportError`，不向调用方泄漏 KeyError。
 
