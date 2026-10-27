@@ -53,7 +53,8 @@ function sourceTable(fragment, context) {
     const locators = (reference.locators || []).map(value => `<span data-source-locator="${escapeHtml(value)}">${escapeHtml(value)}</span>`).join('、');
     const byline = [reference.author, reference.publisher, reference.published || reference.accessed].filter(Boolean).map(escapeHtml).join(' · ');
     const audit = [reference.grade && `Grade ${reference.grade}`, reference.conflict_of_interest].filter(Boolean).map(escapeHtml).join(' · ');
-    const url = reference.url ? `<a href="${escapeHtml(reference.url)}">${escapeHtml(reference.url)}</a>` : '';
+    const safeHref = typeof reference.url === 'string' && /^https?:\/\//i.test(reference.url);
+    const url = reference.url ? (safeHref ? `<a href="${escapeHtml(reference.url)}">${escapeHtml(reference.url)}</a>` : escapeHtml(reference.url)) : '';
     return `<tr id="${escapeHtml(citation.appendix_anchor)}" data-source-record="${escapeHtml(reference.id || '')}"><th scope="row">[${escapeHtml(citation.number)}]</th><td>${escapeHtml(reference.title || '')}${byline ? `<br>${byline}` : ''}${url ? `<br>${url}` : ''}<br><span class="source-locator">${locators}</span>${audit ? `<br>${audit}` : ''}</td></tr>`;
   }).join('');
   const continuation = fragment.continuation ? '<caption data-table-continuation="true">来源（续）</caption>' : '';

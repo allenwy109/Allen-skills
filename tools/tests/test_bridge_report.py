@@ -64,6 +64,11 @@ class ReportContractTest(unittest.TestCase):
         report, _ = self.build()
         self.assertEqual(schema_check.check_document(schema, report, "report.json"), [])
 
+    def test_legacy_v1_report_without_citation_registry_remains_valid(self):
+        report, _ = self.build()
+        report.pop("citation_registry")
+        self.assertEqual([], T.validate_report(report))
+
     def test_unknown_form_has_stable_error_code(self):
         slides = copy.deepcopy(self.slides)
         slides["slides"][1]["panels"][0]["form"] = "canvas.magic"

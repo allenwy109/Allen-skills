@@ -31,7 +31,7 @@
     "panel_ids": {"type": "array", "required": true, "items": {"type": "string"}},
     "relation_ids": {"type": "array", "required": true, "items": {"type": "string"}}
    }},
-   "citation_registry": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+   "citation_registry": {"type": "array", "items": {"type": "object", "fields": {
     "source_id": {"type": "string", "required": true},
     "number": {"type": "integer", "min": 1, "required": true},
     "appendix_anchor": {"type": "string", "required": true}

@@ -273,6 +273,41 @@ class A4OutReportContractTest(unittest.TestCase):
             self.assertEqual(1, result.returncode)
             self.assertIn("REPORT_CITATION_MISMATCH", result.stderr)
 
+    def test_renderer_derives_deterministic_citations_for_legacy_v1_document(self):
+        if missing():
+            self.skipTest("missing renderer tools")
+        with tempfile.TemporaryDirectory() as temporary:
+            task = make_task(temporary)
+            self.assertEqual(0, run("init", task).returncode)
+            report_path = task / "07_storyline/report.json"
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            report.pop("citation_registry")
+            document_path = task / "07_storyline/a4-work/render-document.json"
+            document = out_report.render_document(report, task)
+            document_path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+            result = run("render", task)
+            self.assertEqual(1, result.returncode)
+            html = (task / "07_storyline/a4-work/build/report.html").read_text(encoding="utf-8")
+            self.assertIn('class="citation-marker" href="#source-M001">[1]</a>', html)
+            self.assertEqual(1, html.count('id="source-M001"'))
+
+    def test_unsafe_reference_url_is_auditable_text_but_never_a_link(self):
+        if missing():
+            self.skipTest("missing renderer tools")
+        with tempfile.TemporaryDirectory() as temporary:
+            task = make_task(temporary)
+            self.assertEqual(0, run("init", task).returncode)
+            document_path = task / "07_storyline/a4-work/render-document.json"
+            document = json.loads(document_path.read_text(encoding="utf-8"))
+            reference = document["components"][-1]["payload"]["references"][0]
+            reference["url"] = "javascript:alert(1)"
+            document_path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+            result = run("render", task)
+            self.assertEqual(1, result.returncode)
+            html = (task / "07_storyline/a4-work/build/report.html").read_text(encoding="utf-8")
+            self.assertIn("javascript:alert(1)", html)
+            self.assertFalse('href="javascript:' in html)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -120,19 +120,20 @@ def validate_report(report):
             problems.append(f"relation {relation['id']} 引用了未知 panel：{ref}")
     reference_ids = [reference["id"] for reference in report["references"]]
     _unique(reference_ids, "references source id", problems)
-    citation_ids = [item["source_id"] for item in report["citation_registry"]]
-    citation_numbers = [item["number"] for item in report["citation_registry"]]
-    citation_anchors = [item["appendix_anchor"] for item in report["citation_registry"]]
-    _unique(citation_ids, "citation_registry source id", problems)
-    _unique(citation_numbers, "citation_registry number", problems)
-    _unique(citation_anchors, "citation_registry appendix anchor", problems)
-    if set(citation_ids) != set(reference_ids):
-        problems.append("citation_registry 与 references 来源不一致")
-    if citation_numbers != list(range(1, len(citation_numbers) + 1)):
-        problems.append("citation_registry number 必须从 1 连续递增")
-    for item in report["citation_registry"]:
-        if item["appendix_anchor"] != f"source-{item['source_id']}":
-            problems.append(f"citation_registry appendix anchor 与 source 不一致：{item['source_id']}")
+    if "citation_registry" in report:
+        citation_ids = [item["source_id"] for item in report["citation_registry"]]
+        citation_numbers = [item["number"] for item in report["citation_registry"]]
+        citation_anchors = [item["appendix_anchor"] for item in report["citation_registry"]]
+        _unique(citation_ids, "citation_registry source id", problems)
+        _unique(citation_numbers, "citation_registry number", problems)
+        _unique(citation_anchors, "citation_registry appendix anchor", problems)
+        if set(citation_ids) != set(reference_ids):
+            problems.append("citation_registry 与 references 来源不一致")
+        if citation_numbers != list(range(1, len(citation_numbers) + 1)):
+            problems.append("citation_registry number 必须从 1 连续递增")
+        for item in report["citation_registry"]:
+            if item["appendix_anchor"] != f"source-{item['source_id']}":
+                problems.append(f"citation_registry appendix anchor 与 source 不一致：{item['source_id']}")
     actual = {
         "claim_ids": ({ref for block in blocks for ref in block["claim_refs"]}
                       | set(report["executive_summary"]["answer_claim_refs"])),

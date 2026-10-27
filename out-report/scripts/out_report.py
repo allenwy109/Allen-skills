@@ -152,7 +152,10 @@ def render_document(report, task):
     }
     components.append({"kind": "references-appendix", "payload": {"id": "references", "title": "来源与附录", "layout_id": "continued-table",
                                                                          "blocks": [reference_block], "references": report["references"]}})
-    return {"title": report["metadata"]["title"], "citation_registry": report["citation_registry"], "components": components}
+    document = {"title": report["metadata"]["title"], "components": components}
+    if "citation_registry" in report:
+        document["citation_registry"] = report["citation_registry"]
+    return document
 
 
 def cmd_init(args):
