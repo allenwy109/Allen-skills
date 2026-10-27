@@ -3,13 +3,13 @@
   "schema": "references/report-output-release.schema.json",
   "status": "approved",
   "releasedAt": "2026-10-27T15:28:08+10:30",
-  "implementationHead": "39bec98c99159e952106c6f7980c4666a269f9c7",
+  "implementationHead": "259d411fa2ed08b6a4c09e1ab81b1a1e5da2f6f5",
   "provenance": {
     "upstreamRepository": "https://github.com/ZeroxZhang/zerox-skills.git",
     "upstreamCommit": "ee1f980c8dd7c53408e1a05a084229e6ec03c660",
     "composerReferenceCommit": "bfef13d",
-    "finalBenchmarkIntegrityCommit": "0e6d9d9",
-    "a4ApprovalCommit": "39bec98"
+    "finalBenchmarkIntegrityCommit": "259d411fa2ed08b6a4c09e1ab81b1a1e5da2f6f5",
+    "a4ApprovalCommit": "259d411fa2ed08b6a4c09e1ab81b1a1e5da2f6f5"
   },
   "capabilities": {
     "matrix": "references/upstream-capability-matrix.json",
