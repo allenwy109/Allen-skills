@@ -52,6 +52,10 @@ def valid_evidence_link(link, evidences, sources):
     return bool(evidence and evidence.get("source_id") in sources)
 
 
+def contains_claim_id(text, claim_id):
+    return re.search(rf"(?<![A-Za-z0-9_-]){re.escape(claim_id)}(?![A-Za-z0-9_-])", text) is not None
+
+
 def check(task):
     task = pathlib.Path(task)
     evidence = task / "03_evidence"
@@ -142,7 +146,7 @@ def check(task):
         supported = any(x.get("relation") == "supports" and valid_evidence_link(x, evidences, sources) for x in related)
         contradicted = any(x.get("relation") == "contradicts" and valid_evidence_link(x, evidences, sources) for x in related)
         searched = any(
-            ref in f"{x.get('query', '')} {x.get('purpose', '')}" and
+            contains_claim_id(f"{x.get('query', '')} {x.get('purpose', '')}", ref) and
             ADVERSARIAL.search(f"{x.get('query', '')} {x.get('purpose', '')}")
             for x in searches
         )

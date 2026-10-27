@@ -126,6 +126,12 @@ class ResearchQualityTest(unittest.TestCase):
         result = run_quality_check(contract, valid_ledger(counterevidence=False, adversarial_search=True))
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_adversarial_search_claim_binding_uses_exact_id(self):
+        ledger = valid_ledger(counterevidence=False, adversarial_search=True)
+        ledger["search_log.jsonl"][0]["purpose"] = "adversarial check cl-00010"
+        result = run_quality_check(valid_contract(), ledger)
+        self.assertIn("QUALITY_CRITICAL_CLAIM", result.stderr)
+
     def test_material_pain_requires_counter_claim_or_adversarial_search(self):
         contract = valid_contract()
         contract["pain"][0]["counter_claim_refs"] = []
