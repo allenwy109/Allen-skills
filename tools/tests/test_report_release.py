@@ -95,6 +95,15 @@ class ReportReleaseTests(unittest.TestCase):
                 errors = report_release.validate_deck_verdict(mutation, scorecard, reveal)
                 self.assertTrue(errors)
 
+    def test_ci_checkout_fetches_full_history_for_commit_validation(self):
+        workflow = (ROOT / ".github/workflows/validate.yml").read_text(encoding="utf-8")
+        self.assertRegex(
+            workflow,
+            r"uses: actions/checkout@v4\n\s+with:\n\s+fetch-depth: 0",
+        )
+        self.assertIn("  pull_request:\n", workflow)
+        self.assertIn("  push:\n    branches: [main]\n", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
