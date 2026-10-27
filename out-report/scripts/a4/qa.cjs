@@ -120,9 +120,21 @@ function evidenceErrors(evidence) {
   if (!media || typeof media !== 'object' || !Array.isArray(media.htmlPages) || !Array.isArray(media.pdfPages) || !Array.isArray(media.resources)) {
     invalid('media', 'htmlPages, pdfPages, and resources arrays are required');
   } else {
+    const intentionalBlankIds = new Set(pagination && Array.isArray(pagination.pages)
+      ? pagination.pages.filter(page => page && page.intentionalBlank).map(page => page.id) : []);
     for (const name of ['htmlPages', 'pdfPages']) media[name].forEach((page, index) => {
       if (!page || typeof page.id !== 'string' || !page.id || typeof page.text !== 'string') invalid(`media.${name}[${index}]`, 'id and text strings are required');
-      if (name === 'htmlPages' && (!page || typeof page.role !== 'string' || !page.role || typeof page.visibleHtml !== 'string')) invalid(`media.${name}[${index}]`, 'role and visibleHtml strings are required');
+      if (name === 'htmlPages') {
+        if (!page || typeof page.role !== 'string' || !page.role || typeof page.visibleHtml !== 'string') {
+          invalid(`media.${name}[${index}]`, 'role and visibleHtml strings are required');
+        } else if (!intentionalBlankIds.has(page.id)) {
+          const html = visibleHtml(page.visibleHtml);
+          if (!html.trim()) invalid(`media.${name}[${index}].visibleHtml`, 'non-blank pages require visible HTML evidence');
+          else if (normalizedText(page.text) && !normalizedText(html.replace(/<[^>]+>/g, ' ').replace(/&(?:nbsp|#160);/gi, ' '))) {
+            invalid(`media.${name}[${index}].visibleHtml`, 'visible HTML evidence cannot be text-empty when page text is present');
+          }
+        }
+      }
     });
     media.resources.forEach((resource, index) => {
       if (!resource || typeof resource.type !== 'string' || typeof resource.url !== 'string' || typeof resource.embedded !== 'boolean') invalid(`media.resources[${index}]`, 'type, url, and embedded are required');

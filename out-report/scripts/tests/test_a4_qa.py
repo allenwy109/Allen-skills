@@ -186,6 +186,8 @@ class A4QualityGateTest(unittest.TestCase):
             lambda value: value["media"].pop("appendixDestinations"),
             lambda value: value["media"]["htmlPages"][0].pop("role"),
             lambda value: value["media"]["htmlPages"][0].pop("visibleHtml"),
+            lambda value: value["media"]["htmlPages"][0].update(visibleHtml=""),
+            lambda value: value["media"]["htmlPages"][0].update(visibleHtml="<span></span>"),
         ]
         for mutate in mutations:
             with self.subTest(mutation=mutate):
