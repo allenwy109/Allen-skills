@@ -1,5 +1,6 @@
 import json
 import io
+import hashlib
 import pathlib
 import shutil
 import subprocess
@@ -24,6 +25,29 @@ REQUIRED_IDS = {
 
 
 class ReportCapabilitiesTests(unittest.TestCase):
+    def make_baseline_root(self):
+        temporary = tempfile.TemporaryDirectory()
+        root = pathlib.Path(temporary.name)
+        showcase = root / "vendor" / "report-forge" / "docs" / "showcase"
+        showcase.mkdir(parents=True)
+        (showcase / "a.txt").write_bytes(b"alpha\n")
+        (showcase / "nested").mkdir()
+        (showcase / "nested" / "b.bin").write_bytes(b"\x00\x01")
+        references = root / "references"
+        references.mkdir()
+        schema = ROOT / "references" / "visual-baseline.schema.json"
+        if schema.exists():
+            shutil.copy2(schema, references / schema.name)
+        else:
+            (references / schema.name).write_text(json.dumps({
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "title": "Upstream visual baseline",
+                "type": "object",
+                "required": ["version", "upstream_repo", "upstream_commit", "license",
+                             "status", "approval", "artifacts"],
+            }), encoding="utf-8")
+        return temporary, root
+
     def write_matrix(self, root, capabilities, status="in-progress", phase="development"):
         path = root / "references" / "upstream-capability-matrix.json"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -253,6 +277,84 @@ class ReportCapabilitiesTests(unittest.TestCase):
         payload = json.loads(output.getvalue())
         self.assertEqual(code, 1)
         self.assertEqual(payload, {"error": "broken assets", "ok": False})
+        self.assertNotIn("Traceback", output.getvalue())
+
+    def test_generate_baseline_records_provenance_and_all_showcase_files(self):
+        temporary, root = self.make_baseline_root()
+        with temporary:
+            baseline = report_capabilities.generate_baseline(root)
+            self.assertEqual(baseline["upstream_commit"], "ee1f980c8dd7c53408e1a05a084229e6ec03c660")
+            self.assertEqual(baseline["license"], "Apache-2.0")
+            self.assertEqual(baseline["status"], "captured")
+            self.assertEqual(baseline["approval"], "unapproved")
+            self.assertTrue(baseline["artifacts"])
+            self.assertEqual(
+                {item["path"] for item in baseline["artifacts"]},
+                {
+                    "vendor/report-forge/docs/showcase/a.txt",
+                    "vendor/report-forge/docs/showcase/nested/b.bin",
+                },
+            )
+            for item in baseline["artifacts"]:
+                artifact = root / item["path"]
+                self.assertEqual(item["size"], artifact.stat().st_size)
+                self.assertEqual(item["sha256"], hashlib.sha256(artifact.read_bytes()).hexdigest())
+
+    def test_repository_baseline_schema_defines_required_contract(self):
+        schema = json.loads((ROOT / "references" / "visual-baseline.schema.json").read_text())
+        self.assertEqual(schema["type"], "object")
+        self.assertEqual(set(schema["required"]), {
+            "version", "upstream_repo", "upstream_commit", "license",
+            "status", "approval", "artifacts",
+        })
+        self.assertEqual(set(schema["properties"]["artifacts"]["items"]["required"]), {
+            "path", "sha256", "size",
+        })
+
+    def test_check_baseline_accepts_generated_manifest_and_rejects_tampering(self):
+        temporary, root = self.make_baseline_root()
+        with temporary:
+            baseline = report_capabilities.generate_baseline(root)
+            report_capabilities.write_baseline(root, baseline)
+            self.assertEqual(report_capabilities.check_baseline(root), [])
+
+            cases = {
+                "bad hash": lambda data: data["artifacts"][0].update(sha256="0" * 64),
+                "missing item": lambda data: data["artifacts"].pop(),
+                "duplicate path": lambda data: data["artifacts"].append(dict(data["artifacts"][0])),
+                "path escape": lambda data: data["artifacts"][0].update(path="../outside"),
+                "directory": lambda data: data["artifacts"][0].update(path="vendor/report-forge/docs/showcase/nested"),
+                "missing file": lambda data: data["artifacts"][0].update(path="vendor/report-forge/docs/showcase/nope"),
+                "extra baseline field": lambda data: data.update(unexpected=True),
+                "extra artifact field": lambda data: data["artifacts"][0].update(unexpected=True),
+            }
+            for label, mutate in cases.items():
+                with self.subTest(label=label):
+                    changed = json.loads(json.dumps(baseline))
+                    mutate(changed)
+                    report_capabilities.write_baseline(root, changed)
+                    self.assertTrue(report_capabilities.check_baseline(root))
+
+    def test_check_baseline_rejects_schema_errors(self):
+        temporary, root = self.make_baseline_root()
+        with temporary:
+            baseline = report_capabilities.generate_baseline(root)
+            baseline["version"] = 2
+            report_capabilities.write_baseline(root, baseline)
+            self.assertTrue(any("version" in error for error in report_capabilities.check_baseline(root)))
+
+            (root / "references" / "visual-baseline.schema.json").write_text("{}\n", encoding="utf-8")
+            self.assertTrue(any("schema" in error for error in report_capabilities.check_baseline(root)))
+
+    def test_baseline_cli_is_stable_json_without_traceback(self):
+        output = io.StringIO()
+        with mock.patch.object(
+            report_capabilities, "check_baseline", return_value=["baseline: broken"]
+        ), redirect_stdout(output):
+            code = report_capabilities.main(["baseline-check"])
+
+        self.assertEqual(code, 1)
+        self.assertEqual(json.loads(output.getvalue()), {"errors": ["baseline: broken"], "ok": False})
         self.assertNotIn("Traceback", output.getvalue())
 
 

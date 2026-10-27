@@ -1,0 +1,220 @@
+{
+  "approval": "unapproved",
+  "artifacts": [
+    {
+      "path": "vendor/report-forge/docs/showcase/README.md",
+      "sha256": "0c913275bbdbf93fbe3b3806aef57bc3ba2142a51af8f1b5d33ab12ac958e8fa",
+      "size": 9368
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/ai-biopharma-cash.png",
+      "sha256": "2330b135820f5fd9dd7f26f2f0feb5b7ebe72522f58eff8489102096119fdaee",
+      "size": 163237
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/ai-biopharma-deals.png",
+      "sha256": "d0ae1115f8359d978a73f7962ce9fc99bc0338ac3613553497f57f9c07cd3f37",
+      "size": 152881
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/ai-biopharma-diligence.png",
+      "sha256": "f540d68153cec5d51fc70120e27bdf3cb8eaf215a8f3f165386902e2873a2b14",
+      "size": 199124
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/ai-biopharma-finance.png",
+      "sha256": "06adf3f1f671fd3935ba7714a8631c2e9b2c16c0404c92ccc2907f4d8a6fec22",
+      "size": 159510
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/ai-biopharma-landscape.png",
+      "sha256": "b9d1ec1a7b8b5472728e134e07a661716c03d41301447896cf497276c6085a64",
+      "size": 179287
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/ai-biopharma-market.png",
+      "sha256": "4a14e892d83b25a940d619f87a4802801901a5ed8653c38944b09c7fc54527c4",
+      "size": 180521
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/ai-biopharma-screenshots.json",
+      "sha256": "d89a4bc3c82ebdc830a74b91ceb87cf625ab07e53224b2b4813d25d866ce0fd3",
+      "size": 2393
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/ai-biopharma-valuation.png",
+      "sha256": "f77113c187615f44389b96c09bceaf5f5b86a5dad0fb2076ee129af6bcfc4050",
+      "size": 173585
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/build-business-analysis.cjs",
+      "sha256": "7551d0de667633e3b3644150fe45ddc893d0607f50a070833b7d590f96dbb7ed",
+      "size": 10117
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/build-composition-samples.cjs",
+      "sha256": "2c80ea8bdb326e550779dd002b5d0ba3625242ed512ef8988d01ae4e25e6c2a7",
+      "size": 20112
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/build-focus-samples.cjs",
+      "sha256": "c69d76db4eb72d1851f8fec60c919eec3d4cb5edbe1647e1fea91a9d5d586520",
+      "size": 16811
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/build-layouts.cjs",
+      "sha256": "ac214193509b1ec01b3d6d5b3fefa62f9158d5da5348a50a4f6539d7fb797b80",
+      "size": 7184
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/build-poster.cjs",
+      "sha256": "5ac52d2083cdfbd568efe0c45899d6bdf22555c12c62109e5858dfc0b4caa557",
+      "size": 3587
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/build-release-e2e.cjs",
+      "sha256": "2b622ce6a8674381318f840a087b6b2d7e19b0c50a37a8810aad587c39ada456",
+      "size": 18883
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/build.cjs",
+      "sha256": "24c7f6f04970c2fdf90ae962e244b2a5851dfa07ba89909391decffdb76f2158",
+      "size": 9778
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/chart-bullet.png",
+      "sha256": "b89fae5a1a1d58799f9e6efd64d6d9c15d144b0ddd83ad75f6d8e9e1bbdd4279",
+      "size": 75554
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/chart-dumbbell.png",
+      "sha256": "f9c8723b8c3289bc5280b3e22813bef841fe58cae5c0294deeac844d96460990",
+      "size": 77118
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/chart-heatmap.png",
+      "sha256": "b81a7b4e4c75f562ba1187964d916b1046e323664763e16a9cfe8629cadf8b83",
+      "size": 95843
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/chart-mekko.png",
+      "sha256": "2d7f1d885d776bf55793e1a37c3c16a6ee3295955c2dc916f2af44b6d8f38bd3",
+      "size": 85942
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/chart-sankey.png",
+      "sha256": "aeb6ccbe64e204c07947a507ebeae2ddce74cbfa2f7bcee943ad3a1f5ac8d0f5",
+      "size": 131800
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/chart-waterfall.png",
+      "sha256": "8051f068615631692b040e1778253e1e7b67b7298a52af67bc8d099a2dea0505",
+      "size": 84215
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/layout-atlas-workbench.png",
+      "sha256": "947c33b84f85730925e66b77d9b68ec8e98c67bf8f0fa7cf8b1c4b512c9ef030",
+      "size": 324221
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/layout-featured.png",
+      "sha256": "e30d7d5008e712ec7e8626fb286f21cc11fae58638bc25c0d790c031d9d9d8e3",
+      "size": 177671
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/layout-overview.png",
+      "sha256": "068e3bf8f8ca53615c1832325819e3ef03d02f21f9f339597bdc2ce0c5bb9acb",
+      "size": 178614
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/mes-action.png",
+      "sha256": "853ee9b87063ab71ceaf2b1799b1235e624fa561f8c542765cfad2acf37a3b7b",
+      "size": 150591
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/mes-competition.png",
+      "sha256": "2f35d96e2479ed50aee4221287881d636b25403a099300c6a0feefb4d098150a",
+      "size": 114204
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/mes-growth.png",
+      "sha256": "1c7b67f97950d512bc86d854a1dee510627fa7ecd6247081c76dea7cf0c6be09",
+      "size": 85340
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/mes-penetration.png",
+      "sha256": "55435024fb73d403b6fb4b133de9599d80cc237da7c4fa3f63f1ebf6d67f8114",
+      "size": 97066
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/mes-regions.png",
+      "sha256": "a3f90e23d1f6a25651cff9519ff0379ebc3787e6cb6610ecb3e2c00f8e3d1977",
+      "size": 109706
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/mes-scenarios.png",
+      "sha256": "c6928d293c1f48b31e680bee7d1835ddfa971e0cc789b5cb7caa17708a455aff",
+      "size": 144679
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/mes-screenshots.json",
+      "sha256": "bf8dd018784f33a2434adb74b2eed05a74795fe6f01a04b216631ba55c7b6f0d",
+      "size": 1265
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/report-action.png",
+      "sha256": "45b919e5b7a0dcd0551cdde552fda4b12b1df81d9839305d0b024f8c990b1d0c",
+      "size": 145664
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/report-overview.png",
+      "sha256": "f354dc0f0587522589df3fc1686bb135a5bd48ca46c117e248d3d0669b26a43d",
+      "size": 367694
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/report-priority.png",
+      "sha256": "45be49ae5f45f5d03640ebcd801094ec5ed3b81e83ef86b95093ef23921aa4d0",
+      "size": 156375
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/report-ranges.png",
+      "sha256": "ce9f4e10aac6363c4a51548a24432cd4691903588434720da2af981a27e48738",
+      "size": 101548
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/report-sensitivity.png",
+      "sha256": "cf457acde862a96a78df04ef85b43334abf849e3015444ecbde0ffdb3851248c",
+      "size": 143884
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/skill-poster-art-prompt.txt",
+      "sha256": "59e6828cee8cbefa694ffada4674fe34bb56ad748bdb0660eccc491e097f5495",
+      "size": 2191
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/skill-poster-art.png",
+      "sha256": "62cbd4192f68eafbc128b224f73cc9fed3e541a6cf36a0739dc0feb9a862c7ef",
+      "size": 1918534
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/skill-poster.html",
+      "sha256": "d12fb38c5a15e3fadf056288054551861a6f96b88bdd7fdaaf229bb628c420d7",
+      "size": 9030
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/skill-poster.ir.json",
+      "sha256": "c51f58c8f06be965d81c341e4e661d8c4de82385eb51c5c94d5568b02111881d",
+      "size": 9616
+    },
+    {
+      "path": "vendor/report-forge/docs/showcase/skill-poster.png",
+      "sha256": "23b69986292c107b165a11bb6ef4b03c8616760904046a3e8db4463b04f7402a",
+      "size": 1620692
+    }
+  ],
+  "license": "Apache-2.0",
+  "status": "captured",
+  "upstream_commit": "ee1f980c8dd7c53408e1a05a084229e6ec03c660",
+  "upstream_repo": "https://github.com/ZeroxZhang/zerox-skills.git",
+  "version": 1
+}

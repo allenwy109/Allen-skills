@@ -2,6 +2,7 @@
 """Inspect and validate the vendored report-forge capability inventory."""
 
 import argparse
+import hashlib
 import json
 import pathlib
 import subprocess
@@ -9,6 +10,11 @@ import sys
 
 
 MATRIX = pathlib.Path("references/upstream-capability-matrix.json")
+BASELINE = pathlib.Path("references/upstream-visual-baseline.json")
+BASELINE_SCHEMA = pathlib.Path("references/visual-baseline.schema.json")
+SHOWCASE = pathlib.Path("vendor/report-forge/docs/showcase")
+UPSTREAM_REPO = "https://github.com/ZeroxZhang/zerox-skills.git"
+UPSTREAM_COMMIT = "ee1f980c8dd7c53408e1a05a084229e6ec03c660"
 REFERENCE_FIELDS = ("upstream_ref", "local_ref", "test", "visual_evidence")
 STATUSES = {"parity", "missing", "untested", "present-not-used", "superseded"}
 RELEASE_READY = {"parity", "superseded"}
@@ -25,6 +31,143 @@ REQUIRED_CAPABILITY_IDS = {
 
 class CapabilityError(Exception):
     """A stable, user-facing capability inspection failure."""
+
+
+def _digest(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def generate_baseline(root):
+    root = pathlib.Path(root).resolve()
+    showcase = root / SHOWCASE
+    if not showcase.is_dir():
+        raise CapabilityError(f"{SHOWCASE}: showcase directory does not exist")
+    artifacts = []
+    for path in sorted(item for item in showcase.rglob("*") if item.is_file()):
+        artifacts.append({
+            "path": path.relative_to(root).as_posix(),
+            "sha256": _digest(path),
+            "size": path.stat().st_size,
+        })
+    if not artifacts:
+        raise CapabilityError(f"{SHOWCASE}: showcase contains no files")
+    return {
+        "version": 1,
+        "upstream_repo": UPSTREAM_REPO,
+        "upstream_commit": UPSTREAM_COMMIT,
+        "license": "Apache-2.0",
+        "status": "captured",
+        "approval": "unapproved",
+        "artifacts": artifacts,
+    }
+
+
+def write_baseline(root, baseline):
+    path = pathlib.Path(root).resolve() / BASELINE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(baseline, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8")
+
+
+def _schema_errors(schema):
+    required = {"version", "upstream_repo", "upstream_commit", "license", "status",
+                "approval", "artifacts"}
+    if not isinstance(schema, dict) or schema.get("type") != "object":
+        return ["baseline schema: root must define an object"]
+    if set(schema.get("required", [])) != required:
+        return ["baseline schema: required fields do not match contract"]
+    properties = schema.get("properties")
+    if not isinstance(properties, dict) or not required.issubset(properties):
+        return ["baseline schema: properties do not match contract"]
+    items = properties.get("artifacts", {}).get("items", {})
+    if set(items.get("required", [])) != {"path", "sha256", "size"}:
+        return ["baseline schema: artifact fields do not match contract"]
+    expected_constants = {
+        "version": 1,
+        "upstream_repo": UPSTREAM_REPO,
+        "upstream_commit": UPSTREAM_COMMIT,
+        "license": "Apache-2.0",
+    }
+    for field, value in expected_constants.items():
+        if properties[field].get("const") != value:
+            return [f"baseline schema: {field} const does not match contract"]
+    if schema.get("additionalProperties") is not False or items.get("additionalProperties") is not False:
+        return ["baseline schema: additional properties must be rejected"]
+    return []
+
+
+def check_baseline(root):
+    root = pathlib.Path(root).resolve()
+    try:
+        schema = json.loads((root / BASELINE_SCHEMA).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        return [f"{BASELINE_SCHEMA}: cannot read schema: {error}"]
+    errors = _schema_errors(schema)
+    if errors:
+        return errors
+    try:
+        baseline = json.loads((root / BASELINE).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        return [f"{BASELINE}: cannot read baseline: {error}"]
+    if not isinstance(baseline, dict):
+        return ["baseline: must be an object"]
+    expected = generate_baseline(root)
+    extra_fields = sorted(set(baseline) - set(expected))
+    if extra_fields:
+        errors.append("baseline: unknown fields: " + ", ".join(extra_fields))
+    for field in ("version", "upstream_repo", "upstream_commit", "license", "status", "approval"):
+        if baseline.get(field) != expected[field]:
+            errors.append(f"baseline: {field} must be {expected[field]!r}")
+    artifacts = baseline.get("artifacts")
+    if not isinstance(artifacts, list) or not artifacts:
+        return errors + ["baseline: artifacts must be a non-empty array"]
+    seen = set()
+    actual = {}
+    showcase = (root / SHOWCASE).resolve()
+    for index, artifact in enumerate(artifacts):
+        label = f"baseline artifact[{index}]"
+        if not isinstance(artifact, dict):
+            errors.append(f"{label}: must be an object")
+            continue
+        extra_fields = sorted(set(artifact) - {"path", "sha256", "size"})
+        if extra_fields:
+            errors.append(f"{label}: unknown fields: " + ", ".join(extra_fields))
+        path_text = artifact.get("path")
+        if not isinstance(path_text, str) or not path_text:
+            errors.append(f"{label}: path must be a non-empty string")
+            continue
+        if path_text in seen:
+            errors.append(f"{label}: duplicate path: {path_text}")
+        seen.add(path_text)
+        path = (root / path_text).resolve()
+        try:
+            path.relative_to(showcase)
+        except ValueError:
+            errors.append(f"{label}: path escapes showcase: {path_text}")
+            continue
+        if not path.exists():
+            errors.append(f"{label}: file does not exist: {path_text}")
+            continue
+        if not path.is_file():
+            errors.append(f"{label}: path is not a file: {path_text}")
+            continue
+        actual[path_text] = artifact
+        if artifact.get("sha256") != _digest(path):
+            errors.append(f"{label}: sha256 mismatch: {path_text}")
+        if artifact.get("size") != path.stat().st_size:
+            errors.append(f"{label}: size mismatch: {path_text}")
+    expected_by_path = {item["path"]: item for item in expected["artifacts"]}
+    missing = sorted(set(expected_by_path) - set(actual))
+    extra = sorted(set(actual) - set(expected_by_path))
+    if missing:
+        errors.append("baseline: missing artifacts: " + ", ".join(missing))
+    if extra:
+        errors.append("baseline: extra artifacts: " + ", ".join(extra))
+    return errors
 
 
 def _javascript_capabilities(forge):
@@ -149,7 +292,7 @@ def _requires_strict(matrix):
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("inspect", "check"))
+    parser.add_argument("command", choices=("inspect", "check", "baseline-generate", "baseline-check"))
     parser.add_argument("--strict", action="store_true")
     args = parser.parse_args(argv)
     root = pathlib.Path(__file__).resolve().parent.parent
@@ -157,6 +300,15 @@ def main(argv=None):
         if args.command == "inspect":
             result = inspect(root)
             code = 0
+        elif args.command == "baseline-generate":
+            baseline = generate_baseline(root)
+            write_baseline(root, baseline)
+            result = baseline
+            code = 0
+        elif args.command == "baseline-check":
+            errors = check_baseline(root)
+            result = {"errors": errors, "ok": not errors}
+            code = 1 if errors else 0
         else:
             errors = check(root, strict=args.strict)
             try:
