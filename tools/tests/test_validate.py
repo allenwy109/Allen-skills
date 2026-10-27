@@ -123,13 +123,17 @@ class ValidateTest(unittest.TestCase):
                 self.assertNotIn("`08_deliverables/report/`（HTML + PDF）和讲者备注", text)
 
     def test_architecture_and_readme_describe_separate_outputs(self):
-        for relative in ["ARCHITECTURE.md", "README.md"]:
-            text = (ROOT / relative).read_text(encoding="utf-8")
-            with self.subTest(document=relative):
-                self.assertIn("out-report", text)
-                self.assertIn("out-deck", text)
-                self.assertIn("正式阅读报告", text)
-                self.assertIn("路演或演示稿", text)
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("五个应用固定交付一份主交付物和一份支撑文件包（ZIP）", readme)
+        self.assertIn("主交付物默认是 `out-report` 生成的 A4 正式阅读报告", readme)
+        self.assertIn("用户明确要路演或演示稿时改为 `out-deck`", readme)
+        self.assertIn("只有用户明确同时要求时才交付两种媒介", readme)
+        self.assertNotIn("五个应用固定交付一份主报告", readme)
+
+        architecture = (ROOT / "ARCHITECTURE.md").read_text(encoding="utf-8")
+        self.assertIn("out-report（A4 HTML + PDF）", architecture)
+        self.assertIn("out-deck（演示稿 HTML + PDF + 讲者备注）", architecture)
+        self.assertIn("两种媒介可共存，不互相替代", architecture)
 
 
 if __name__ == "__main__":

@@ -24,7 +24,7 @@
              │
 方法库      lib-consulting   lib-management   lib-personal（卡片 + 选法表，不带流程）
              │
-输出层      out-report（A4 HTML + PDF）  out-deck（演示稿 HTML + PDF）  out-chart（PPTX + PNG + HTML）  out-poster（PNG + HTML）
+输出层      out-report（A4 HTML + PDF）  out-deck（演示稿 HTML + PDF + 讲者备注）  out-chart（PPTX + PNG + HTML）  out-poster（PNG + HTML）
              │
 引擎        vendor/report-forge  vendor/thinkcell-charts  vendor/onepager（Apache-2.0，固定版本，只经 out-* 调用）
 公共        tools/lib（统一证据账、schema、运行时路径）  tools/app_runtime.py  tools/package_support.py  tools/acceptance.py
