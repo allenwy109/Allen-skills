@@ -48,7 +48,7 @@ class AllenComposeTest(unittest.TestCase):
             },
             "claims": [
                 {"id": "c1", "kind": "data", "statement": "需求强度从 {{metric:m1}} 增至 {{metric:m2}}", "sourceKeys": ["S2"],
-                 "period": "2025–2026", "limitation": "样本有限", "metrics": [{"id": "m1", "value": 30, "unit": "%"}, {"id": "m2", "value": 68, "unit": "%"}]},
+                 "period": "2025–2026", "limitation": "样本有限", "metrics": [{"id": "m1", "value": 30, "unit": "%", "period": "2025"}, {"id": "m2", "value": 68, "unit": "%", "period": "2026"}]},
                 {"id": "c2", "kind": "judgment", "statement": "方案 A 在成本与速度上更优", "sourceKeys": ["S1"], "limitation": "需试点"},
                 {"id": "c3", "kind": "recommendation", "statement": "先试点，再按门槛扩张", "sourceKeys": ["S1"], "limitation": "停止条件必须执行"},
                 {"id": "c4", "kind": "third_party_view", "statement": "客户明确要求两周内上线", "sourceKeys": ["S1"], "limitation": "单一访谈"},
@@ -127,6 +127,18 @@ class AllenComposeTest(unittest.TestCase):
         css = (self.d / "page.css").read_text()
         self.assertIn(".evidence-source{", css)
         self.assertIn("font-size:13px", css)
+
+    def test_trend_requires_readable_period_labels(self):
+        doc = json.loads(self.bp.read_text())
+        for metric in doc["claims"][0]["metrics"]:
+            metric.pop("period")
+        self.bp.write_text(json.dumps(doc))
+        digest = sha(self.bp)
+        for plan in (self.d / "obs").glob("*.json"):
+            payload = json.loads(plan.read_text()); payload["files"][0]["sha256"] = digest
+            plan.write_text(json.dumps(payload))
+        with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_PERIOD_MISSING"):
+            allen_compose.compose(self.d)
 
     def test_plan_changes_drive_output_and_incomplete_decisions_fail(self):
         before = allen_compose.compose(self.d)

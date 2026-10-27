@@ -75,6 +75,15 @@ def render_hashes(html_file, count):
         return [sha(tmp / f"page-{index:02d}.png") for index in range(1, count + 1)]
 
 
+def inspect_evidence_geometry(html_file):
+    playwright = runtime.engine_dir("report-forge", skill_dir=ROOT / "out-deck") / "node_modules" / "playwright"
+    page_probe = runtime.engine_dir("report-forge", skill_dir=ROOT / "out-deck") / "scripts" / "page_probe.cjs"
+    script = """const {chromium}=require(process.argv[1]),probe=require(process.argv[2]),{pathToFileURL}=require('url');(async()=>{const b=await chromium.launch({channel:process.env.CHROME_CHANNEL||'chrome',headless:true});const p=await b.newPage({viewport:{width:1400,height:820}});await p.goto(pathToFileURL(process.argv[3]).href,{waitUntil:'networkidle'});await p.evaluate(()=>window.deckReady||document.fonts.ready);const out=[];for(const i of [1,2]){await probe.activate(p,i);out.push(await p.locator('.slide.active').evaluate(s=>{const body=s.querySelector('.slide__body').getBoundingClientRect(),panels=[...s.querySelectorAll('[data-panel-id]')].map(e=>{const r=e.getBoundingClientRect();return {w:r.width/body.width,h:r.height/body.height,bottom:(body.bottom-r.bottom)/body.height}});return {panels,periods:[...s.querySelectorAll('.chart-label')].map(e=>e.textContent.trim()),pills:s.querySelectorAll('.metric-strip span').length,source:+getComputedStyle(s.querySelector('.evidence-source')).fontSize.replace('px',''),limitations:[...s.querySelectorAll('.limitation')].map(e=>+getComputedStyle(e).fontSize.replace('px',''))}}));}console.log(JSON.stringify(out));await b.close()})().catch(e=>{console.error(e);process.exit(1)})"""
+    env = dict(os.environ, CHROME_CHANNEL=runtime.chrome_channel())
+    result = subprocess.run(["node", "-e", script, str(playwright), str(page_probe), str(html_file)], capture_output=True, text=True, env=env, check=True)
+    return json.loads(result.stdout)
+
+
 def sanitize_reviewer_html(source, destination, expected_screens):
     """Remove implementation identity tokens without changing rendered pixels."""
     text = pathlib.Path(source).read_text(encoding="utf-8")
@@ -138,6 +147,16 @@ def build(output):
         candidate_work, candidate, candidate_audit = prepare("candidate")
         original_audit = read_json(candidate_audit)
         original_base = candidate_audit.parent
+        geometry = inspect_evidence_geometry(pathlib.Path(original_audit["htmlArtifact"]["path"]))
+        trend, comparison = geometry
+        if not (0.54 <= trend["panels"][0]["w"] <= 0.61 and 0.39 <= trend["panels"][1]["w"] <= 0.46):
+            raise RuntimeError(f"trend evidence geometry failed: {trend}")
+        if trend["periods"] != ["2024", "2025"] or trend["pills"] or trend["source"] < 13 or min(trend["limitations"] or [0]) < 13:
+            raise RuntimeError(f"trend readability failed: {trend}")
+        if not (0.30 <= comparison["panels"][0]["w"] <= 0.38 and 0.62 <= comparison["panels"][1]["w"] <= 0.70):
+            raise RuntimeError(f"comparison evidence geometry failed: {comparison}")
+        if comparison["panels"][1]["bottom"] > 0.05 or comparison["pills"] or comparison["source"] < 13:
+            raise RuntimeError(f"comparison functional whitespace failed: {comparison}")
         layout_file = candidate_work / "obs/layout-plan.json"
         layout_doc = read_json(layout_file)
         layout_doc["layoutDecisions"][0]["layout"] = "L04"
@@ -166,7 +185,7 @@ def build(output):
         if digest != sha(reference_work / "deck-blueprint.json"):
             raise RuntimeError("benchmark variants did not receive the same blueprint")
         reset_output(output)
-        labels = ["Cobalt", "Saffron"]
+        labels = ["Quartz", "Indigo"]
         mapping = {labels[0]: "candidate", labels[1]: "reference"} if int(digest[0], 16) % 2 == 0 else {labels[0]: "reference", labels[1]: "candidate"}
         variants = {}
         for label, identity in mapping.items():
@@ -199,12 +218,13 @@ def build(output):
             "candidateStrategy": config["candidateStrategy"], "referenceStrategy": config["referenceStrategy"],
             "referenceProvenance": author, "compositionContract": candidate,
             "reviewerSanitization": {"pages": len(candidate["pages"]), "pixelIdentical": True},
-            "planMutation": {"changedPages": changed_pages, "unchangedPages": [1, 3, 4, 5]}}})
+            "planMutation": {"changedPages": changed_pages, "unchangedPages": [1, 3, 4, 5]},
+            "evidenceGeometry": geometry}})
         return packet, mapping_file
 
 
 def main():
-    parser = argparse.ArgumentParser(); parser.add_argument("--output", default=str(ROOT / "out-deck/build/visual-benchmark-v2")); args = parser.parse_args()
+    parser = argparse.ArgumentParser(); parser.add_argument("--output", default=str(ROOT / "out-deck/build/visual-benchmark-v3")); args = parser.parse_args()
     packet, mapping = build(pathlib.Path(args.output).resolve())
     print(json.dumps({"packet": str(pathlib.Path(args.output).resolve()), "mapping": str(mapping), "manifest": packet}, ensure_ascii=False, indent=2))
 

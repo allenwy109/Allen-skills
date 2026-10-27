@@ -140,6 +140,12 @@ def _claim_maps(doc):
     for claim in claims.values():
         for metric in claim.get("metrics", []):
             metrics[metric["id"]] = metric
+    for metric in metrics.values():
+        formula = metric.get("formula") or {}
+        if "value" not in metric and formula.get("op") == "percent_change" and len(formula.get("args", [])) == 2:
+            current, previous = (metrics.get(mid, {}).get("value") for mid in formula["args"])
+            if previous not in (None, 0) and current is not None:
+                metric["value"] = (current - previous) / previous * 100
     return claims, metrics
 
 
@@ -183,17 +189,22 @@ def _claims(page, claims, metrics):
 
 
 def _trend(page, page_claims, metrics):
-    values = [metrics[mid] for mid in page.get("metricRefs", []) if mid in metrics and "value" in metrics[mid]]
+    values = [metrics[mid] for mid in page.get("metricRefs", []) if mid in metrics and "value" in metrics[mid] and not metrics[mid].get("formula")]
     if not values:
         return _quote(page, page_claims, metrics)
     numeric = [float(v["value"]) for v in values]
+    derived_periods = re.findall(r"(?:19|20)\d{2}", page.get("subtitle", ""))
+    if len(derived_periods) != len(values):
+        derived_periods = []
     maximum = max(numeric) or 1
     bars = []
     for index, metric in enumerate(values):
         height = max(8, round(float(metric["value"]) / maximum * 210))
         x = 75 + index * 120
         y = 245 - height
-        label = metric.get("period") or metric.get("year") or metric.get("label") or ("前期", "后期", "后续")[min(index, 2)]
+        label = metric.get("period") or metric.get("year") or metric.get("label") or (derived_periods[index] if derived_periods else None)
+        if not label:
+            raise ComposeError(f"REPORT_DECK_PERIOD_MISSING: {page.get('id')} metric={metric.get('id')}")
         bars.append(f'<rect x="{x}" y="{y}" width="72" height="{height}" rx="4" class="chart-bar"/>'
                     f'<text x="{x + 36}" y="{y - 12}" text-anchor="middle" class="chart-value" data-content-key="metric:{_esc(metric["id"])}">{_esc(_metric_text(metric))}</text>'
                     f'<text x="{x + 36}" y="275" text-anchor="middle" class="chart-label">{_esc(label)}</text>')
@@ -283,6 +294,9 @@ def _body_page(page, form, layout, decision, claims, metrics, sources):
         if form == "trend-bars":
             statements = "".join(f'<p data-content-key="claim:{_esc(claim["id"])}">{_esc(_replace_metrics(claim.get("statement", ""), metrics))}</p>'
                                  f'<p class="limitation" data-content-key="limitation:{_esc(claim["id"])}">边界：{_esc(claim.get("limitation", ""))}</p>' for claim in refs)
+            percentage_metrics = [metrics[mid] for mid in page.get("metricRefs", []) if mid in metrics and metrics[mid].get("unit") == "%" and metrics[mid].get("formula")]
+            statements += "".join(f'<p class="growth-note" data-content-key="metric:{_esc(metric["id"])}">两年增幅 {_esc(_metric_text(metric))}</p>'
+                                  for metric in percentage_metrics)
         content = f'<h2>{_esc(panel.get("purpose", "补充证据"))}</h2>{statements}'
         if panel.get("form") == "html.kpi":
             panel_metrics = [metric for claim in refs for metric in claim.get("metrics", [])]
@@ -296,6 +310,10 @@ def _body_page(page, form, layout, decision, claims, metrics, sources):
     for index, panel_id in enumerate(decision["layout"]["regions"]):
         klass, module_kind, content = panel_content[panel_id]
         module = layout_modules[min(index, len(layout_modules) - 1)]
+        if form == "trend-bars" and layout == "L01":
+            module = ({"c": 1, "r": 1, "w": 7, "h": 6}, {"c": 8, "r": 1, "w": 5, "h": 6})[min(index, 1)]
+        elif form == "comparison-matrix" and layout == "L02":
+            module = ({"c": 1, "r": 1, "w": 4, "h": 4}, {"c": 5, "r": 1, "w": 8, "h": 6})[min(index, 1)]
         fill = module_plan[panel_id]
         padding = 8 if "无" in fill["whitespace"] else 18 if "保留" in fill["whitespace"] else 12
         align = "center" if "居中" in fill["layout"] else "end" if "底" in fill["layout"] else "stretch"
@@ -306,8 +324,6 @@ def _body_page(page, form, layout, decision, claims, metrics, sources):
                           f'data-plan-content="{_esc(fill["content"])}" style="{style}">{content}</{tag}>')
     relations = "".join(f'<span class="relation-audit" data-relation-id="{_esc(rel.get("id"))}" aria-label="{_esc(rel.get("reason"))}"></span>'
                         for rel in composition.get("relations", []))
-    metric_strip = "".join(f'<span data-content-key="metric:{_esc(mid)}">{_esc(_metric_text(metrics[mid])) if mid in metrics else _esc(mid)}</span>'
-                            for mid in page.get("metricRefs", []))
     corner = re.sub(r"^\s*\d+\s*", "", page.get("cornerLabel") or "")
     return (f'<section class="slide reading allen-slide allen-form-{form} allen-layout-{layout}" data-page-id="{_esc(page["id"])}" '
             f'data-allen-form="{form}" data-allen-layout="{layout}" data-frame-boundary="line">'
@@ -315,7 +331,7 @@ def _body_page(page, form, layout, decision, claims, metrics, sources):
             f'<h1 class="slide__title" data-content-key="title">{_esc(_replace_metrics(page.get("title", ""), metrics))}</h1>'
             f'<p class="slide__lead">{_esc(page.get("subtitle", ""))}</p></header>'
             f'<main class="slide__body"><div class="allen-panel-grid" style="grid-template-columns:repeat(12,minmax(0,1fr));grid-template-rows:repeat(6,minmax(0,1fr))">{"".join(panel_html)}</div>{relations}</main>'
-            f'<div class="metric-strip" aria-label="本页指标">{metric_strip}</div>{_source_block(source_ids, sources)}'
+            f'{_source_block(source_ids, sources)}'
             f'<div class="takeaway" data-reading-role="takeaway">{_esc(page.get("adds") or page.get("proves", ""))}</div></section>')
 
 

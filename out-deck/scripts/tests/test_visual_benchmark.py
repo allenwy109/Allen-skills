@@ -35,7 +35,7 @@ class VisualBenchmarkTest(unittest.TestCase):
         try:
             manifest, mapping = benchmark.build(output)
             self.assertEqual(manifest["pageCount"], 5)
-            self.assertEqual(set(manifest["labels"]), {"Cobalt", "Saffron"})
+            self.assertEqual(set(manifest["labels"]), {"Quartz", "Indigo"})
             self.assertEqual(set(manifest), {"version", "inputSha256", "blueprintSha256", "labels", "pageCount", "variants"})
             for label in manifest["labels"]:
                 pages = sorted((output / label).glob("page-*.png"))
@@ -48,7 +48,7 @@ class VisualBenchmarkTest(unittest.TestCase):
                 self.assertEqual(manifest["variants"][label]["qa"], audit)
                 self.assertEqual(set(manifest["variants"][label]), {"files", "pageCount", "qa"})
                 self.assertEqual(manifest["variants"][label]["pageCount"], 5)
-            self.assertNotEqual((output / "Cobalt/deck.html").read_bytes(), (output / "Saffron/deck.html").read_bytes())
+            self.assertNotEqual((output / "Quartz/deck.html").read_bytes(), (output / "Indigo/deck.html").read_bytes())
             anonymous = json.loads((output / "anonymous-manifest.json").read_text())
             self.assertNotIn("mapping", anonymous)
             forbidden = ("candidate", "reference", "composer", "upstream", "pre-composer", "strategy", "provenance")
@@ -66,8 +66,8 @@ class VisualBenchmarkTest(unittest.TestCase):
                         for label in manifest["labels"]}
             pattern = re.compile(r"(?i)\b(?:allen[-_][\w-]*|data-allen-[\w-]*|candidate|composer|upstream|pre-composer|reference-task|candidate-task)\b")
             fingerprints = {label: Counter(pattern.findall(text.replace("Allen 分析系统", ""))) for label, text in readable.items()}
-            self.assertEqual(fingerprints["Cobalt"], fingerprints["Saffron"])
-            self.assertFalse(any(token.lower().startswith(("allen-", "data-allen-")) for token in fingerprints["Cobalt"]))
+            self.assertEqual(fingerprints["Quartz"], fingerprints["Indigo"])
+            self.assertFalse(any(token.lower().startswith(("allen-", "data-allen-")) for token in fingerprints["Quartz"]))
             mapping.unlink()
         finally:
             if output.exists():
