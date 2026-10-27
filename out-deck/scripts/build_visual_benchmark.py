@@ -98,6 +98,7 @@ def build(output):
         shutil.rmtree(output, ignore_errors=True); output.mkdir(parents=True)
         labels = ["Atlas", "Juniper"]
         mapping = {labels[0]: "candidate", labels[1]: "reference"} if int(digest[0], 16) % 2 == 0 else {labels[0]: "reference", labels[1]: "candidate"}
+        variants = {}
         for label, identity in mapping.items():
             directory = output / label; directory.mkdir()
             work, audit_file = ((candidate_work, candidate_audit) if identity == "candidate" else (reference_work, reference_audit))
@@ -106,20 +107,25 @@ def build(output):
                 raise RuntimeError(f"{identity} QA failed: {audit.get('errors')}")
             html_file = pathlib.Path(audit["htmlArtifact"]["path"])
             shutil.copy2(html_file, directory / "deck.html")
-            shutil.copy2(audit_file, directory / "qa-audit.json")
             base = audit_file.parent
             pdf = pathlib.Path(audit["pdfArtifact"]["path"])
             shutil.copy2(pdf, directory / "deck.pdf")
             for index, row in enumerate(audit["rows"], 1):
                 shutil.copy2(base / row["screenshot"], directory / f"page-{index:02d}.png")
             contact_sheet(directory, len(audit["rows"]))
+            qa_status = {"acceptance": audit["acceptance"]["complete"], "errors": len(audit["errors"]),
+                         "geometry": audit["geometryStatus"], "htmlPages": audit["pages"],
+                         "pdfPages": audit["pdfPages"], "tier": audit["tier"]}
+            write_json(directory / "qa-status.json", qa_status)
+            variants[label] = {"pageCount": len(audit["rows"]), "qa": qa_status,
+                               "files": {p.name: sha(p) for p in sorted(directory.iterdir()) if p.is_file()}}
         packet = {"version": 1, "inputSha256": config["materializedInputSha256"], "blueprintSha256": digest,
-                  "labels": labels, "pageCount": len(candidate["pages"]), "compositionContract": candidate,
-                  "referenceProvenance": author,
-                  "files": {p.relative_to(output).as_posix(): sha(p) for p in sorted(output.rglob("*")) if p.is_file()}}
+                  "labels": labels, "pageCount": len(candidate["pages"]), "variants": variants}
         write_json(output / "anonymous-manifest.json", packet)
         mapping_file = pathlib.Path(tempfile.gettempdir()) / f"allen-deck-benchmark-map-{digest[:12]}.json"
-        write_json(mapping_file, mapping)
+        write_json(mapping_file, {"identities": mapping, "releaseEvidence": {
+            "candidateStrategy": config["candidateStrategy"], "referenceStrategy": config["referenceStrategy"],
+            "referenceProvenance": author, "compositionContract": candidate}})
         return packet, mapping_file
 
 

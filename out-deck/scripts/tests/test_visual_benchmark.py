@@ -17,22 +17,29 @@ class VisualBenchmarkTest(unittest.TestCase):
             manifest, mapping = benchmark.build(output)
             self.assertEqual(manifest["pageCount"], 5)
             self.assertEqual(set(manifest["labels"]), {"Atlas", "Juniper"})
+            self.assertEqual(set(manifest), {"version", "inputSha256", "blueprintSha256", "labels", "pageCount", "variants"})
             for label in manifest["labels"]:
                 pages = sorted((output / label).glob("page-*.png"))
                 self.assertEqual(len(pages), manifest["pageCount"])
-                for name in ("deck.html", "deck.pdf", "contact-sheet.png", "qa-audit.json"):
+                for name in ("deck.html", "deck.pdf", "contact-sheet.png", "qa-status.json"):
                     self.assertTrue((output / label / name).is_file())
-                audit = json.loads((output / label / "qa-audit.json").read_text())
-                self.assertEqual(audit["tier"], "acceptance")
-                self.assertTrue(audit["acceptance"]["complete"])
-                self.assertEqual(audit["geometryStatus"], "PASS")
-                self.assertEqual(audit["errors"], [])
+                audit = json.loads((output / label / "qa-status.json").read_text())
+                self.assertEqual(audit, {"acceptance": True, "errors": 0, "geometry": "PASS", "htmlPages": 5,
+                                         "pdfPages": 5, "tier": "acceptance"})
+                self.assertEqual(manifest["variants"][label]["qa"], audit)
+                self.assertEqual(set(manifest["variants"][label]), {"files", "pageCount", "qa"})
+                self.assertEqual(manifest["variants"][label]["pageCount"], 5)
             self.assertNotEqual((output / "Atlas/deck.html").read_bytes(), (output / "Juniper/deck.html").read_bytes())
             anonymous = json.loads((output / "anonymous-manifest.json").read_text())
             self.assertNotIn("mapping", anonymous)
-            self.assertNotIn("candidate", {key.lower() for key in anonymous if key != "compositionContract"})
+            forbidden = ("candidate", "reference", "composer", "upstream", "pre-composer", "strategy", "provenance")
+            for file in output.rglob("*"):
+                if file.is_file() and ("manifest" in file.name.lower() or "instruction" in file.name.lower()):
+                    lowered = file.read_text(encoding="utf-8").lower()
+                    self.assertFalse(any(word in lowered for word in forbidden), f"identity leaked in {file}")
             identities = json.loads(mapping.read_text())
-            self.assertEqual(set(identities.values()), {"candidate", "reference"})
+            self.assertEqual(set(identities["identities"].values()), {"candidate", "reference"})
+            self.assertIn("releaseEvidence", identities)
             mapping.unlink()
 
 
