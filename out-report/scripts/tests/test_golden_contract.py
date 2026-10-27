@@ -111,6 +111,21 @@ class GoldenRenderIntegrationTest(unittest.TestCase):
             (copy / "visual-baseline.json").write_text(json.dumps(b))
             self.assertIn("approved baseline does not match", run_render(copy, expect=2).stderr)
 
+    def test_approved_baseline_accepts_the_identical_candidate_without_mutation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            copy = pathlib.Path(tmp) / "golden"; shutil.copytree(GOLDEN, copy, ignore=shutil.ignore_patterns("build"))
+            run_render(copy)
+            digest = json.loads((copy / "build" / "visual-candidate.json").read_text())["candidateDigest"]
+            approved = {"schemaVersion": "1.0", "status": "approved", "approvedBy": "Test reviewer", "approvedAt": "2026-10-27T00:00:00Z", "candidateDigest": digest, "changeReason": "Test approval"}
+            original = json.dumps(approved, ensure_ascii=False, sort_keys=True)
+            (copy / "visual-baseline.json").write_text(json.dumps(approved, ensure_ascii=False))
+            run_render(copy)
+            after = json.loads((copy / "visual-baseline.json").read_text())
+            candidate = json.loads((copy / "build" / "visual-candidate.json").read_text())
+            self.assertEqual(json.dumps(after, ensure_ascii=False, sort_keys=True), original)
+            self.assertEqual(candidate["candidateDigest"], digest)
+            self.assertEqual(candidate["approvalStatus"], "approved")
+
     @staticmethod
     def manifest_pages(): return json.loads((GOLDEN / "golden-report.json").read_text())["pages"]
 

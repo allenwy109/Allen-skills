@@ -100,7 +100,14 @@ fs.writeFileSync(compiledHtml, html);
     layoutQa,
     accessibility: {htmlSemanticLandmarks: true, chartsHaveAccessibleTablesOrLabels: true, pdfTagged: false, limitation: "Chromium PDF export does not provide a reliable tagged-PDF contract."},
   };
-  candidate.candidateDigest = shaBuffer(JSON.stringify(candidate));
+  const digestInput = {
+    environment: candidate.environment,
+    artifacts: candidate.artifacts,
+    pdfSummary: candidate.pdfSummary,
+    layoutQa: candidate.layoutQa,
+    accessibility: candidate.accessibility,
+  };
+  candidate.candidateDigest = shaBuffer(JSON.stringify(digestInput));
   if (baseline.status === "approved" && baseline.candidateDigest !== candidate.candidateDigest) {
     console.error("approved baseline does not match the rendered candidate; approval was not overwritten");
     process.exit(2);
