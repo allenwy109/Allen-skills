@@ -38,15 +38,33 @@ function tool(name) {
   catch (_) { throw new Error(`REPORT_RUNTIME_MISSING: ${name}`); }
 }
 
+function hasTool(name) {
+  try { cp.execFileSync('which', [name], { stdio: 'ignore' }); return true; }
+  catch (_) { return false; }
+}
+
+function pdfBackend() {
+  const requested = process.env.ALLEN_PDF_BACKEND;
+  if (requested && !['chromium', 'pdfkit'].includes(requested)) throw new Error(`REPORT_PDF_BACKEND_INVALID: ${requested}`);
+  if (requested === 'pdfkit' && (process.platform !== 'darwin' || !hasTool('swift'))) {
+    throw new Error('REPORT_RUNTIME_MISSING: pdfkit backend requires macOS and swift');
+  }
+  if (requested) return requested;
+  return process.platform === 'darwin' && hasTool('swift') ? 'pdfkit' : 'chromium';
+}
+
 (async () => {
-  for (const name of ['pdftoppm', 'pdftotext', 'swift']) tool(name);
+  for (const name of ['pdftoppm', 'pdftotext']) tool(name);
+  const backend = pdfBackend();
   const playwright = path.join(runtimeRoot(), 'vendor/report-forge/node_modules/playwright');
   if (!fs.existsSync(playwright)) throw new Error(`REPORT_RUNTIME_MISSING: ${playwright}`);
   fs.mkdirSync(outputDir, { recursive: true });
   const pdf = path.join(outputDir, 'report.pdf');
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'allen-report-pages-'));
-  const browser = await require(playwright).chromium.launch({ headless: true });
+  let temporary = null;
+  let browser = null;
   try {
+  temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'allen-report-pages-'));
+  browser = await require(playwright).chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1191, height: 1684 }, deviceScaleFactor: 1 });
   const external = [];
   page.on('request', request => { if (/^https?:/i.test(request.url())) external.push(request.url()); });
@@ -116,25 +134,31 @@ function tool(name) {
         pageWidth: pageBox.width, pageHeight: pageBox.height }];
     });
   });
-  await page.evaluate(() => {
-    window.__reportPages = [...document.querySelectorAll('section.page[data-page-id]')].map(section => {
-      const clone = section.cloneNode(true);
-      clone.querySelectorAll('a[href^="#"]').forEach(anchor => anchor.removeAttribute('href'));
-      return clone;
-    });
-  });
-  await page.addStyleTag({ content: '.page{height:296mm!important;break-after:auto!important;page-break-after:auto!important;break-inside:auto!important;page-break-inside:auto!important}' });
-  const pageParts = [];
-  for (let index = 0; index < dom.length; index += 1) {
-    await page.evaluate(index => document.body.replaceChildren(window.__reportPages[index].cloneNode(true)), index);
-    const part = path.join(temporary, `page-${String(index + 1).padStart(4, '0')}.pdf`);
-    await page.pdf({ path: part, format: 'A4', printBackground: true, preferCSSPageSize: true,
+  if (backend === 'chromium') {
+    await page.addStyleTag({ content: '.page{height:296mm!important;break-after:auto!important;page-break-after:auto!important;break-before:page!important;page-break-before:always!important}.page:first-of-type{break-before:auto!important;page-break-before:auto!important}' });
+    await page.pdf({ path: pdf, format: 'A4', printBackground: true, preferCSSPageSize: true,
       margin: { top: '0', right: '0', bottom: '0', left: '0' } });
-    pageParts.push(part);
+  } else {
+    await page.evaluate(() => {
+      window.__reportPages = [...document.querySelectorAll('section.page[data-page-id]')].map(section => {
+        const clone = section.cloneNode(true);
+        clone.querySelectorAll('a[href^="#"]').forEach(anchor => anchor.removeAttribute('href'));
+        return clone;
+      });
+    });
+    await page.addStyleTag({ content: '.page{height:296mm!important;break-after:auto!important;page-break-after:auto!important;break-inside:auto!important;page-break-inside:auto!important}' });
+    const pageParts = [];
+    for (let index = 0; index < dom.length; index += 1) {
+      await page.evaluate(index => document.body.replaceChildren(window.__reportPages[index].cloneNode(true)), index);
+      const part = path.join(temporary, `page-${String(index + 1).padStart(4, '0')}.pdf`);
+      await page.pdf({ path: part, format: 'A4', printBackground: true, preferCSSPageSize: true,
+        margin: { top: '0', right: '0', bottom: '0', left: '0' } });
+      pageParts.push(part);
+    }
+    const linkManifest = path.join(temporary, 'internal-links.json');
+    fs.writeFileSync(linkManifest, `${JSON.stringify(links)}\n`);
+    cp.execFileSync('swift', [path.join(__dirname, 'link_pdf.swift'), linkManifest, pdf, ...pageParts]);
   }
-  const linkManifest = path.join(temporary, 'internal-links.json');
-  fs.writeFileSync(linkManifest, `${JSON.stringify(links)}\n`);
-  cp.execFileSync('swift', [path.join(__dirname, 'link_pdf.swift'), linkManifest, pdf, ...pageParts]);
   if (external.length) throw new Error(`REPORT_EXTERNAL_RESOURCE: ${external.join(',')}`);
 
   const prefix = path.join(outputDir, '.page');
@@ -170,9 +194,9 @@ function tool(name) {
   for (const [name, value] of [['geometry-manifest.json', geometry], ['media-manifest.json', media], ['visual-candidate.json', candidate]]) {
     fs.writeFileSync(path.join(outputDir, name), `${JSON.stringify(value, null, 2)}\n`);
   }
-  process.stdout.write(`${JSON.stringify({ pdf, pages: dom.length })}\n`);
+  process.stdout.write(`${JSON.stringify({ pdf, pages: dom.length, backend })}\n`);
   } finally {
-    await browser.close();
-    fs.rmSync(temporary, { recursive: true, force: true });
+    try { if (browser) await browser.close(); }
+    finally { if (temporary) fs.rmSync(temporary, { recursive: true, force: true }); }
   }
 })().catch(error => { process.stderr.write(`${error.message || error}\n`); process.exit(1); });

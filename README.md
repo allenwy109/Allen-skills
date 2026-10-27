@@ -101,5 +101,7 @@ lib-*/
 - `python3 tools/validate.py`：检查 skill 结构、跨 skill 引用、卡片必备小节、选法表格式、vendor 完整性、schema。PR 上会自动跑。
 - `tools/selftest.sh`：全部单元测试、各 skill 的脚本测试和三个引擎的测试；`tools/selftest.sh --e2e` 另跑端到端冒烟（文字要求 + 三份文件 → 正式报告、图表、海报 → 验收）。
 - `python3 tools/doctor.py`：检查出成品所需的依赖。
+
+A4 PDF 在 macOS + Swift 上使用 PDFKit 逐页后端；Linux/cloud 或无 Swift 环境自动使用 Chromium 整册后端。两者都保留目录和正文引用的 PDF 内部跳转，不需要在 Linux 安装 Swift。`tools/doctor.py` 会报告当前后端；可用 `ALLEN_PDF_BACKEND=chromium|pdfkit` 显式选择。
 - [tests/method-selection-cases.md](tests/method-selection-cases.md)：13 道选方法测试题，改选法表或卡片后重跑。
 - 加新方法：在对应方法库加卡片（必备小节见 validate.py），在 method-index.md 登记，在 SKILL.md 选法表加一行。

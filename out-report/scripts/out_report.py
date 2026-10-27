@@ -148,6 +148,7 @@ def render_document(report, task):
             "identity": "qualification", "confidence": claim["confidence"],
             "qualification": claim.get("limitation") or "需要结合正文边界判断",
         })
+    answer = answer_claims[0]["statement"] if answer_claims else report["executive_summary"].get("question", "")
     components = [
         {"kind": "cover", "payload": {"id": "cover", "title": report["metadata"]["title"], "layout_id": "overview-detail",
                                          "title_groups": [{"title": report["metadata"]["title"]}], "blocks": []}},
@@ -155,7 +156,7 @@ def render_document(report, task):
                                        "entries": [{"title": section["title"], "destination": f"chapter-{index:02d}"}
                                                    for index, section in enumerate(report["sections"], 1)]}},
         {"kind": "executive-summary", "payload": {"id": "executive-summary", "title": "执行摘要", "layout_id": "overview-detail", "blocks": [],
-                                                     "answers": [answer_claims[0]["statement"]],
+                                                     "answers": [answer] if answer else [],
                                                      "summary_items": summary_items}},
     ]
     for section_index, section in enumerate(report["sections"], 1):

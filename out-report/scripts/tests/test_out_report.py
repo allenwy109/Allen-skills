@@ -107,6 +107,18 @@ class A4OutReportPipelineTest(unittest.TestCase):
             self.assertEqual("专业 GPU 云", comparison["payload"]["alternatives"][0]["name"])
             self.assertEqual([], references["payload"]["blocks"])
 
+    def test_render_document_allows_executive_summary_without_answer_claims(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            task = make_task(temporary)
+            slides = json.loads((task / "07_storyline/slides.json").read_text(encoding="utf-8"))
+            report, _ = out_report.to_report.build(task, slides)
+            report["executive_summary"]["answer_claim_refs"] = []
+            report["executive_summary"]["question"] = "应否进入该市场？"
+            document = out_report.render_document(report, task)
+            summary = next(item for item in document["components"] if item["kind"] == "executive-summary")
+            self.assertEqual(["应否进入该市场？"], summary["payload"]["answers"])
+            self.assertEqual([], summary["payload"]["summary_items"])
+
     def test_a4_workflow_is_default_and_packages_audited_outputs(self):
         self.command("init", self.task)
         self.assertTrue((self.story / "report.json").is_file())

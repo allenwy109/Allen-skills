@@ -75,6 +75,7 @@ class DoctorTest(unittest.TestCase):
         bad = [r for r in results if r["status"] != doctor.PASS]
         self.assertEqual(bad, [])
         self.assertEqual(doctor.exit_code(results), 0)
+        self.assertIn("Chromium", by_name(results)["A4 PDF 导出后端"]["detail"])
 
     def test_old_node(self):
         e = FakeEnv()

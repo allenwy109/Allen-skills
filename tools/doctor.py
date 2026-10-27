@@ -183,6 +183,13 @@ def check_forge_deps(e, rt):
     return result(name, PASS, str(forge))
 
 
+def check_a4_pdf_backend(e, rt):
+    name = "A4 PDF 导出后端"
+    if sys.platform == "darwin" and e.which("swift"):
+        return result(name, PASS, "macOS PDFKit（逐页导出并重建内部链接）；Chromium 整册后端作为跨平台备用")
+    return result(name, PASS, "Chromium 整册导出（保留原生内部链接）")
+
+
 def check_probe(e, rt):
     name = "报告引擎能力探测（看图验证）"
     fix = f"{RENDER_FIX}，然后在 Claude Code 或 Codex 会话里完成看图验证（tools/record_probe.py）"
@@ -231,7 +238,7 @@ def check_vendor(e, rt):
 
 
 CHECKS = [check_vendor, check_node, check_venv, check_playwright_chromium, check_chrome, check_poppler,
-          check_tesseract, check_pandoc, check_soffice, check_forge_deps, check_probe, check_node_playwright, check_disk]
+          check_tesseract, check_pandoc, check_soffice, check_forge_deps, check_a4_pdf_backend, check_probe, check_node_playwright, check_disk]
 
 
 def run_all(e, rt):

@@ -25,6 +25,8 @@ python3 <本 skill>/scripts/out_report.py <命令> <任务文件夹>
 
 故事线或证据变化后运行 `refresh`，再从渲染与审查重新开始。视觉差异只允许人工处置，脚本永不自动更新批准基线。
 
+PDF 导出有两个正式后端：macOS 且可用 Swift 时默认逐页打印并用 PDFKit 重建内部链接；Linux/cloud 或没有 Swift 时使用 Chromium 整册导出，保留原生目录与引用链接。可用 `ALLEN_PDF_BACKEND=chromium|pdfkit` 显式选择；`pdfkit` 仅在 macOS + Swift 上有效。两条路径都必须通过页数、A4 MediaBox、文本、裁切与 PDF 内链 QA。
+
 ## 审查记录
 
 作者记录：

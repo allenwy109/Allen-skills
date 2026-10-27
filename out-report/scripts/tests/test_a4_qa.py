@@ -92,8 +92,30 @@ class A4QualityGateTest(unittest.TestCase):
         self.assertIn("link_pdf.swift", source)
         self.assertIn("internal-links.json", source)
         self.assertIn("finally", source)
-        self.assertIn("await browser.close()", source)
+        self.assertIn("if (browser) await browser.close()", source)
         self.assertIn("rmSync", source)
+        self.assertIn("ALLEN_PDF_BACKEND", source)
+        self.assertIn("backend === 'chromium'", source)
+
+    def test_chromium_pdf_backend_preserves_links_without_swift(self):
+        runtime = Path(os.environ.get("ALLEN_RUNTIME", ROOT))
+        if not (runtime / "vendor" / "report-forge" / "node_modules" / "playwright").exists() or any(not shutil.which(name) for name in ("pdftoppm", "pdftotext", "pdftohtml")):
+            self.skipTest("A4 export runtime required")
+        html = ('<!doctype html><style>@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0}.page{width:210mm;height:297mm;break-after:page;overflow:hidden}</style>'
+                '<section class="page" data-page-id="page-001"><div class="page__body"><a href="#target">Next</a></div></section>'
+                '<section class="page" data-page-id="page-002"><div class="page__body"><h1 id="target">Target</h1></div></section>')
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); source = root / "report.html"; build = root / "build"
+            source.write_text(html)
+            before = set(Path(tempfile.gettempdir()).glob("allen-report-pages-*"))
+            env = dict(os.environ, ALLEN_RUNTIME=str(runtime), ALLEN_PDF_BACKEND="chromium")
+            process = subprocess.run(["node", str(EXPORT), str(source), str(build)], cwd=ROOT, env=env, capture_output=True, text=True)
+            self.assertEqual(0, process.returncode, process.stderr)
+            self.assertEqual("chromium", json.loads(process.stdout)["backend"])
+            xml = root / "report.xml"
+            subprocess.run(["pdftohtml", "-xml", "-hidden", str(build / "report.pdf"), str(xml)], check=True, capture_output=True)
+            self.assertRegex(xml.read_text(), r'<a href="report\.html#2">Next</a>')
+            self.assertEqual(before, set(Path(tempfile.gettempdir()).glob("allen-report-pages-*")))
 
     def test_visible_body_rejects_raw_url_but_allows_hidden_traceability(self):
         evidence = good_evidence()
