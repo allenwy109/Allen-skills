@@ -102,6 +102,41 @@ class A4QualityGateTest(unittest.TestCase):
         codes = {item["code"] for item in run_qa(evidence)["blocking"]}
         self.assertEqual({"REPORT_PAGE_MANIFEST_MISMATCH", "REPORT_VISUAL_BASELINE_MISSING"}, codes)
 
+    def test_incomplete_or_non_finite_evidence_is_rejected_without_crashing(self):
+        mutations = [
+            lambda value: value["pagination"]["pages"][0].pop("usedHeightPx"),
+            lambda value: value["pagination"]["pages"][0].update(contentHeightPx="NaN"),
+            lambda value: value["geometry"]["pages"][0].pop("overlaps"),
+            lambda value: value["geometry"]["pages"][0].update(clipped="none"),
+            lambda value: value["geometry"]["pages"][0].update(empty="false"),
+            lambda value: value["geometry"]["pages"][0].update(fonts=[{"role": "body", "minimumPt": None}]),
+            lambda value: value["media"].pop("resources"),
+        ]
+        for mutate in mutations:
+            with self.subTest(mutation=mutate):
+                evidence = good_evidence()
+                mutate(evidence)
+                result = run_qa(evidence)
+                self.assertIn("REPORT_QA_EVIDENCE_INVALID", {item["code"] for item in result["blocking"]})
+
+    def test_html_pdf_and_pagination_page_ids_and_order_must_match(self):
+        evidence = good_evidence()
+        evidence["pagination"]["pageCount"] = 2
+        evidence["pagination"]["pages"].append({
+            "id": "page-002", "number": 2, "intentionalBlank": False,
+            "usedHeightPx": 300, "contentHeightPx": 986,
+            "geometry": {"widthMm": 210, "heightMm": 297},
+        })
+        evidence["geometry"]["pages"].append({
+            "id": "page-002", "mediaBoxMm": [210, 297], "overlaps": [],
+            "clipped": [], "empty": False, "fonts": [{"role": "body", "minimumPt": 8.5}],
+        })
+        evidence["media"]["htmlPages"].append({"id": "page-002", "text": "Second"})
+        evidence["media"]["pdfPages"].append({"id": "page-002", "text": "Second"})
+        evidence["media"]["htmlPages"].reverse()
+        codes = {item["code"] for item in run_qa(evidence)["blocking"]}
+        self.assertIn("REPORT_PAGE_MANIFEST_MISMATCH", codes)
+
     def test_visual_difference_blocks_without_human_disposition(self):
         evidence = good_evidence()
         evidence["regression"] = {"baselineDigest": "old", "candidateDigest": "new", "differences": [{"page": 1, "ratio": 0.04}]}
@@ -155,6 +190,21 @@ class A4QualityGateTest(unittest.TestCase):
         result = visual.compare_manifests(baseline, candidate)
         self.assertEqual([{"page": "page-02.png", "baseline": "bbb", "candidate": "ccc"}], result["differences"])
         self.assertNotIn("disposition", result)
+
+    def test_visual_manifests_require_nonempty_exact_pagination_page_set(self):
+        visual = load_visual()
+        valid = {"artifacts": {"pagePngSha256": {"page-001": "a"}}}
+        cases = [
+            ({"artifacts": {"pagePngSha256": {}}}, valid, ["page-001"]),
+            (valid, {"artifacts": {"pagePngSha256": {}}}, ["page-001"]),
+            (valid, {"artifacts": {"pagePngSha256": {"wrong": "a"}}}, ["page-001"]),
+            ({"artifacts": {"pagePngSha256": {"page-001": "a", "page-002": "b"}}}, valid, ["page-001"]),
+        ]
+        for baseline, candidate, pages in cases:
+            with self.subTest(baseline=baseline, candidate=candidate):
+                result = visual.compare_manifests(baseline, candidate, pages)
+                self.assertEqual("invalid", result["status"])
+                self.assertTrue(result["errors"])
 
 
 if __name__ == "__main__":

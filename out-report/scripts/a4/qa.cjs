@@ -35,6 +35,56 @@ function validDisposition(value) {
     typeof value.reviewedAt === 'string' && value.reviewedAt.trim();
 }
 
+function finiteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function evidenceErrors(evidence) {
+  const errors = [];
+  const invalid = (location, detail) => errors.push(issue('REPORT_QA_EVIDENCE_INVALID', location, detail));
+  const pagination = evidence.pagination;
+  if (!pagination || typeof pagination !== 'object' || !Array.isArray(pagination.pages) || !Number.isInteger(pagination.pageCount)) {
+    invalid('pagination', 'pageCount integer and pages array are required');
+  } else {
+    pagination.pages.forEach((page, index) => {
+      const location = `pagination.pages[${index}]`;
+      if (!page || typeof page !== 'object' || typeof page.id !== 'string' || !page.id || !Number.isInteger(page.number) ||
+          typeof page.intentionalBlank !== 'boolean' || !finiteNumber(page.usedHeightPx) || !finiteNumber(page.contentHeightPx)) {
+        invalid(location, 'id, number, intentionalBlank, usedHeightPx, and contentHeightPx have invalid types');
+      }
+    });
+  }
+  const geometry = evidence.geometry;
+  if (!geometry || typeof geometry !== 'object' || !Array.isArray(geometry.pages)) {
+    invalid('geometry', 'pages array is required');
+  } else {
+    geometry.pages.forEach((page, index) => {
+      const location = `geometry.pages[${index}]`;
+      if (!page || typeof page !== 'object' || typeof page.id !== 'string' || !page.id ||
+          !Array.isArray(page.mediaBoxMm) || page.mediaBoxMm.length !== 2 || !page.mediaBoxMm.every(finiteNumber) ||
+          !Array.isArray(page.overlaps) || !Array.isArray(page.clipped) || typeof page.empty !== 'boolean' || !Array.isArray(page.fonts)) {
+        invalid(location, 'id, finite MediaBox, overlaps, clipped, empty, and fonts are required');
+      } else {
+        page.fonts.forEach((font, fontIndex) => {
+          if (!font || typeof font.role !== 'string' || !font.role || !finiteNumber(font.minimumPt)) invalid(`${location}.fonts[${fontIndex}]`, 'role and finite minimumPt are required');
+        });
+      }
+    });
+  }
+  const media = evidence.media;
+  if (!media || typeof media !== 'object' || !Array.isArray(media.htmlPages) || !Array.isArray(media.pdfPages) || !Array.isArray(media.resources)) {
+    invalid('media', 'htmlPages, pdfPages, and resources arrays are required');
+  } else {
+    for (const name of ['htmlPages', 'pdfPages']) media[name].forEach((page, index) => {
+      if (!page || typeof page.id !== 'string' || !page.id || typeof page.text !== 'string') invalid(`media.${name}[${index}]`, 'id and text strings are required');
+    });
+    media.resources.forEach((resource, index) => {
+      if (!resource || typeof resource.type !== 'string' || typeof resource.url !== 'string' || typeof resource.embedded !== 'boolean') invalid(`media.resources[${index}]`, 'type, url, and embedded are required');
+    });
+  }
+  return errors;
+}
+
 function evaluate(evidence) {
   if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) {
     const error = new Error('REPORT_QA_INPUT: evidence must be an object');
@@ -46,9 +96,10 @@ function evaluate(evidence) {
   const pagination = evidence.pagination || {};
   const paginationPages = Array.isArray(pagination.pages) ? pagination.pages : [];
   const geometryPages = Array.isArray(evidence.geometry && evidence.geometry.pages) ? evidence.geometry.pages : [];
+  blocking.push(...evidenceErrors(evidence));
 
   for (const page of paginationPages) {
-    if (Number(page.usedHeightPx) > Number(page.contentHeightPx) + 1) {
+    if (finiteNumber(page.usedHeightPx) && finiteNumber(page.contentHeightPx) && page.usedHeightPx > page.contentHeightPx + 1) {
       blocking.push(issue('REPORT_PAGE_OVERFLOW', page.id, `${page.usedHeightPx}px exceeds ${page.contentHeightPx}px`, { usedHeightPx: page.usedHeightPx, contentHeightPx: page.contentHeightPx }));
     }
   }
@@ -66,13 +117,13 @@ function evaluate(evidence) {
     if (box.length !== 2 || box.some((value, index) => !Number.isFinite(Number(value)) || Math.abs(Number(value) - A4[index]) > MEDIA_TOLERANCE_MM)) {
       blocking.push(issue('REPORT_MEDIA_BOX', page.id, `expected A4 within ${MEDIA_TOLERANCE_MM}mm`, { mediaBoxMm: box }));
     }
-    if ((page.overlaps || []).length) blocking.push(issue('REPORT_ELEMENT_OVERLAP', page.id, 'elements overlap', { overlaps: page.overlaps }));
-    if ((page.clipped || []).length) blocking.push(issue('REPORT_CONTENT_CLIPPED', page.id, 'content is clipped', { clipped: page.clipped }));
+    if (Array.isArray(page.overlaps) && page.overlaps.length) blocking.push(issue('REPORT_ELEMENT_OVERLAP', page.id, 'elements overlap', { overlaps: page.overlaps }));
+    if (Array.isArray(page.clipped) && page.clipped.length) blocking.push(issue('REPORT_CONTENT_CLIPPED', page.id, 'content is clipped', { clipped: page.clipped }));
     const paginationPage = paginationPages.find(candidate => candidate.id === page.id);
     if (page.empty && !(paginationPage && paginationPage.intentionalBlank)) blocking.push(issue('REPORT_EMPTY_PAGE', page.id, 'unintentional empty page'));
-    for (const font of page.fonts || []) {
+    for (const font of Array.isArray(page.fonts) ? page.fonts : []) {
       const minimum = font.role === 'source' ? 7.5 : 8.5;
-      if (Number(font.minimumPt) < minimum) blocking.push(issue('REPORT_FONT_TOO_SMALL', page.id, `${font.role} ${font.minimumPt}pt is below ${minimum}pt`, font));
+      if (finiteNumber(font.minimumPt) && font.minimumPt < minimum) blocking.push(issue('REPORT_FONT_TOO_SMALL', page.id, `${font.role} ${font.minimumPt}pt is below ${minimum}pt`, font));
     }
   }
 
@@ -94,6 +145,11 @@ function evaluate(evidence) {
   }
   if (htmlPages.length !== paginationPages.length || pdfPages.length !== paginationPages.length) {
     blocking.push(issue('REPORT_PAGE_MANIFEST_MISMATCH', 'media', 'HTML, PDF, and pagination page counts differ'));
+  }
+  const htmlIds = htmlPages.map(page => page.id);
+  const pdfIds = pdfPages.map(page => page.id);
+  if (JSON.stringify(htmlIds) !== JSON.stringify(paginationIds) || JSON.stringify(pdfIds) !== JSON.stringify(paginationIds)) {
+    blocking.push(issue('REPORT_PAGE_MANIFEST_MISMATCH', 'media', 'HTML, PDF, and pagination page IDs or order differ', { pagination: paginationIds, html: htmlIds, pdf: pdfIds }));
   }
   for (const resource of (evidence.media && evidence.media.resources) || []) {
     if (!resource.embedded || !String(resource.url || '').startsWith('data:')) {
@@ -140,4 +196,4 @@ if (require.main === module) {
   try { main(); } catch (error) { process.stderr.write(`${error.code || 'REPORT_QA_FAILED'}: ${error.message}\n`); process.exit(1); }
 }
 
-module.exports = { A4, COVERAGE_SETS, MEDIA_TOLERANCE_MM, evaluate };
+module.exports = { A4, COVERAGE_SETS, MEDIA_TOLERANCE_MM, evaluate, evidenceErrors };

@@ -45,10 +45,21 @@ def compare_files(baseline: Path, candidate: Path) -> dict:
     }
 
 
-def compare_manifests(baseline: dict, candidate: dict) -> dict:
+def compare_manifests(baseline: dict, candidate: dict, pagination_page_ids: list[str] | None = None) -> dict:
     """Compare immutable per-page raster hashes; approval is handled separately."""
     baseline_pages = baseline.get("artifacts", {}).get("pagePngSha256", {})
     candidate_pages = candidate.get("artifacts", {}).get("pagePngSha256", {})
+    expected = pagination_page_ids if pagination_page_ids is not None else list(candidate_pages) if isinstance(candidate_pages, dict) else []
+    errors = []
+    for label, pages in (("baseline", baseline_pages), ("candidate", candidate_pages)):
+        if not isinstance(pages, dict) or not pages or any(not isinstance(key, str) or not key or not isinstance(value, str) or not value for key, value in pages.items()):
+            errors.append(f"{label} pagePngSha256 must be a non-empty string map")
+        elif list(pages) != expected:
+            errors.append(f"{label} page set/order differs from pagination")
+    if not expected:
+        errors.append("pagination page IDs must be non-empty")
+    if errors:
+        return {"schemaVersion": "1.0", "status": "invalid", "errors": errors, "differences": [], "baselineUpdated": False}
     differences = []
     for page in sorted(set(baseline_pages) | set(candidate_pages)):
         before = baseline_pages.get(page)
