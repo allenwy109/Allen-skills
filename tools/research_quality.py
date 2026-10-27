@@ -25,9 +25,12 @@ def read_jsonl(path):
         if not line.strip():
             continue
         try:
-            records.append(json.loads(line))
+            record = json.loads(line)
         except json.JSONDecodeError as err:
             raise ValueError(f"{path.name}:{number}: {err.msg}") from err
+        if not isinstance(record, dict):
+            raise ValueError(f"{path.name}:{number}: record must be an object")
+        records.append(record)
     return records
 
 
@@ -87,6 +90,8 @@ def check(task):
     competition = contract.get("competition") if isinstance(contract.get("competition"), dict) else {}
     layers = competition.get("layers") if isinstance(competition.get("layers"), dict) else {}
     if material.get("competition"):
+        if not competition.get("criteria"):
+            errors.append(issue("QUALITY_COMPETITION_CRITERIA", "material competition needs comparison criteria"))
         for layer in LAYERS:
             options = layers.get(layer)
             if not isinstance(options, list) or not options:

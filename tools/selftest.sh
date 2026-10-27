@@ -29,7 +29,6 @@ fi
 
 echo "== 单元测试"
 python3 -m unittest discover -s tools/tests -t .
-python3 -m unittest tools.tests.test_research_quality
 for d in */scripts/tests; do
   [ -d "${d}" ] || continue
   echo "== ${d}"

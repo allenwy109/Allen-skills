@@ -103,6 +103,19 @@ class ResearchQualityTest(unittest.TestCase):
         result = run_quality_check(contract, valid_ledger())
         self.assertIn("QUALITY_COMPETITION_LAYER", result.stderr)
 
+    def test_non_material_competition_accepts_empty_layers_and_criteria(self):
+        contract = valid_contract()
+        contract["material"]["competition"] = False
+        contract["competition"] = {"layers": {}, "criteria": [], "claim_refs": []}
+        result = run_quality_check(contract, valid_ledger())
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_material_competition_requires_criteria(self):
+        contract = valid_contract()
+        contract["competition"]["criteria"] = []
+        result = run_quality_check(contract, valid_ledger())
+        self.assertIn("QUALITY_COMPETITION_CRITERIA", result.stderr)
+
     def test_critical_claim_requires_adversarial_treatment(self):
         result = run_quality_check(valid_contract(), valid_ledger(counterevidence=False, adversarial_search=False))
         self.assertIn("QUALITY_CRITICAL_CLAIM", result.stderr)
@@ -199,6 +212,16 @@ class ResearchQualityTest(unittest.TestCase):
         contract["claim_risk_assessments"].append(dict(contract["claim_risk_assessments"][0]))
         result = run_quality_check(contract, valid_ledger())
         self.assertIn("QUALITY_RISK_ASSESSMENT", result.stderr)
+
+    def test_non_object_jsonl_records_are_stable_ledger_errors(self):
+        for filename in ("claims.jsonl", "claim_evidence.jsonl", "evidence.jsonl", "sources.jsonl", "search_log.jsonl"):
+            with self.subTest(filename=filename):
+                ledger = valid_ledger()
+                ledger[filename] = [["not", "an", "object"]]
+                result = run_quality_check(valid_contract(), ledger)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"QUALITY_LEDGER: {filename}:1", result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
 
 
 if __name__ == "__main__":
