@@ -137,9 +137,10 @@ class DiligenceReportPipelineTest(unittest.TestCase):
         pages = [page["id"] for page in json.loads((d / "build/pagination-manifest.json").read_text(encoding="utf-8"))["pages"]]
         author = d / "author-review.json"
         author.write_text(json.dumps({"type": "author", "reviewer": "合成主笔", "reviewedAt": "2026-10-21T09:00:00+08:00",
-                                      "decision": "accepted", "reason": "合成夹具逐页复核",
+                                      "decision": "accepted", "reason": "合成夹具已逐页复核标题、证据、限制、来源和整册阅读节奏。",
                                       "baselineDigest": regression["baselineDigest"], "candidateDigest": regression["candidateDigest"],
-                                      "differenceDigest": regression["differenceDigest"], "artifactDigest": artifacts["artifactDigest"]}, ensure_ascii=False), encoding="utf-8")
+                                      "differenceDigest": regression["differenceDigest"], "artifactDigest": artifacts["artifactDigest"],
+                                      "paginationDigest": artifacts["paginationDigest"]}, ensure_ascii=False), encoding="utf-8")
         run("review", task, "author", author)
         independent = d / "independent-review.json"
         independent.write_text(json.dumps({"type": "independent", "reviewer": "成品审查员（合成）", "at": "2026-10-21T10:00:00+08:00",

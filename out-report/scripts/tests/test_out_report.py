@@ -99,6 +99,7 @@ class A4OutReportPipelineTest(unittest.TestCase):
             "decision": "accepted", "reason": "Synthetic fixture visually reviewed",
             "baselineDigest": regression["baselineDigest"], "candidateDigest": regression["candidateDigest"],
             "differenceDigest": regression["differenceDigest"], "artifactDigest": artifact_digest,
+            "paginationDigest": pagination_digest,
         }), encoding="utf-8")
         self.command("review", self.task, "author", author)
 
@@ -127,6 +128,20 @@ class A4OutReportPipelineTest(unittest.TestCase):
         self.assertEqual(1, invalid_result.returncode)
         self.assertIn("REPORT_REVIEW_INVALID", invalid_result.stderr)
         self.command("review", self.task, "independent", independent)
+
+        valid_author = json.loads(author.read_text(encoding="utf-8"))
+        for mutation in (
+            lambda value: value.pop("artifactDigest"),
+            lambda value: value.update(artifactDigest="0" * 64),
+            lambda value: value.update(decision="pending"),
+        ):
+            changed = dict(valid_author)
+            mutation(changed)
+            author.write_text(json.dumps(changed), encoding="utf-8")
+            rejected = run("package", self.task)
+            self.assertEqual(1, rejected.returncode)
+            self.assertIn("REPORT_REVIEW_INVALID", rejected.stderr)
+        author.write_text(json.dumps(valid_author), encoding="utf-8")
 
         for target in (self.work / "build/report.html", self.work / "build/report.pdf", next((self.work / "build").glob("page-*.png"))):
             original = target.read_bytes()

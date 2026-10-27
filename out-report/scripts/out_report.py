@@ -283,6 +283,25 @@ def useful_observation(value):
     return len(text) >= 20 and text.lower() not in generic
 
 
+def _validate_author(review, regression, artifacts):
+    try:
+        reviewed_at = datetime.datetime.fromisoformat(str(review.get("reviewedAt", "")).replace("Z", "+00:00"))
+    except ValueError:
+        reviewed_at = None
+    required = (
+        review.get("type") == "author" and isinstance(review.get("reviewer"), str) and review["reviewer"].strip()
+        and reviewed_at is not None and reviewed_at.tzinfo is not None
+        and review.get("decision") == "accepted" and useful_observation(review.get("reason"))
+        and review.get("artifactDigest") == artifacts["artifactDigest"]
+        and review.get("paginationDigest") == artifacts["paginationDigest"]
+        and review.get("baselineDigest") == regression.get("baselineDigest")
+        and review.get("candidateDigest") == regression.get("candidateDigest")
+        and review.get("differenceDigest") == regression.get("differenceDigest")
+    )
+    if not required:
+        raise StepError("REPORT_REVIEW_INVALID: author review must have a timezone-aware timestamp, accepted disposition with a specific reason, and bind the current artifact, pagination, baseline, candidate, and difference digests")
+
+
 def _validate_independent(review, work, artifacts):
     pagination = read_json(work / "build/pagination-manifest.json")
     page_ids = [page["id"] for page in pagination["pages"]]
@@ -326,11 +345,10 @@ def cmd_review(args):
         return 1
     if args.kind == "author":
         regression = read_json(work / "visual-regression.json")
-        expected = (regression["baselineDigest"], regression["candidateDigest"], regression["differenceDigest"])
-        actual = (review.get("baselineDigest"), review.get("candidateDigest"), review.get("differenceDigest"))
-        if (review.get("type") != "author" or review.get("decision") != "accepted" or actual != expected
-                or review.get("artifactDigest") != artifacts["artifactDigest"]):
-            print("REPORT_REVIEW_INVALID: author review must accept and bind the current visual digests", file=sys.stderr)
+        try:
+            _validate_author(review, regression, artifacts)
+        except StepError as error:
+            print(str(error), file=sys.stderr)
             return 1
         write_json(work / "author-review.json", review)
         try:
@@ -400,6 +418,7 @@ def cmd_package(args):
         return 1
     try:
         artifacts = verify_artifacts(work)
+        _validate_author(read_json(work / "author-review.json"), read_json(work / "visual-regression.json"), artifacts)
         _validate_independent(read_json(work / "independent-review.json"), work, artifacts)
         qa = _qa(work)
     except StepError as error:

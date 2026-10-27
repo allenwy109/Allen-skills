@@ -28,7 +28,7 @@ python3 <本 skill>/scripts/out_report.py <命令> <任务文件夹>
 作者记录：
 
 ```json
-{"type":"author","reviewer":"主笔","reviewedAt":"2026-10-27T12:00:00+10:30","decision":"accepted","reason":"逐页检查后的判断","baselineDigest":"…","candidateDigest":"…","differenceDigest":"…","artifactDigest":"…"}
+{"type":"author","reviewer":"主笔","reviewedAt":"2026-10-27T12:00:00+10:30","decision":"accepted","reason":"逐页检查标题、证据、限制和来源后的具体判断","baselineDigest":"…","candidateDigest":"…","differenceDigest":"…","artifactDigest":"…","paginationDigest":"…"}
 ```
 
 独立记录遵循 `core-review/references/output-standard.md`：`type=independent`，包含 reviewer、带时区时间、结论、artifact/pagination digest、page_ids、media、scales、chapter_contact_sheets、headline_chain、逐页 observations 和 issues；所有问题必须已解决。没有独立审查时只能向用户说明预览位置，不能运行正式打包或宣称完成。
