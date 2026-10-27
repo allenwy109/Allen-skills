@@ -7,7 +7,7 @@ description: Use when the requested deliverable is a presentation, pitch deck, r
 
 用 report-forge 生成自包含 HTML 与同版 PDF 演示稿。正式 A4 阅读报告走 `out-report`；只有用户明确要路演、汇报或演示文稿时才走本技能。
 
-脚本：`python3 <本 skill>/scripts/out_deck.py <子命令> …`，下文简称 `out_deck`。任务目录固定为 `07_storyline/forge-work/`。
+脚本：`python3 <本 skill>/scripts/out_deck.py <子命令> …`，下文简称 `out_deck`。任务目录固定为 `07_storyline/deck-work/`，交付目录固定为 `08_deliverables/deck/`，不会覆盖 A4 报告。
 
 ## 不可省略的合同
 
@@ -39,7 +39,7 @@ out_deck refresh <任务目录>
 
 ## 三项规划
 
-规划观察必须覆盖全部页面，记录候选、取舍和重复理由，文件放在 forge-work 内：
+规划观察必须覆盖全部页面，记录候选、取舍和重复理由，文件放在 deck-work 内：
 
 ```bash
 out_deck plan <任务> chart-plan <观察.json> --reviewer <主笔> --basis <实际核对依据>
@@ -54,7 +54,7 @@ out_deck step <任务> ready
 out_deck step <任务> compile
 ```
 
-根据 compile 产物制作 `forge-work/pages.html` 和 `page.css`。每页、展品、内容叶节点、收束句必须保留引擎要求的 ID 和 data attributes；只用内联 SVG 与 data: 资源，不用脚本、canvas、外链图片或字体。
+根据 compile 产物制作 `deck-work/pages.html` 和 `page.css`。每页、展品、内容叶节点、收束句必须保留引擎要求的 ID 和 data attributes；只用内联 SVG 与 data: 资源，不用脚本、canvas、外链图片或字体。
 
 ```bash
 out_deck step <任务> assemble
@@ -86,7 +86,7 @@ out_deck step <任务> archive
 out_deck finish <任务> [--slug main]
 ```
 
-`archive` 是 report-forge 在实际发送前生成的恢复封存包；它锁定当前 package 收据、审查与执行记录，不代表文件已经交给用户，也不包含之后才产生的 delivery 观察。`finish` 复制 HTML/PDF，生成讲者备注，回查手写数字并登记统一验收。实际交给用户后，最后提交 delivery 观察：
+`archive` 是 report-forge 在实际发送前生成的恢复封存包；它锁定当前 package 收据、审查与执行记录，不代表文件已经交给用户，也不包含之后才产生的 delivery 观察。`finish` 只生成本地交付物、讲者备注并登记 `deck-<slug>` 验收，不代表实际发送。实际交给用户后，最后提交 delivery 观察：
 
 ```bash
 out_deck plan <任务> delivery <观察.json> --reviewer <主笔> --basis <交付依据>

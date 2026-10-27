@@ -28,6 +28,52 @@ def run(*args):
     return subprocess.run([sys.executable, str(SCRIPTS / "out_deck.py"), *map(str, args)], capture_output=True, text=True)
 
 
+def build_a4_report(task):
+    script = SCRIPTS.parents[1] / "out-report" / "scripts" / "out_report.py"
+    command = lambda *args: subprocess.run([sys.executable, str(script), *map(str, args)], capture_output=True, text=True)  # noqa: E731
+    init = command("init", task)
+    if init.returncode:
+        raise AssertionError(init.stdout + init.stderr)
+    render = command("render", task)
+    if render.returncode != 1 or "REPORT_VISUAL_REGRESSION" not in render.stdout:
+        raise AssertionError(render.stdout + render.stderr)
+    work = pathlib.Path(task) / "07_storyline" / "a4-work"
+    regression = json.loads((work / "visual-regression.json").read_text(encoding="utf-8"))
+    artifacts = json.loads((work / "artifact-manifest.json").read_text(encoding="utf-8"))
+    pagination = json.loads((work / "build" / "pagination-manifest.json").read_text(encoding="utf-8"))
+    pages = [page["id"] for page in pagination["pages"]]
+    author = work / "author-review.json"
+    author.write_text(json.dumps({
+        "type": "author", "reviewer": "Synthetic author", "reviewedAt": "2026-10-27T12:00:00+10:30",
+        "decision": "accepted", "reason": "Synthetic A4 coexistence review",
+        "baselineDigest": regression["baselineDigest"], "candidateDigest": regression["candidateDigest"],
+        "differenceDigest": regression["differenceDigest"], "artifactDigest": artifacts["artifactDigest"],
+        "paginationDigest": artifacts["paginationDigest"],
+    }), encoding="utf-8")
+    independent = work / "independent-review.json"
+    independent.write_text(json.dumps({
+        "type": "independent", "reviewer": "Synthetic independent reviewer", "at": "2026-10-27T12:05:00+10:30",
+        "conclusion": "Synthetic A4 coexistence review accepted", "issues": [],
+        "artifactDigest": artifacts["artifactDigest"], "paginationDigest": artifacts["paginationDigest"],
+        "page_ids": pages, "media": ["html", "pdf"], "scales": ["100%", "contact-sheet"],
+        "chapter_contact_sheets": [{"chapter": "whole-book", "page_ids": pages,
+                                     "observation": "All A4 pages were inspected together for rhythm and hierarchy."}],
+        "headline_chain": {"status": "reviewed", "observation": "The A4 headline chain remains coherent."},
+        "observations": [{"page_id": page, "media": ["html", "pdf"], "scale": ["100%", "contact-sheet"],
+                           "observation": f"A4 page {page} was inspected in both media and scales.",
+                           "reason": "No clipping or semantic omission was observed."} for page in pages],
+    }), encoding="utf-8")
+    for role, review in (("author", author), ("independent", independent)):
+        result = command("review", task, role, review)
+        if result.returncode:
+            raise AssertionError(result.stdout + result.stderr)
+    package = command("package", task)
+    if package.returncode:
+        raise AssertionError(package.stdout + package.stderr)
+    report_dir = pathlib.Path(task) / "08_deliverables" / "report"
+    return {name: (report_dir / name).read_bytes() for name in ("report.html", "report.pdf")}
+
+
 def make_task(root, change=None):
     """完整的故事线包（core-storyline 的产出）作为输入；change 用来改 slides.json 做反例。"""
     task = pathlib.Path(root) / "task"
@@ -56,6 +102,10 @@ class OutDeckCapabilityTest(unittest.TestCase):
         self.assertEqual(set(result["ratios"]), {"16x9", "4x3"})
         self.assertTrue(all(result[key] for key in ("charts", "capacityContracts", "htmlPdfReview", "officialShowcase", "independentReview")))
         self.assertEqual(result["missing"], [])
+        self.assertEqual(result["matrixErrors"], [])
+        self.assertEqual(result["probeFailures"], [])
+        self.assertTrue({"form-catalog", "form-capacity", "narrative", "composition", "review-reuse", "evidence-binding",
+                         "showcase-build-scripts", "screenshot-manifest"}.issubset(result["contractProbes"]))
 
     def test_skill_routes_only_explicit_decks(self):
         text = (SCRIPTS.parent / "SKILL.md").read_text(encoding="utf-8")
@@ -66,7 +116,8 @@ class OutDeckCapabilityTest(unittest.TestCase):
         self.assertIn("module-fill-plan", text)
 
     def test_strict_capabilities_reject_live_probe_regression(self):
-        altered = {"layouts": 37, "masters": 5, "themes": ["mckinsey"], "ratios": ["16x9"]}
+        altered = {"layout_count": 37, "master_count": 5, "themes": ["mckinsey"], "ratios": ["16x9"],
+                   "contract_probes": {"form-catalog": {"ok": True, "errors": []}}}
         output = io.StringIO()
         with mock.patch.object(out_deck, "_probe_capabilities", return_value=altered), contextlib.redirect_stdout(output):
             code = out_deck.cmd_capabilities(SimpleNamespace(strict=True))
@@ -74,6 +125,27 @@ class OutDeckCapabilityTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(result["status"], "incomplete")
         self.assertEqual({item["field"] for item in result["mismatches"]}, {"layouts", "masters", "themes", "ratios"})
+
+    def test_strict_capabilities_reject_static_matrix_failure(self):
+        output = io.StringIO()
+        with mock.patch.object(out_deck.report_capabilities, "check", return_value=["form-capacity: status missing"]), \
+                contextlib.redirect_stdout(output):
+            code = out_deck.cmd_capabilities(SimpleNamespace(strict=True))
+        result = json.loads(output.getvalue())
+        self.assertEqual(code, 1)
+        self.assertEqual(result["status"], "incomplete")
+        self.assertEqual(result["matrixErrors"], ["form-capacity: status missing"])
+
+    def test_strict_capabilities_reject_contract_probe_failure(self):
+        live = out_deck._probe_capabilities()
+        live["contract_probes"] = dict(live["contract_probes"])
+        live["contract_probes"]["narrative"] = {"ok": False, "errors": ["validate export missing"]}
+        output = io.StringIO()
+        with mock.patch.object(out_deck, "_probe_capabilities", return_value=live), contextlib.redirect_stdout(output):
+            code = out_deck.cmd_capabilities(SimpleNamespace(strict=True))
+        result = json.loads(output.getvalue())
+        self.assertEqual(code, 1)
+        self.assertEqual(result["probeFailures"], ["narrative"])
 
     def test_documented_delivery_order_matches_vendor_contract(self):
         requirements = out_deck.engine() / "scripts" / "execution_requirements.cjs"
@@ -98,7 +170,8 @@ class OutDeckPipelineTest(unittest.TestCase):
             return
         cls.tmp = tempfile.TemporaryDirectory()
         cls.task = make_task(cls.tmp.name).resolve()
-        d = cls.d = cls.task / "07_storyline" / "forge-work"
+        cls.a4_artifacts = build_a4_report(cls.task)
+        d = cls.d = cls.task / "07_storyline" / "deck-work"
         cls.log = []
 
         def step(*args, expect=0):
@@ -183,28 +256,41 @@ class OutDeckPipelineTest(unittest.TestCase):
 
     def test_deliverables_and_acceptance(self):
         out = self.task / "08_deliverables"
-        self.assertTrue((out / "report" / "星河数据科技经营概览.pdf").is_file())
-        self.assertTrue((out / "speaker-notes.pdf").is_file())
-        pages = subprocess.run(["pdfinfo", str(out / "report" / "星河数据科技经营概览.pdf")], capture_output=True, text=True).stdout
+        self.assertTrue((out / "deck" / "星河数据科技经营概览.pdf").is_file())
+        self.assertTrue((out / "deck" / "speaker-notes.pdf").is_file())
+        pages = subprocess.run(["pdfinfo", str(out / "deck" / "星河数据科技经营概览.pdf")], capture_output=True, text=True).stdout
         self.assertRegex(pages, r"Pages:\s+5")                     # 封面、两页正文、参考资料、封底
-        html = (out / "report" / "星河数据科技经营概览.html").read_text(encoding="utf-8")
+        html = (out / "deck" / "星河数据科技经营概览.html").read_text(encoding="utf-8")
         self.assertIn("主要客户已签三年合同（待确认）", html)
         self.assertIn("4100 万元（预测）", html)
-        e = next(x for x in Acceptance(self.task).load()["deliverables"] if x["id"] == "report-main")
+        e = next(x for x in Acceptance(self.task).load()["deliverables"] if x["id"] == "deck-main")
+        self.assertEqual(e["kind"], "deck")
         self.assertEqual([c["result"] for c in e["upstream_checks"]], ["passed"] * 7, self.finish.stdout)
         self.assertEqual(e["upstream_checks"][0]["name"], "故事线检查（storyline check）")
         self.assertEqual(e["number_trace"]["untraced"], [])
         self.assertEqual(len(e["files"]), 4)
         self.assertEqual(e["status"], "failed")                    # 还没有成品审查员结论
 
+    def test_a4_report_and_deck_coexist_without_overwrite(self):
+        out = self.task / "08_deliverables"
+        self.assertTrue((out / "report" / "report.pdf").is_file())
+        self.assertTrue((out / "deck" / "星河数据科技经营概览.pdf").is_file())
+        for name, content in self.a4_artifacts.items():
+            self.assertEqual((out / "report" / name).read_bytes(), content)
+        entries = {item["id"]: item for item in Acceptance(self.task).load()["deliverables"]}
+        self.assertIn("report-main", entries)
+        self.assertIn("deck-main", entries)
+        self.assertEqual(entries["report-main"]["kind"], "report")
+        self.assertEqual(entries["deck-main"]["kind"], "deck")
+
     def test_independent_review_passes(self):
         review = self.task / "verdict.json"
         review.write_text(json.dumps({"type": "independent", "reviewer": "成品审查员（合成）", "at": "2026-10-23T10:00:00+08:00",
                                       "conclusion": "合成结论", "issues": []}, ensure_ascii=False), encoding="utf-8")
-        p = subprocess.run([sys.executable, str(SCRIPTS.parents[1] / "tools" / "acceptance.py"), str(self.task), "review", "report-main", str(review)],
+        p = subprocess.run([sys.executable, str(SCRIPTS.parents[1] / "tools" / "acceptance.py"), str(self.task), "review", "deck-main", str(review)],
                            capture_output=True, text=True)
         self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
-        e = next(x for x in Acceptance(self.task).load()["deliverables"] if x["id"] == "report-main")
+        e = next(x for x in Acceptance(self.task).load()["deliverables"] if x["id"] == "deck-main")
         self.assertEqual(e["status"], "passed")
 
 
@@ -217,7 +303,7 @@ class OutDeckInitTest(unittest.TestCase):
             p = run("init", task)
             self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
             self.assertIn("数字 999", p.stderr)
-            self.assertFalse((task / "07_storyline" / "forge-work").exists())   # 没通过检查就不建引擎任务
+            self.assertFalse((task / "07_storyline" / "deck-work").exists())   # 没通过检查就不建引擎任务
 
 
 if __name__ == "__main__":

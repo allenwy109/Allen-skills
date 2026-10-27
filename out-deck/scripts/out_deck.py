@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """出咨询演示稿（out-deck）。所有会写生产记录的步骤都经 report-forge 的统一入口 report.cjs 执行。
 
-子命令（任务目录固定为 <任务>/07_storyline/forge-work/）：
+子命令（任务目录固定为 <任务>/07_storyline/deck-work/）：
   init     转换前检查并生成蓝图（tools/bridge/to_forge.py）→ report.cjs init（editorial、narrative-focus-1）→
            写 task 字段（kind=report、complex、majorConclusion、independent）→ 写蓝图、首尾页（bookend-cover/references/back.html）→ 激活执行清单
   refresh  slides.json 或证据账改动后重新生成蓝图和首尾页（引擎会把受影响的已完成项标为需要重新核实）
   plan     提交并接收执行清单项：chart-plan、layout-plan、module-fill-plan、representatives、production、delivery
   step     ready | compile | assemble | smoke | iteration | acceptance | review-pack | aggregate | snapshot | package | archive |
            status | next | resume —— 派生 task、HTML、验收记录、聚合审查的路径从执行清单的 productionRefs 读取
-  finish   打包之后：复制 HTML、PDF 到 08_deliverables/report/，由 sidecar 生成讲者备注，回查手写文字里的数字，登记验收
+  finish   打包之后：生成 08_deliverables/deck/ 本地交付物、讲者备注并登记验收；不代表实际发送
 
-交付顺序：step package → step archive（恢复封存包）→ finish/实际发送 → plan delivery（记录发送结果）。
+交付顺序：step package → step archive（恢复封存包）→ finish（本地交付物）→ 实际发送 → plan delivery（记录发送结果）。
 
 退出码：0 成功；1 被检查拦下或引擎步骤失败；2 参数或环境错误。
 """
@@ -32,7 +32,7 @@ RELEASE_READY = {"parity", "superseded"}
 
 
 def _bootstrap():
-    for c in (os.environ.get("ALLEN_RUNTIME"), SKILL_DIR.parent / "_allen-runtime", SKILL_DIR.parent):
+    for c in (SKILL_DIR.parent, os.environ.get("ALLEN_RUNTIME"), SKILL_DIR.parent / "_allen-runtime"):
         if c and (pathlib.Path(c) / "tools" / "lib" / "runtime.py").is_file():
             sys.path.insert(0, str(pathlib.Path(c)))
             return
@@ -41,6 +41,7 @@ def _bootstrap():
 
 _bootstrap()
 from tools.acceptance import Acceptance  # noqa: E402
+from tools import report_capabilities  # noqa: E402
 from tools.bridge import poster_numbers, to_forge  # noqa: E402
 from tools.lib import office, runtime  # noqa: E402
 from tools.lib.ledger import Ledger  # noqa: E402
@@ -52,7 +53,7 @@ class StepError(Exception):
 
 def forge_dir(task):
     # 解析符号链接（如 macOS 的 /var → /private/var）：引擎用真实路径比对 task 和 HTML 的绑定
-    return (pathlib.Path(task) / "07_storyline" / "forge-work").resolve()
+    return (pathlib.Path(task) / "07_storyline" / "deck-work").resolve()
 
 
 def engine():
@@ -203,18 +204,7 @@ def report_problems(problems):
 
 
 def _probe_capabilities():
-    script = (
-        "const fs=require('fs'),p=require('path'),root=process.argv[1];"
-        "const atlas=JSON.parse(fs.readFileSync(p.join(root,'assets/layout-atlas/catalog.json'),'utf8'));"
-        "const themes=require(p.join(root,'assets/deck-themes.js'));"
-        "const grid=require(p.join(root,'assets/deck-grid.js'));"
-        "process.stdout.write(JSON.stringify({layouts:atlas.layouts.length,masters:atlas.masters.length,"
-        "themes:themes.ids,ratios:Object.keys(grid.RATIOS).sort()}));"
-    )
-    inspected = subprocess.run(["node", "-e", script, str(engine())], capture_output=True, text=True)
-    if inspected.returncode:
-        raise StepError(f"检查 report-forge 公共能力失败：{inspected.stderr.strip()[-800:]}")
-    return json.loads(inspected.stdout)
+    return report_capabilities.inspect(SKILL_DIR.parent)
 
 
 def cmd_capabilities(a):
@@ -222,36 +212,37 @@ def cmd_capabilities(a):
     root = SKILL_DIR.parent
     matrix = json.loads((root / "references" / "upstream-capability-matrix.json").read_text(encoding="utf-8"))
     capabilities = matrix.get("capabilities") or []
-    status = {item.get("id"): item.get("status") for item in capabilities}
-    required = {
-        "layouts-38", "masters-6", "themes-3", "ratios-2", "form-catalog", "form-capacity",
-        "chart-diversity", "layout-diversity", "module-fill", "representative-pages",
-        "contact-sheet-worst-page", "html-pdf-page-review", "official-showcase", "author-review",
-        "independent-review", "execution-plan", "resume-recovery", "packaging", "real-browser-tests",
-    }
-    missing = sorted(item for item in required if status.get(item) not in RELEASE_READY)
+    status = {item.get("id"): item.get("status") for item in capabilities if isinstance(item, dict)}
+    missing = sorted(item for item, value in status.items() if value not in RELEASE_READY)
+    matrix_errors = report_capabilities.check(root, strict=True)
     public = _probe_capabilities()
     locked = {"layouts": 38, "masters": 6, "themes": ["mckinsey", "bcg", "accenture"], "ratios": ["16x9", "4x3"]}
     mismatches = []
     for field, expected in locked.items():
-        actual = public.get(field)
+        actual = public.get({"layouts": "layout_count", "masters": "master_count"}.get(field, field))
         if field in ("themes", "ratios"):
             actual, expected = sorted(actual or []), sorted(expected)
         if actual != expected:
             mismatches.append({"field": field, "expected": expected, "actual": actual})
+    probes = public.get("contract_probes") or {}
+    probe_failures = sorted(capability for capability, result in probes.items() if not result.get("ok"))
     result = {
-        **public,
+        "layouts": public.get("layout_count"), "masters": public.get("master_count"),
+        "themes": public.get("themes"), "ratios": public.get("ratios"),
         "charts": status.get("form-catalog") in RELEASE_READY,
         "capacityContracts": status.get("form-capacity") in RELEASE_READY,
         "htmlPdfReview": status.get("html-pdf-page-review") in RELEASE_READY,
         "officialShowcase": status.get("official-showcase") in RELEASE_READY,
         "independentReview": status.get("independent-review") in RELEASE_READY,
         "missing": missing,
+        "matrixErrors": matrix_errors,
         "mismatches": mismatches,
-        "status": "complete" if not missing and not mismatches else "incomplete",
+        "contractProbes": probes,
+        "probeFailures": probe_failures,
+        "status": "complete" if not missing and not matrix_errors and not mismatches and not probe_failures else "incomplete",
     }
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
-    return 1 if a.strict and (missing or mismatches) else 0
+    return 1 if a.strict and result["status"] != "complete" else 0
 
 
 # ---------- 执行清单项 ----------
@@ -334,18 +325,18 @@ def speaker_notes(task, out_dir):
     notes = (sidecar or {}).get("speaker_notes") or []
     if not notes:
         return []
-    md = out_dir.parent / "speaker-notes.md"
+    md = out_dir / "speaker-notes.md"
     lines = ["# 讲者备注", ""] + [f"## 第 {n['page']} 页\n\n{n['text']}\n" for n in sorted(notes, key=lambda n: n["page"])]
     md.write_text("\n".join(lines), encoding="utf-8")
-    page = out_dir.parent / ".speaker-notes.html"
+    page = out_dir / ".speaker-notes.html"
     page.write_text("<html><head><meta charset='utf-8'><title>讲者备注</title></head><body><h1>讲者备注</h1>"
                     + "".join(f"<h2>第 {n['page']} 页</h2><p>{html.escape(n['text'])}</p>" for n in sorted(notes, key=lambda n: n["page"]))
                     + "</body></html>", encoding="utf-8")
     with tempfile.TemporaryDirectory() as tmp:
         pdf = office.convert(page, "pdf", tmp)
-        shutil.copy2(pdf, out_dir.parent / "speaker-notes.pdf")
+        shutil.copy2(pdf, out_dir / "speaker-notes.pdf")
     page.unlink()
-    return [md, out_dir.parent / "speaker-notes.pdf"]
+    return [md, out_dir / "speaker-notes.pdf"]
 
 
 def storyline_check(task):
@@ -407,7 +398,7 @@ def cmd_finish(a):
     conv = json.loads((d / ".allen" / "conversion.json").read_text(encoding="utf-8"))
     status = node("status", d / "task.json", ok_codes=(0, 1))
     items = {i["id"]: i.get("status") for i in status["items"]}
-    out_dir = task / "08_deliverables" / "report"
+    out_dir = task / "08_deliverables" / "deck"
     out_dir.mkdir(parents=True, exist_ok=True)
     files = []
     for f in (html_file, pdf_file):
@@ -436,18 +427,18 @@ def cmd_finish(a):
         print(f"[{c['result']}] {c['name']}：{c['detail']}")
     slug = a.slug or "main"
     entry = Acceptance(task).record({
-        "id": f"report-{slug}", "kind": "report", "title": json.loads((d / "deck-blueprint.json").read_text(encoding="utf-8"))["deck"]["title"],
+        "id": f"deck-{slug}", "kind": "deck", "title": json.loads((d / "deck-blueprint.json").read_text(encoding="utf-8"))["deck"]["title"],
         "files": [str(f.relative_to(task)) for f in files + notes], "upstream_checks": checks,
         "number_trace": {"checked": conv["trace"]["checked"] + trace["checked"], "untraced": trace["untraced"]}})
     print(f"已交付：{out_dir}")
-    print(f"验收状态：{entry['status']}（成品审查员看完页面后，用 tools/acceptance.py review report-{slug} 写入结论）")
-    print("如果还没生成恢复封存包，先 step archive；实际交给用户后，写 delivery 观察（destination、deliveredAt）并用 plan 提交 delivery。")
+    print(f"验收状态：{entry['status']}（成品审查员看完页面后，用 tools/acceptance.py review deck-{slug} 写入结论）")
+    print("finish 只生成本地交付物，不代表已发送；实际交给用户后，写 delivery 观察（destination、deliveredAt）并用 plan 提交 delivery。")
     return 0 if not any(c["result"] == "failed" for c in checks) else 1
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="出咨询演示稿（report-forge）",
-                                 epilog="交付顺序：step package → step archive（恢复封存包）→ finish/实际发送 → plan delivery。")
+                                 epilog="交付顺序：step package → step archive（恢复封存包）→ finish（本地交付物）→ 实际发送 → plan delivery。")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("capabilities")
     p.add_argument("--strict", action="store_true", help="任何锁定能力未就绪时返回失败")
@@ -458,7 +449,7 @@ def main(argv=None):
     p = sub.add_parser("plan")
     p.add_argument("task")
     p.add_argument("item", choices=PLAN_ITEMS)
-    p.add_argument("evidence", help="观察文件（放在 forge-work 目录里，格式见引擎执行清单协议）")
+    p.add_argument("evidence", help="观察文件（放在 deck-work 目录里，格式见引擎执行清单协议）")
     p.add_argument("--reviewer", required=True, help="接收者身份（主笔）")
     p.add_argument("--basis", required=True, help="接收依据：核对了哪些文件、看到了什么")
     p.add_argument("--reason", help="重新提交时的原因")
@@ -466,7 +457,7 @@ def main(argv=None):
     p.add_argument("task")
     p.add_argument("op")
     p.add_argument("--pages", help="iteration 只查这些页，如 2,5")
-    p.add_argument("--reviews", nargs="+", help="aggregate 的审查文件；默认 forge-work/reviews 下的作者稿和独立审查稿")
+    p.add_argument("--reviews", nargs="+", help="aggregate 的审查文件；默认 deck-work/reviews 下的作者稿和独立审查稿")
     p.add_argument("--name", help="package 的文件名；默认报告标题")
     p = sub.add_parser("finish")
     p.add_argument("task")

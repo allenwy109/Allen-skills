@@ -27,6 +27,17 @@ REQUIRED_CAPABILITY_IDS = {
     "resume-recovery", "narrative", "composition", "evidence-binding",
     "packaging", "upstream-contract-tests", "real-browser-tests",
 }
+CONTRACT_PROBE_EXPORTS = {
+    "form-catalog": [("scripts/form_contract.cjs", ("validate", "RELATIONSHIPS"))],
+    "form-capacity": [("assets/form-capacity.js", ("rules", "check", "limit"))],
+    "narrative": [("scripts/narrative_contract.cjs", ("validate", "coverageErrors"))],
+    "composition": [("scripts/composition_contract.cjs", ("validate", "deriveVisual"))],
+    "review-reuse": [("scripts/prepare_review_reuse.cjs", ("prepareReuse",))],
+    "evidence-binding": [
+        ("scripts/audit_evidence.cjs", ("captureDocument", "manifest")),
+        ("scripts/content_contract.cjs", ("verifyBindings", "bindings")),
+    ],
+}
 
 
 class CapabilityError(Exception):
@@ -235,6 +246,53 @@ def _javascript_capabilities(forge):
         raise CapabilityError("cannot inspect JavaScript exports") from error
 
 
+def probe_contracts(root):
+    """Probe executable public contracts and showcase inventories used by out-deck."""
+    root = pathlib.Path(root).resolve()
+    forge = root / "vendor" / "report-forge"
+    probes = {}
+    for capability, modules in CONTRACT_PROBE_EXPORTS.items():
+        failures = []
+        for relative, exports in modules:
+            script = (
+                "const x=require(process.argv[1]),need=JSON.parse(process.argv[2]);"
+                "const missing=need.filter(k=>!(k in x));"
+                "process.stdout.write(JSON.stringify({missing}));"
+            )
+            try:
+                result = subprocess.run(
+                    ["node", "-e", script, str(forge / relative), json.dumps(exports)],
+                    check=True, capture_output=True, text=True,
+                )
+                missing = json.loads(result.stdout).get("missing") or []
+                if missing:
+                    failures.append(f"{relative}: missing exports {', '.join(missing)}")
+            except (OSError, subprocess.CalledProcessError, json.JSONDecodeError) as error:
+                failures.append(f"{relative}: cannot probe ({error})")
+        probes[capability] = {"ok": not failures, "errors": failures}
+
+    showcase = forge / "docs" / "showcase"
+    build_files = sorted(showcase.glob("build*.cjs"))
+    probes["showcase-build-scripts"] = {
+        "ok": bool(build_files) and (showcase / "build.cjs").is_file(),
+        "errors": [] if build_files and (showcase / "build.cjs").is_file() else ["showcase build scripts missing"],
+    }
+    inventories, inventory_errors = [], []
+    for path in sorted(showcase.glob("*screenshots*.json")):
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+            if not value:
+                raise ValueError("empty inventory")
+            inventories.append(path.name)
+        except (OSError, json.JSONDecodeError, ValueError) as error:
+            inventory_errors.append(f"{path.name}: {error}")
+    if not inventories:
+        inventory_errors.append("no screenshot inventory")
+    probes["screenshot-manifest"] = {"ok": not inventory_errors, "errors": inventory_errors,
+                                      "inventories": inventories}
+    return probes
+
+
 def inspect(root):
     root = pathlib.Path(root).resolve()
     forge = root / "vendor" / "report-forge"
@@ -258,6 +316,7 @@ def inspect(root):
         "showcase_files": sorted(
             str(path.relative_to(root)) for path in showcase.rglob("*") if path.is_file()
         ),
+        "contract_probes": probe_contracts(root),
     }
 
 
