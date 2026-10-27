@@ -10,6 +10,8 @@
            status | next | resume —— 派生 task、HTML、验收记录、聚合审查的路径从执行清单的 productionRefs 读取
   finish   打包之后：复制 HTML、PDF 到 08_deliverables/report/，由 sidecar 生成讲者备注，回查手写文字里的数字，登记验收
 
+交付顺序：step package → step archive（恢复封存包）→ finish/实际发送 → plan delivery（记录发送结果）。
+
 退出码：0 成功；1 被检查拦下或引擎步骤失败；2 参数或环境错误。
 """
 import argparse
@@ -439,12 +441,13 @@ def cmd_finish(a):
         "number_trace": {"checked": conv["trace"]["checked"] + trace["checked"], "untraced": trace["untraced"]}})
     print(f"已交付：{out_dir}")
     print(f"验收状态：{entry['status']}（成品审查员看完页面后，用 tools/acceptance.py review report-{slug} 写入结论）")
-    print("实际交给用户后，写 delivery 观察（destination、deliveredAt），用 plan 提交 delivery，再 step archive。")
+    print("如果还没生成恢复封存包，先 step archive；实际交给用户后，写 delivery 观察（destination、deliveredAt）并用 plan 提交 delivery。")
     return 0 if not any(c["result"] == "failed" for c in checks) else 1
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="出咨询演示稿（report-forge）")
+    ap = argparse.ArgumentParser(description="出咨询演示稿（report-forge）",
+                                 epilog="交付顺序：step package → step archive（恢复封存包）→ finish/实际发送 → plan delivery。")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("capabilities")
     p.add_argument("--strict", action="store_true", help="任何锁定能力未就绪时返回失败")

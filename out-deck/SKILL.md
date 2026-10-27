@@ -82,14 +82,14 @@ out_deck step <任务> review-pack
 out_deck step <任务> aggregate
 out_deck step <任务> snapshot
 out_deck step <任务> package [--name <文件名>]
+out_deck step <任务> archive
 out_deck finish <任务> [--slug main]
 ```
 
-`finish` 复制 HTML/PDF，生成讲者备注，回查手写数字并登记统一验收。实际交给用户后提交 delivery 观察，再归档：
+`archive` 是 report-forge 在实际发送前生成的恢复封存包；它锁定当前 package 收据、审查与执行记录，不代表文件已经交给用户，也不包含之后才产生的 delivery 观察。`finish` 复制 HTML/PDF，生成讲者备注，回查手写数字并登记统一验收。实际交给用户后，最后提交 delivery 观察：
 
 ```bash
 out_deck plan <任务> delivery <观察.json> --reviewer <主笔> --basis <交付依据>
-out_deck step <任务> archive
 ```
 
 ## 中断和修订
@@ -107,4 +107,5 @@ out_deck step <任务> archive
 | 三项规划合并为“已检查” | 分别提交逐页图表、布局、模块填充证据 |
 | 只看代表页就打包 | 代表页之后仍要整册验收、双媒介逐页审查 |
 | 作者填写独立审查 | 停在预览，等待独立审查员 |
+| 把 archive 当成发送后的交付日志 | archive 是发送前恢复封存包；实际发送后另交 delivery 观察 |
 | 绕过 wrapper 直接运行引擎步骤 | 通过 `out_deck` 保留执行清单和验收记录 |

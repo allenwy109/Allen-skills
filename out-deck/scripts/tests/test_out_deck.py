@@ -75,6 +75,21 @@ class OutDeckCapabilityTest(unittest.TestCase):
         self.assertEqual(result["status"], "incomplete")
         self.assertEqual({item["field"] for item in result["mismatches"]}, {"layouts", "masters", "themes", "ratios"})
 
+    def test_documented_delivery_order_matches_vendor_contract(self):
+        requirements = out_deck.engine() / "scripts" / "execution_requirements.cjs"
+        script = ("const R=require(process.argv[1]);"
+                  "const xs=R.items({workMode:'editorial',policyVersions:{workflow:'execution-plan-2'}});"
+                  "process.stdout.write(JSON.stringify(Object.fromEntries(xs.map(x=>[x.id,x.dependsOn]))));")
+        p = subprocess.run(["node", "-e", script, str(requirements)], capture_output=True, text=True)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        dependencies = json.loads(p.stdout)
+        self.assertEqual(dependencies["archive"], ["package"])
+        self.assertEqual(dependencies["delivery"], ["package", "archive"])
+        skill = (SCRIPTS.parent / "SKILL.md").read_text(encoding="utf-8")
+        self.assertLess(skill.index("out_deck step <任务> package"), skill.index("out_deck step <任务> archive"))
+        self.assertLess(skill.index("out_deck step <任务> archive"), skill.index("out_deck finish <任务>"))
+        self.assertLess(skill.index("out_deck finish <任务>"), skill.index("out_deck plan <任务> delivery"))
+
 class OutDeckPipelineTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -121,6 +136,7 @@ class OutDeckPipelineTest(unittest.TestCase):
         step("step", cls.task, "snapshot")
         step("step", cls.task, "package")
         step("step", cls.task, "archive")
+        cls.finish = step("finish", cls.task)
         package_html = d / refs()["package"]["files"]["html"]["record"]
         delivery = synthetic._write(d, "delivery.json", {
             "kind": "delivery", "reviewer": synthetic.WHO, "basis": "合成交付记录", "requirementRefs": [],
@@ -129,7 +145,6 @@ class OutDeckPipelineTest(unittest.TestCase):
         })
         step("plan", cls.task, "delivery", delivery, "--reviewer", "合成主笔", "--basis", "合成交付")
         cls.final_status = step("step", cls.task, "status")
-        cls.finish = step("finish", cls.task)
 
     @classmethod
     def tearDownClass(cls):
@@ -158,7 +173,9 @@ class OutDeckPipelineTest(unittest.TestCase):
         self.assertEqual(states["archive"], "done")
         self.assertEqual(states["delivery"], "done")
         archive = plan["productionRefs"]["archive"]["files"]["manifest"]["record"]
-        self.assertTrue((self.d / archive).is_file())
+        manifest = json.loads((self.d / archive).read_text(encoding="utf-8"))
+        receipt_sha = plan["productionRefs"]["package"]["files"]["receipt"]["sha256"]
+        self.assertIn(receipt_sha, {item["sha256"] for item in manifest["files"]})
 
     def test_finish_before_package_is_refused(self):
         self.assertEqual(self.early_finish.returncode, 2)
