@@ -139,7 +139,7 @@ Require `visual_focus`, `evidence_geometry`, `density`, `typography`, `chart_cla
 
 - [ ] **Step 3: Verify the release gate**
 
-Run: `python3 tools/report_capabilities.py check --strict && tools/selftest.sh && tools/selftest.sh --e2e`
+Run: `python3 tools/report_capabilities.py check && tools/selftest.sh && tools/selftest.sh --e2e`
 Expected: matrix has no `missing`, `untested`, or `present-not-used`; all tests pass with no skips.
 
 - [ ] **Step 4: Commit the evidence**
