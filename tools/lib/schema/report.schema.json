@@ -67,7 +67,35 @@
       "semantic_type": {"type": "string"},
       "visual": {"type": "string"},
       "slot": {"type": "string", "required": true},
-      "span": {"type": "number", "min": 0, "required": true}
+      "span": {"type": "number", "min": 0, "required": true},
+      "claims": {"type": "array", "items": {"type": "object", "fields": {
+       "id": {"type": "string", "required": true},
+       "statement": {"type": "string", "required": true},
+       "identity": {"type": "string", "enum": "claim_identity", "required": true},
+       "confidence": {"type": "string", "required": true},
+       "scope": {"type": "string", "required": true},
+       "limitation": {"type": "string", "required": true},
+       "support_label": {"type": "string", "required": true},
+       "support": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+        "source_id": {"type": "string", "required": true}, "locator": {"type": "string", "required": true}, "excerpt": {"type": "string", "required": true}
+       }}},
+       "counter": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+        "source_id": {"type": "string", "required": true}, "locator": {"type": "string", "required": true}, "excerpt": {"type": "string", "required": true}
+       }}}
+      }}},
+      "pain_groups": {"type": "array", "items": {"type": "object", "fields": {
+       "segment": {"type": "string", "required": true}, "trigger": {"type": "string", "required": true},
+       "workaround": {"type": "string", "required": true}, "consequence": {"type": "string", "required": true},
+       "purchase_signal": {"type": "string", "required": true}, "evidence_strength": {"type": "string", "required": true},
+       "counter": {"type": "string", "required": true}, "validation_gap": {"type": "string", "required": true}
+      }}},
+      "comparison": {"type": "object", "fields": {
+       "criteria": {"type": "array", "required": true, "items": {"type": "string"}},
+       "alternatives": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+        "name": {"type": "string", "required": true}, "layer": {"type": "string", "required": true},
+        "values": {"type": "map", "required": true, "values": {"type": "string"}}
+       }}}
+      }}
      }}
     }}},
     "relations": {"type": "array", "required": true, "items": {"type": "object", "fields": {

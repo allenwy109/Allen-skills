@@ -26,7 +26,8 @@ function sha(file) {
 
 function canonicalText(value) {
   return String(value).replace(/\s+/g, ' ').trim()
-    .replace(/(?<=\p{Script=Han})\s+(?=\d)|(?<=\d)\s+(?=\p{Script=Han})/gu, '');
+    .replace(/(?<=\p{Script=Han})\s+(?=[\p{Script=Han}\d])|(?<=\d)\s+(?=\p{Script=Han})/gu, '')
+    .replace(/-\s+(?=[A-Za-z0-9])/g, '-');
 }
 
 function tool(name) {

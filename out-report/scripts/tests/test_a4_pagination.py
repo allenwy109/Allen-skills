@@ -133,6 +133,19 @@ class A4PaginationTest(unittest.TestCase):
         self.assertNotEqual(0, process.returncode)
         self.assertIn("REPORT_PAGE_OVERFLOW", process.stderr)
 
+    def test_two_claim_fact_boundary_fits_without_shrinking_or_placeholder_chart(self):
+        item = block("fact-boundary", "text")
+        item["content"]["claims"] = [{
+            "id": f"cl-{index}", "statement": "决策主张需要支持、反证、范围与限制" * 2,
+            "identity": "judgment", "confidence": "medium", "scope": "目标细分与滩头市场",
+            "limitation": "公开证据不能证明普遍性或付费意愿" * 2,
+            "support": [{"excerpt": "一手来源支持限定现象" * 3, "source_id": "src-1", "locator": "p. 1"} for _ in range(3)],
+            "counter": [],
+        } for index in range(2)]
+        result = render({"title": "Fact boundary", "components": [component("fact-boundary", blocks=[item])]})
+        self.assertEqual(1, result["manifest"]["pageCount"])
+        self.assertNotIn('<svg aria-hidden="true"', result["html"])
+
     def test_long_table_repeats_header_without_shrinking_type(self):
         refs = [{"id": f"src-{i}", "title": f"Source {i}", "locators": [f"p. {i}"]} for i in range(1, 24)]
         table_block = block("sources", "table")
@@ -146,6 +159,19 @@ class A4PaginationTest(unittest.TestCase):
         self.assertTrue(all(page["tableHeaderCount"] == 1 for page in pages))
         self.assertGreaterEqual(result["manifest"]["minimumFontPt"], 7.5)
         self.assertEqual(23, sum(item["rowCount"] for item in result["manifest"]["tableContinuations"]))
+
+    def test_long_competition_matrix_splits_by_capacity_and_repeats_headers(self):
+        criteria = ["cost", "reliability"]
+        alternatives = [{"name": f"Option {index}", "layer": "direct", "values": {key: "pending" for key in criteria}}
+                        for index in range(1, 8)]
+        matrix_block = block("competition", "table")
+        matrix_block["content"].update(semantic_type="competition", comparison={"criteria": criteria, "alternatives": alternatives})
+        matrix = component("competition", "comparison", layout_id="comparison-columns", blocks=[matrix_block],
+                           criteria=criteria, alternatives=alternatives)
+        result = render({"title": "Competition", "components": [matrix]})
+        self.assertEqual(2, result["html"].count('class="table-body competition-matrix"'))
+        self.assertEqual(2, result["html"].count('<th scope="col">层级 / 选项</th>'))
+        self.assertEqual(7, result["html"].count('class="competition-layer"'))
 
     def test_long_sources_split_at_record_boundaries_and_keep_locators(self):
         refs = [{"id": f"src-{i}", "title": "Evidence " + "detail " * 20, "locators": [f"§{i}"]} for i in range(1, 18)]
@@ -180,7 +206,7 @@ class A4PaginationTest(unittest.TestCase):
         self.assertEqual(3, result["html"].count("data:font/woff2;base64,"))
         self.assertNotIn("src:local(", result["html"])
 
-    def test_chapter_openers_begin_on_recto_and_output_is_deterministic(self):
+    def test_chapter_openers_begin_on_fresh_page_without_blank_page_and_output_is_deterministic(self):
         opener = component(
             "chapter-2", "section-title", layout_id="overview-detail",
             blocks=[block("chapter-2")], chapter_claims=["Prove demand"],
@@ -189,8 +215,8 @@ class A4PaginationTest(unittest.TestCase):
         first = render(doc)
         second = render(doc)
         self.assertEqual(first, second)
-        self.assertEqual(1, first["manifest"]["blockToPage"]["chapter-2"] % 2)
-        self.assertTrue(any(page["intentionalBlank"] for page in first["manifest"]["pages"]))
+        self.assertEqual(2, first["manifest"]["blockToPage"]["chapter-2"])
+        self.assertFalse(any(page["intentionalBlank"] for page in first["manifest"]["pages"]))
 
     def test_file_mode_writes_html_and_pagination_manifest(self):
         doc = {"title": "Artifacts", "components": [component("finding")]}
@@ -211,6 +237,10 @@ class A4PaginationTest(unittest.TestCase):
 
 
 class A4PaginationCapabilityTest(unittest.TestCase):
+    def test_heading_css_reserves_cjk_glyph_ascent(self):
+        source = RENDER.read_text(encoding="utf-8")
+        self.assertIn(".report-component>h1,.report-component>h2{padding-top:1.5mm}", source)
+
     def test_missing_runtime_skips_by_default(self):
         with tempfile.TemporaryDirectory() as temporary:
             env = {"ALLEN_RUNTIME": temporary}

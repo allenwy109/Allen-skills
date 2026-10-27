@@ -7,6 +7,8 @@ description: Use when verified analysis must be delivered as a formal reading re
 
 把 `core-storyline` 的 `slides.json` 和证据账投影为媒介中立的 `report.json`，再由批准的 A4 设计系统自动排版。报告与演示文稿是两条链路：本 skill 不制作 PPT，也不要求作者手写页面 HTML。
 
+关键展品不得退化为占位图或通用“Relationship / Evidence”表。`semantic_type=pain-demand` 的 panel 必须从 `decision-research.json` 显示完整痛点链；`semantic_type=competition` 必须显示替代层与共同购买维度；其余决策性 block 至少显示主张正文、身份、置信度、支持/反证、适用范围和限制。正文只用紧凑引用标记，完整 URL 与来源字段只放来源附录。
+
 入口：
 
 ```bash

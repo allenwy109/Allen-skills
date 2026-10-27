@@ -167,6 +167,13 @@ class A4QualityGateTest(unittest.TestCase):
         codes = {item["code"] for item in run_qa(evidence)["blocking"]}
         self.assertEqual({"REPORT_TEXT_MISMATCH", "REPORT_EXTERNAL_RESOURCE"}, codes)
 
+    def test_text_manifest_allows_pdf_reading_order_changes_without_content_loss(self):
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0]["text"] = "左列事实 右列反证"
+        evidence["media"]["pdfPages"][0]["text"] = "右列反证 左列事实"
+        codes = {item["code"] for item in run_qa(evidence)["blocking"]}
+        self.assertNotIn("REPORT_TEXT_MISMATCH", codes)
+
     def test_geometry_inventory_and_visual_baseline_cannot_be_omitted(self):
         evidence = good_evidence()
         evidence["geometry"]["pages"] = []
@@ -209,6 +216,7 @@ class A4QualityGateTest(unittest.TestCase):
             ("page-006", "references", '<p>Forged role https://example.invalid/forged</p>'),
             ("page-007", "body", '<p class="css-hidden">https://example.invalid/hidden</p><p>Visible body</p>'),
             ("page-008", "body", '<a class="citation-marker" href="#ref-hidden">[8]</a>'),
+            ("page-009", "references", '<aside data-component-kind="references-appendix"><div style="width:20mm">编号 https://example.invalid/advisory-guidelines-of-cloud-services-and-data-centres</div></aside>'),
         ]
         sections = "".join(
             f'<section class="page" data-page-id="{page_id}" data-page-role="{role}"><div class="page__body">{body}</div></section>'
@@ -250,6 +258,10 @@ class A4QualityGateTest(unittest.TestCase):
             self.assertEqual(["page-003", "page-008"], [item["location"] for item in result["blocking"] if item["code"] == "REPORT_CITATION_MISMATCH"], result)
             self.assertEqual("body", media["htmlPages"][5]["role"])
             self.assertNotIn("example.invalid/hidden", media["htmlPages"][6]["visibleHtml"])
+            self.assertEqual(
+                [page["text"] for page in media["htmlPages"]],
+                [page["text"] for page in media["pdfPages"]],
+            )
 
     def test_html_pdf_and_pagination_page_ids_and_order_must_match(self):
         evidence = good_evidence()

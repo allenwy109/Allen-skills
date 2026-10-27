@@ -1,5 +1,6 @@
 import copy
 import json
+import pathlib
 import tempfile
 import unittest
 
@@ -57,6 +58,52 @@ class ReportContractTest(unittest.TestCase):
         self.assertEqual(coverage["input"]["answer_claims"], ["cl-0001"])
         self.assertEqual(blocks[0]["source_bindings"], [{"source_id": "M001", "locators": ["p12"]}])
         self.assertEqual(report["references"][0]["locators"], ["p12", "p30", "附录 A"])
+
+    def test_build_carries_claims_and_decision_research_into_semantic_blocks(self):
+        slides = copy.deepcopy(self.slides)
+        slides["slides"][1]["panels"][0]["semantic_type"] = "pain-demand"
+        slides["slides"][2]["panels"][1]["semantic_type"] = "competition"
+        evidence_dir = pathlib.Path(self.task) / "03_evidence"
+        evidence_dir.mkdir(exist_ok=True)
+        (evidence_dir / "decision-research.json").write_text(json.dumps({
+            "version": 1,
+            "material": {"pain": True, "competition": True, "pricing": False},
+            "pain": [{
+                "id": "pain-1", "segment": "AI 应用创业公司", "trigger": "流量突增",
+                "workaround": "排队或包卡", "consequence": "闲置成本或交付延迟",
+                "purchase_signal": "接受带价格试点", "support_claim_refs": ["cl-0001"],
+                "counter_claim_refs": ["cl-0002"], "confidence": "medium",
+                "validation_gap": "尚无目标客户采购样本",
+            }],
+            "competition": {
+                "layers": {
+                    "direct": [{"name": "专业 GPU 云", "claim_refs": ["cl-0002"],
+                                "values": {"总拥有成本": "官方价可比", "可靠性": "缺同口径状态数据"}}],
+                    "do_nothing": [{"name": "延后任务", "claim_refs": ["cl-0002"]}],
+                },
+                "criteria": ["总拥有成本", "可靠性"], "claim_refs": ["cl-0002"],
+            },
+            "methods": [], "critical_claim_refs": [], "claim_risk_assessments": [],
+        }, ensure_ascii=False), encoding="utf-8")
+
+        report, _ = self.build(slides)
+        blocks = [block for section in report["sections"] for block in section["blocks"]]
+        pain = next(block for block in blocks if block["content"].get("semantic_type") == "pain-demand")
+        competition = next(block for block in blocks if block["content"].get("semantic_type") == "competition")
+
+        self.assertEqual("收入从 1800 万元增至 3200 万元", pain["content"]["claims"][0]["statement"])
+        self.assertEqual("high", pain["content"]["claims"][0]["confidence"])
+        self.assertEqual("虚构数据", pain["content"]["claims"][0]["limitation"])
+        self.assertEqual("support", pain["content"]["claims"][0]["support_label"])
+        self.assertEqual("营业收入 3200 万元，上年 1800 万元", pain["content"]["claims"][0]["support"][0]["excerpt"])
+        self.assertEqual("AI 应用创业公司", pain["content"]["pain_groups"][0]["segment"])
+        self.assertEqual("尚无目标客户采购样本", pain["content"]["pain_groups"][0]["validation_gap"])
+        self.assertEqual(["总拥有成本", "可靠性"], competition["content"]["comparison"]["criteria"])
+        self.assertEqual("direct", competition["content"]["comparison"]["alternatives"][0]["layer"])
+        self.assertEqual("官方价可比", competition["content"]["comparison"]["alternatives"][0]["values"]["总拥有成本"])
+        self.assertEqual("缺同口径状态数据", competition["content"]["comparison"]["alternatives"][0]["values"]["可靠性"])
+        recommendation = next(detail for block in blocks for detail in block["content"]["claims"] if detail["id"] == "cl-0004")
+        self.assertEqual("indirect_lead", recommendation["support_label"])
 
     def test_report_matches_schema_and_schema_self_checks(self):
         schema = schema_check.load("report.schema.json")

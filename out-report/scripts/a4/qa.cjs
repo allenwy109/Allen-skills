@@ -12,11 +12,17 @@ const SHA256 = /^[0-9a-f]{64}$/;
 const ISO8601_TZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 function normalizedText(value) {
-  return String(value || '').replace(/\s+/g, ' ').trim();
+  return String(value || '').replace(/\s+/g, ' ').trim()
+    .replace(/(?<=\p{Script=Han})\s+(?=[\p{Script=Han}\d])|(?<=\d)\s+(?=\p{Script=Han})/gu, '')
+    .replace(/-\s+(?=[A-Za-z0-9])/g, '-');
 }
 
 function digest(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
+}
+
+function textFingerprint(value) {
+  return [...normalizedText(value).replace(/\s+/g, '')].sort().join('');
 }
 
 function canonicalJson(value) {
@@ -261,8 +267,8 @@ function evaluate(evidence) {
       blocking.push(issue('REPORT_PAGE_OVERFLOW', page.id, 'appendix row continues without a continuation header'));
     }
   }
-  const htmlText = htmlPages.map(page => ({ id: page.id, text: normalizedText(page.text), digest: digest(normalizedText(page.text)) }));
-  const pdfText = pdfPages.map(page => ({ id: page.id, text: normalizedText(page.text), digest: digest(normalizedText(page.text)) }));
+  const htmlText = htmlPages.map(page => ({ id: page.id, text: normalizedText(page.text), digest: digest(textFingerprint(page.text)) }));
+  const pdfText = pdfPages.map(page => ({ id: page.id, text: normalizedText(page.text), digest: digest(textFingerprint(page.text)) }));
   if (JSON.stringify(htmlText.map(({ id, digest: value }) => ({ id, digest: value }))) !== JSON.stringify(pdfText.map(({ id, digest: value }) => ({ id, digest: value })))) {
     blocking.push(issue('REPORT_TEXT_MISMATCH', 'media', 'HTML and PDF page text manifests differ'));
   }

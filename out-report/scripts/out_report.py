@@ -114,6 +114,15 @@ def _component_for_block(block, section, index, report, metrics):
     base = {"id": f"{section['id']}-item-{index:02d}", "title": block["content"]["title"], "blocks": [block]}
     source_groups = [{"source_id": binding["source_id"], "locators": binding["locators"]}
                      for binding in block["source_bindings"]]
+    semantic_type = block["content"].get("semantic_type")
+    if semantic_type == "pain-demand" and block["content"].get("pain_groups"):
+        return {"kind": "pain-demand", "payload": {**base, "layout_id": "full-evidence",
+                                                          "pain_groups": block["content"]["pain_groups"]}}
+    if semantic_type == "competition" and block["content"].get("comparison"):
+        comparison = block["content"]["comparison"]
+        return {"kind": "comparison", "payload": {**base, "layout_id": "comparison-columns",
+                                                         "criteria": comparison["criteria"],
+                                                         "alternatives": comparison["alternatives"]}}
     if block["kind"] == "chart":
         return {"kind": "data-chart", "payload": {**base, "layout_id": "full-evidence", "unit": block["content"].get("subtitle") or "见来源口径",
                                                         "period": report["metadata"].get("date") or "报告期", "items": [block["id"]]}}
@@ -142,16 +151,8 @@ def render_document(report, task):
         components.append({"kind": "section-title", "payload": {"id": chapter_id, "title": section["title"], "layout_id": "overview-detail",
                                                                     "chapter_claims": [section["title"]], "blocks": []}})
         components.extend(_component_for_block(block, section, index, report, metrics) for index, block in enumerate(section["blocks"], 1))
-    reference_block = {
-        "id": "references-table", "kind": "table", "claim_refs": [], "metric_refs": [],
-        "source_ids": [item["id"] for item in report["references"]],
-        "source_bindings": [{"source_id": item["id"], "locators": item["locators"]} for item in report["references"]],
-        "panel_refs": [], "relation_refs": [], "identity": ["fact"],
-        "content": {"title": "来源", "purpose": "可审计来源清单", "form": "html.table", "relationship": "documents",
-                    "reason": "保留来源定位", "anchor": False, "role": "evidence", "slot": "main", "span": 1},
-    }
     components.append({"kind": "references-appendix", "payload": {"id": "references", "title": "来源与附录", "layout_id": "continued-table",
-                                                                         "blocks": [reference_block], "references": report["references"]}})
+                                                                         "blocks": [], "references": report["references"]}})
     document = {"title": report["metadata"]["title"], "components": components}
     if "citation_registry" in report:
         document["citation_registry"] = report["citation_registry"]

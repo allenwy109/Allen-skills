@@ -76,6 +76,31 @@ class A4OutReportPipelineTest(unittest.TestCase):
         self.assertEqual(expected, result.returncode, result.stdout + result.stderr)
         return result
 
+    def test_render_document_preserves_semantic_component_payloads(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            task = make_task(temporary)
+            slides = json.loads((task / "07_storyline/slides.json").read_text(encoding="utf-8"))
+            report, _ = out_report.to_report.build(task, slides)
+            report["sections"][0]["blocks"][0]["content"]["semantic_type"] = "pain-demand"
+            report["sections"][0]["blocks"][0]["content"]["pain_groups"] = [{
+                "segment": "AI 应用创业公司", "trigger": "流量突增", "workaround": "排队或包卡",
+                "consequence": "闲置或延期", "purchase_signal": "带价格试点", "evidence_strength": "medium",
+                "counter": "成熟 API 可替代", "validation_gap": "没有采购样本",
+            }]
+            report["sections"][1]["blocks"][1]["content"]["semantic_type"] = "competition"
+            report["sections"][1]["blocks"][1]["content"]["comparison"] = {
+                "criteria": ["总拥有成本"],
+                "alternatives": [{"name": "专业 GPU 云", "layer": "direct", "values": {"总拥有成本": "待同口径核实"}}],
+            }
+
+            document = out_report.render_document(report, task)
+            pain = next(item for item in document["components"] if item["kind"] == "pain-demand")
+            comparison = next(item for item in document["components"] if item["kind"] == "comparison")
+            references = next(item for item in document["components"] if item["kind"] == "references-appendix")
+            self.assertEqual("AI 应用创业公司", pain["payload"]["pain_groups"][0]["segment"])
+            self.assertEqual("专业 GPU 云", comparison["payload"]["alternatives"][0]["name"])
+            self.assertEqual([], references["payload"]["blocks"])
+
     def test_a4_workflow_is_default_and_packages_audited_outputs(self):
         self.command("init", self.task)
         self.assertTrue((self.story / "report.json").is_file())

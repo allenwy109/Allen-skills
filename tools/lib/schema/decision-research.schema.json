@@ -31,19 +31,19 @@
       "competition": {"type": "object", "required": true, "fields": {
         "layers": {"type": "object", "required": true, "fields": {
           "direct": {"type": "array", "min_items": 1, "items": {"type": "object", "fields": {
-            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
+            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "values": {"type": "map", "values": {"type": "string"}}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
           }}},
           "indirect": {"type": "array", "min_items": 1, "items": {"type": "object", "fields": {
-            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
+            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "values": {"type": "map", "values": {"type": "string"}}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
           }}},
           "diy": {"type": "array", "min_items": 1, "items": {"type": "object", "fields": {
-            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
+            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "values": {"type": "map", "values": {"type": "string"}}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
           }}},
           "adjacent": {"type": "array", "min_items": 1, "items": {"type": "object", "fields": {
-            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
+            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "values": {"type": "map", "values": {"type": "string"}}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
           }}},
           "do_nothing": {"type": "array", "min_items": 1, "items": {"type": "object", "fields": {
-            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
+            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "values": {"type": "map", "values": {"type": "string"}}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
           }}}
         }},
         "criteria": {"type": "array", "required": true, "items": {"type": "string"}},
