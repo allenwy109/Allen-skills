@@ -35,12 +35,12 @@ class VisualBenchmarkTest(unittest.TestCase):
         try:
             manifest, mapping = benchmark.build(output)
             self.assertEqual(manifest["pageCount"], 5)
-            self.assertEqual(set(manifest["labels"]), {"Aurora", "Slate"})
+            self.assertEqual(set(manifest["labels"]), {"Cinder", "Willow"})
             self.assertEqual(set(manifest), {"version", "inputSha256", "blueprintSha256", "labels", "pageCount", "variants"})
             for label in manifest["labels"]:
                 pages = sorted((output / label).glob("page-*.png"))
                 self.assertEqual(len(pages), manifest["pageCount"])
-                for name in ("deck.html", "deck.pdf", "contact-sheet.png", "qa-status.json"):
+                for name in ("deck.html", "deck.pdf", "contact-sheet.png", "qa-status.json", "cross-media.json"):
                     self.assertTrue((output / label / name).is_file())
                 audit = json.loads((output / label / "qa-status.json").read_text())
                 self.assertEqual(audit, {"acceptance": True, "errors": 0, "geometry": "PASS", "htmlPages": 5,
@@ -48,7 +48,22 @@ class VisualBenchmarkTest(unittest.TestCase):
                 self.assertEqual(manifest["variants"][label]["qa"], audit)
                 self.assertEqual(set(manifest["variants"][label]), {"files", "pageCount", "qa"})
                 self.assertEqual(manifest["variants"][label]["pageCount"], 5)
-            self.assertNotEqual((output / "Aurora/deck.html").read_bytes(), (output / "Slate/deck.html").read_bytes())
+            self.assertNotEqual((output / "Cinder/deck.html").read_bytes(), (output / "Willow/deck.html").read_bytes())
+            for label in manifest["labels"]:
+                media = json.loads((output / label / "cross-media.json").read_text())
+                self.assertEqual(len(media["pages"]), 5)
+                self.assertTrue(all(page["textSimilarity"] >= 0.93 for page in media["pages"]))
+                benchmark.verify_variant_media(output / label, 5)
+            stale = (output / "Cinder/page-04.png").read_bytes()
+            (output / "Cinder/page-04.png").write_bytes((output / "Willow/page-04.png").read_bytes())
+            with self.assertRaisesRegex(RuntimeError, "BENCHMARK_MEDIA_PNG_MISMATCH"):
+                benchmark.verify_variant_media(output / "Cinder", 5)
+            (output / "Cinder/page-04.png").write_bytes(stale)
+            stale_pdf = (output / "Cinder/deck.pdf").read_bytes()
+            (output / "Cinder/deck.pdf").write_bytes((output / "Willow/deck.pdf").read_bytes())
+            with self.assertRaisesRegex(RuntimeError, "BENCHMARK_MEDIA_TEXT_MISMATCH"):
+                benchmark.verify_variant_media(output / "Cinder", 5)
+            (output / "Cinder/deck.pdf").write_bytes(stale_pdf)
             anonymous = json.loads((output / "anonymous-manifest.json").read_text())
             self.assertNotIn("mapping", anonymous)
             forbidden = ("candidate", "reference", "composer", "upstream", "pre-composer", "strategy", "provenance")
@@ -66,8 +81,8 @@ class VisualBenchmarkTest(unittest.TestCase):
                         for label in manifest["labels"]}
             pattern = re.compile(r"(?i)\b(?:allen[-_][\w-]*|data-allen-[\w-]*|candidate|composer|upstream|pre-composer|reference-task|candidate-task)\b")
             fingerprints = {label: Counter(pattern.findall(text.replace("Allen 分析系统", ""))) for label, text in readable.items()}
-            self.assertEqual(fingerprints["Aurora"], fingerprints["Slate"])
-            self.assertFalse(any(token.lower().startswith(("allen-", "data-allen-")) for token in fingerprints["Aurora"]))
+            self.assertEqual(fingerprints["Cinder"], fingerprints["Willow"])
+            self.assertFalse(any(token.lower().startswith(("allen-", "data-allen-")) for token in fingerprints["Cinder"]))
             mapping.unlink()
         finally:
             if output.exists():

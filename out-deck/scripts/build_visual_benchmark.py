@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Build a reproducible, blind same-input deck A/B review packet."""
 import argparse
+import collections
+import contextlib
 import hashlib
 import json
 import os
@@ -54,12 +56,106 @@ def reset_output(output):
     return output
 
 
+@contextlib.contextmanager
+def managed_staging(output):
+    output = validate_output(output)
+    staging = pathlib.Path(tempfile.mkdtemp(prefix=f".{output.name}-staging-", dir=BUILD_ROOT))
+    (staging / MANAGED_MARKER).write_text("managed visual benchmark output\n", encoding="utf-8")
+    backup = None
+    try:
+        yield staging
+        if output.exists():
+            backup = pathlib.Path(tempfile.mkdtemp(prefix=f".{output.name}-previous-", dir=BUILD_ROOT))
+            backup.rmdir()
+            output.replace(backup)
+        staging.replace(output)
+        if backup is not None:
+            shutil.rmtree(backup)
+    except Exception:
+        if not output.exists() and backup is not None and backup.exists():
+            backup.replace(output)
+        raise
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
+        if backup is not None and backup.exists():
+            shutil.rmtree(backup)
+
+
 def contact_sheet(out_dir, count):
     node = out_dir / "contact.cjs"
     playwright = runtime.engine_dir("report-forge", skill_dir=ROOT / "out-deck") / "node_modules" / "playwright"
     node.write_text("""const {chromium}=require(process.argv[2]),path=require('path'),fs=require('fs'),{pathToFileURL}=require('url');(async()=>{const b=await chromium.launch({headless:true});const p=await b.newPage({viewport:{width:1280,height:720},deviceScaleFactor:1});const dir=process.argv[3],n=Number(process.argv[4]),html=path.join(dir,'contact.html');fs.writeFileSync(html,'<style>body{margin:20px;background:#ddd;display:grid;grid-template-columns:repeat(3,384px);gap:12px}img{width:384px}</style>'+[...Array(n)].map((_,i)=>`<img src="${`page-${String(i+1).padStart(2,'0')}.png`}">`).join(''));await p.goto(pathToFileURL(html).href);await p.waitForLoadState('load');const loaded=await p.locator('img').evaluateAll(xs=>xs.every(x=>x.complete&&x.naturalWidth>0));if(!loaded)throw Error('contact sheet images did not load');await p.screenshot({path:path.join(dir,'contact-sheet.png'),fullPage:true});fs.unlinkSync(html);await b.close()})().catch(e=>{console.error(e);process.exit(1)})""", encoding="utf-8")
     subprocess.run(["node", str(node), str(playwright), str(out_dir), str(count)], check=True)
     node.unlink()
+
+
+def html_page_texts(html_file, count):
+    playwright = runtime.engine_dir("report-forge", skill_dir=ROOT / "out-deck") / "node_modules" / "playwright"
+    page_probe = runtime.engine_dir("report-forge", skill_dir=ROOT / "out-deck") / "scripts" / "page_probe.cjs"
+    script = """const {chromium}=require(process.argv[1]),probe=require(process.argv[2]),{pathToFileURL}=require('url');(async()=>{const b=await chromium.launch({channel:process.env.CHROME_CHANNEL||'chrome',headless:true});const p=await b.newPage({viewport:{width:1400,height:820}});await p.goto(pathToFileURL(process.argv[3]).href,{waitUntil:'networkidle'});await p.evaluate(()=>window.deckReady||document.fonts.ready);const out=[];for(let i=0;i<Number(process.argv[4]);i++){await probe.activate(p,i);out.push((await p.locator('.slide.active').innerText()).replace(/\\s+/g,' ').trim())}console.log(JSON.stringify(out));await b.close()})().catch(e=>{console.error(e);process.exit(1)})"""
+    env = dict(os.environ, CHROME_CHANNEL=runtime.chrome_channel())
+    result = subprocess.run(["node", "-e", script, str(playwright), str(page_probe), str(html_file), str(count)],
+                            capture_output=True, text=True, env=env, check=True)
+    return json.loads(result.stdout)
+
+
+def pdf_page_texts(pdf_file, count):
+    texts = []
+    for index in range(1, count + 1):
+        result = subprocess.run(["pdftotext", "-f", str(index), "-l", str(index), "-layout", str(pdf_file), "-"],
+                                capture_output=True, text=True, check=True)
+        texts.append(re.sub(r"\s+", " ", result.stdout.replace("\f", " ")).strip())
+    return texts
+
+
+def text_similarity(left, right):
+    clean = lambda value: collections.Counter(re.findall(r"[\w\u3400-\u9fff]", value.lower()))
+    a, b = clean(left), clean(right)
+    shared = sum((a & b).values())
+    return 1.0 if not a and not b else (2 * shared / (sum(a.values()) + sum(b.values())))
+
+
+def verify_variant_media(directory, count):
+    directory = pathlib.Path(directory)
+    manifest = read_json(directory / "cross-media.json")
+    html_texts = html_page_texts(directory / "deck.html", count)
+    pdf_texts = pdf_page_texts(directory / "deck.pdf", count)
+    rendered = render_hashes(directory / "deck.html", count)
+    actual_pngs = [sha(directory / f"page-{index:02d}.png") for index in range(1, count + 1)]
+    if rendered != actual_pngs or actual_pngs != manifest.get("pngSha256"):
+        raise RuntimeError("BENCHMARK_MEDIA_PNG_MISMATCH: packaged PNGs are not fresh renders of this HTML")
+    pages = manifest.get("pages") or []
+    if len(pages) != count:
+        raise RuntimeError("BENCHMARK_MEDIA_TEXT_MISMATCH: page count changed")
+    for index, (html_text, pdf_text, recorded) in enumerate(zip(html_texts, pdf_texts, pages), 1):
+        similarity = text_similarity(html_text, pdf_text)
+        if (sha_text(html_text) != recorded.get("htmlTextSha256") or
+                sha_text(pdf_text) != recorded.get("pdfTextSha256") or similarity < 0.93):
+            raise RuntimeError(f"BENCHMARK_MEDIA_TEXT_MISMATCH: page {index}")
+    if manifest.get("contactInputSha256") != actual_pngs:
+        raise RuntimeError("BENCHMARK_CONTACT_MISMATCH: contact sheet inputs changed")
+    return manifest
+
+
+def sha_text(value):
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def write_cross_media(directory, count):
+    html_texts = html_page_texts(directory / "deck.html", count)
+    pdf_texts = pdf_page_texts(directory / "deck.pdf", count)
+    pngs = [sha(directory / f"page-{index:02d}.png") for index in range(1, count + 1)]
+    pages = []
+    for index, (html_text, pdf_text) in enumerate(zip(html_texts, pdf_texts), 1):
+        similarity = text_similarity(html_text, pdf_text)
+        if similarity < 0.93:
+            raise RuntimeError(f"BENCHMARK_MEDIA_TEXT_MISMATCH: page {index}")
+        pages.append({"page": index, "htmlTextSha256": sha_text(html_text),
+                      "pdfTextSha256": sha_text(pdf_text), "textSimilarity": round(similarity, 6)})
+    value = {"version": 1, "pages": pages, "pngSha256": pngs, "contactInputSha256": pngs}
+    write_json(directory / "cross-media.json", value)
+    return value
 
 
 def render_hashes(html_file, count):
@@ -123,7 +219,7 @@ def build(output):
                     "--basis", "accepted against locked blueprint")
             cli("step", task, "ready")
             cli("step", task, "compile")
-            if identity == "candidate":
+            if identity.startswith("candidate"):
                 composition = allen_compose.compose(work)
             else:
                 parts = [work / "bookend-cover.html", ROOT / author["html"],
@@ -146,7 +242,6 @@ def build(output):
 
         candidate_work, candidate, candidate_audit = prepare("candidate")
         original_audit = read_json(candidate_audit)
-        original_base = candidate_audit.parent
         geometry = inspect_evidence_geometry(pathlib.Path(original_audit["htmlArtifact"]["path"]))
         trend, comparison = geometry
         if not (0.58 <= trend["panels"][0]["w"] <= 0.62 and 0.38 <= trend["panels"][1]["w"] <= 0.42):
@@ -161,24 +256,27 @@ def build(output):
             raise RuntimeError(f"comparison functional whitespace failed: {comparison}")
         if comparison["kpi"]["border"]:
             raise RuntimeError(f"comparison KPI card styling failed: {comparison}")
-        layout_file = candidate_work / "obs/layout-plan.json"
+        mutation_work, _, mutation_audit = prepare("candidate-mutation")
+        mutation_task = mutation_work.parents[1]
+        layout_file = mutation_work / "obs/layout-plan.json"
         layout_doc = read_json(layout_file)
         layout_doc["layoutDecisions"][0]["reason"] = "benchmark visible layout mutation"
         write_json(layout_file, layout_doc)
-        cli("plan", candidate_work.parents[1], "layout-plan", layout_file, "--reviewer", "benchmark mutation reviewer",
+        cli("plan", mutation_task, "layout-plan", layout_file, "--reviewer", "benchmark mutation reviewer",
             "--basis", "verify visible plan effect")
-        module_file = candidate_work / "obs/module-fill-plan.json"
+        module_file = mutation_work / "obs/module-fill-plan.json"
         module_doc = read_json(module_file)
         module_doc["modulePlans"][0]["regions"][0]["whitespace"] = "保留重点留白"
         module_doc["modulePlans"][0]["regions"][0]["layout"] = "居中放置"
         write_json(module_file, module_doc)
-        cli("plan", candidate_work.parents[1], "module-fill-plan", module_file, "--reviewer", "benchmark mutation reviewer",
+        cli("plan", mutation_task, "module-fill-plan", module_file, "--reviewer", "benchmark mutation reviewer",
             "--basis", "verify visible module effect")
-        allen_compose.compose(candidate_work)
-        cli("step", candidate_work.parents[1], "assemble")
-        before_hashes = [sha(original_base / row["screenshot"]) for row in original_audit["rows"]]
-        changed_refs = read_json(candidate_work / "execution-plan.json")["productionRefs"]
-        changed_html = candidate_work / changed_refs["assemble"]["files"]["html"]["record"]
+        allen_compose.compose(mutation_work)
+        cli("step", mutation_task, "assemble")
+        mutation_original_audit = read_json(mutation_audit)
+        before_hashes = [sha(mutation_audit.parent / row["screenshot"]) for row in mutation_original_audit["rows"]]
+        changed_refs = read_json(mutation_work / "execution-plan.json")["productionRefs"]
+        changed_html = mutation_work / changed_refs["assemble"]["files"]["html"]["record"]
         after_hashes = render_hashes(changed_html, len(original_audit["rows"]))
         changed_pages = [index + 1 for index, pair in enumerate(zip(before_hashes, after_hashes)) if pair[0] != pair[1]]
         if changed_pages != [2]:
@@ -194,34 +292,36 @@ def build(output):
         digest = sha(candidate_work / "deck-blueprint.json")
         if digest != sha(reference_work / "deck-blueprint.json"):
             raise RuntimeError("benchmark variants did not receive the same blueprint")
-        reset_output(output)
-        labels = ["Aurora", "Slate"]
+        labels = ["Cinder", "Willow"]
         mapping = {labels[0]: "candidate", labels[1]: "reference"} if int(digest[0], 16) % 2 == 0 else {labels[0]: "reference", labels[1]: "candidate"}
         variants = {}
-        for label, identity in mapping.items():
-            directory = output / label; directory.mkdir()
-            work, audit_file = ((candidate_work, candidate_audit) if identity == "candidate" else (reference_work, reference_audit))
-            audit = read_json(audit_file)
-            if audit.get("geometryStatus") != "PASS" or audit.get("errors"):
-                raise RuntimeError(f"{identity} QA failed: {audit.get('errors')}")
-            html_file = pathlib.Path(audit["htmlArtifact"]["path"])
-            base = audit_file.parent
-            pdf = pathlib.Path(audit["pdfArtifact"]["path"])
-            shutil.copy2(pdf, directory / "deck.pdf")
-            for index, row in enumerate(audit["rows"], 1):
-                shutil.copy2(base / row["screenshot"], directory / f"page-{index:02d}.png")
-            expected_screens = [directory / f"page-{index:02d}.png" for index in range(1, len(audit["rows"]) + 1)]
-            sanitize_reviewer_html(html_file, directory / "deck.html", expected_screens)
-            contact_sheet(directory, len(audit["rows"]))
-            qa_status = {"acceptance": audit["acceptance"]["complete"], "errors": len(audit["errors"]),
-                         "geometry": audit["geometryStatus"], "htmlPages": audit["pages"],
-                         "pdfPages": audit["pdfPages"], "tier": audit["tier"]}
-            write_json(directory / "qa-status.json", qa_status)
-            variants[label] = {"pageCount": len(audit["rows"]), "qa": qa_status,
-                               "files": {p.name: sha(p) for p in sorted(directory.iterdir()) if p.is_file()}}
-        packet = {"version": 1, "inputSha256": config["materializedInputSha256"], "blueprintSha256": digest,
-                  "labels": labels, "pageCount": len(candidate["pages"]), "variants": variants}
-        write_json(output / "anonymous-manifest.json", packet)
+        with managed_staging(output) as staging:
+            for label, identity in mapping.items():
+                directory = staging / label; directory.mkdir()
+                work, audit_file = ((candidate_work, candidate_audit) if identity == "candidate" else (reference_work, reference_audit))
+                audit = read_json(audit_file)
+                if audit.get("geometryStatus") != "PASS" or audit.get("errors"):
+                    raise RuntimeError(f"{identity} QA failed: {audit.get('errors')}")
+                html_file = pathlib.Path(audit["htmlArtifact"]["path"])
+                base = audit_file.parent
+                pdf = pathlib.Path(audit["pdfArtifact"]["path"])
+                shutil.copy2(pdf, directory / "deck.pdf")
+                for index, row in enumerate(audit["rows"], 1):
+                    shutil.copy2(base / row["screenshot"], directory / f"page-{index:02d}.png")
+                expected_screens = [directory / f"page-{index:02d}.png" for index in range(1, len(audit["rows"]) + 1)]
+                sanitize_reviewer_html(html_file, directory / "deck.html", expected_screens)
+                write_cross_media(directory, len(audit["rows"]))
+                contact_sheet(directory, len(audit["rows"]))
+                verify_variant_media(directory, len(audit["rows"]))
+                qa_status = {"acceptance": audit["acceptance"]["complete"], "errors": len(audit["errors"]),
+                             "geometry": audit["geometryStatus"], "htmlPages": audit["pages"],
+                             "pdfPages": audit["pdfPages"], "tier": audit["tier"]}
+                write_json(directory / "qa-status.json", qa_status)
+                variants[label] = {"pageCount": len(audit["rows"]), "qa": qa_status,
+                                   "files": {p.name: sha(p) for p in sorted(directory.iterdir()) if p.is_file()}}
+            packet = {"version": 1, "inputSha256": config["materializedInputSha256"], "blueprintSha256": digest,
+                      "labels": labels, "pageCount": len(candidate["pages"]), "variants": variants}
+            write_json(staging / "anonymous-manifest.json", packet)
         label_key = "-".join(label.lower() for label in labels)
         mapping_file = pathlib.Path(tempfile.gettempdir()) / f"allen-deck-benchmark-map-{label_key}-{digest[:12]}.json"
         write_json(mapping_file, {"identities": mapping, "releaseEvidence": {
@@ -234,7 +334,7 @@ def build(output):
 
 
 def main():
-    parser = argparse.ArgumentParser(); parser.add_argument("--output", default=str(ROOT / "out-deck/build/visual-benchmark-v5")); args = parser.parse_args()
+    parser = argparse.ArgumentParser(); parser.add_argument("--output", default=str(ROOT / "out-deck/build/visual-benchmark-final")); args = parser.parse_args()
     packet, mapping = build(pathlib.Path(args.output).resolve())
     print(json.dumps({"packet": str(pathlib.Path(args.output).resolve()), "mapping": str(mapping), "manifest": packet}, ensure_ascii=False, indent=2))
 

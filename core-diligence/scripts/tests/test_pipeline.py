@@ -132,6 +132,8 @@ class DiligenceReportPipelineTest(unittest.TestCase):
         preview = subprocess.run([sys.executable, str(OUT_REPORT), "render", str(task)], capture_output=True, text=True)
         if preview.returncode != 1:
             raise AssertionError(f"render 应因未审视觉差异失败关闭：{preview.stdout}{preview.stderr}")
+        if not (d / "visual-regression.json").is_file():
+            raise AssertionError(f"render 未生成视觉回归证据，不是 needs-reapproval 失败：{preview.stdout}{preview.stderr}")
         regression = json.loads((d / "visual-regression.json").read_text(encoding="utf-8"))
         artifacts = json.loads((d / "artifact-manifest.json").read_text(encoding="utf-8"))
         pages = [page["id"] for page in json.loads((d / "build/pagination-manifest.json").read_text(encoding="utf-8"))["pages"]]
