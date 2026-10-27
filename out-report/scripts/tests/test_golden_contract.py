@@ -57,9 +57,12 @@ class GoldenReportContractTest(unittest.TestCase):
         steps = [(float(a), float(b)) for a, b in re.findall(r'data-waterfall-step[^>]*data-start="([\d.-]+)"[^>]*data-end="([\d.-]+)"', self.source_html)]
         self.assertEqual(steps, [(0, 8.6), (8.6, 3.2), (3.2, 2.5), (2.5, 2.1), (0, 2.1)])
 
-    def test_approval_record_is_separate_and_unapproved(self):
-        self.assertEqual(self.baseline["status"], "unapproved")
-        self.assertIsNone(self.baseline["approvedBy"]); self.assertIsNone(self.baseline["approvedAt"])
+    def test_approval_record_is_separate_and_records_user_approval(self):
+        self.assertEqual(self.baseline["status"], "approved")
+        self.assertEqual(self.baseline["approvedBy"], "user")
+        self.assertRegex(self.baseline["approvedAt"], r"^2026-10-27T\d{2}:\d{2}:\d{2}\+10:30$")
+        self.assertEqual(self.baseline["changeReason"], "用户确认：这个排版结构我认可")
+        self.assertRegex(self.baseline["candidateDigest"], r"^[0-9a-f]{64}$")
         self.assertNotIn("artifacts", self.baseline); self.assertNotIn("environment", self.baseline)
 
     def test_source_is_script_free_and_declares_a4_readability(self):
@@ -100,8 +103,10 @@ class GoldenRenderIntegrationTest(unittest.TestCase):
         qa = self.second["layoutQa"]
         self.assertEqual(qa["overflowPageIds"], []); self.assertEqual(qa["sourceFooterOverlapPageIds"], []); self.assertEqual(qa["pageCount"], 16)
 
-    def test_candidate_is_captured_but_unapproved_and_tagging_limit_is_honest(self):
-        self.assertEqual(self.second["status"], "captured"); self.assertEqual(self.second["approvalStatus"], "unapproved")
+    def test_candidate_is_captured_with_separate_approval_and_tagging_limit_is_honest(self):
+        baseline = json.loads((GOLDEN / "visual-baseline.json").read_text())
+        self.assertEqual(self.second["status"], "captured"); self.assertEqual(self.second["approvalStatus"], baseline["status"])
+        self.assertEqual(self.second["candidateDigest"], baseline["candidateDigest"])
         self.assertFalse(self.second["accessibility"]["pdfTagged"]); self.assertIn("Chromium", self.second["accessibility"]["limitation"])
 
     def test_approved_baseline_refuses_changed_candidate(self):

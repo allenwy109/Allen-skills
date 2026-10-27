@@ -1,8 +1,8 @@
 {
   "schemaVersion": "1.0",
-  "status": "unapproved",
-  "approvedBy": null,
-  "approvedAt": null,
-  "candidateDigest": null,
-  "changeReason": "Initial candidate awaiting user design review. Candidate capture is written separately under build/."
+  "status": "approved",
+  "approvedBy": "user",
+  "approvedAt": "2026-10-27T11:43:00+10:30",
+  "candidateDigest": "823c58f3473e6faf9e0ae3455cb23b2632d95f2badb4d026616f209e10eaae96",
+  "changeReason": "用户确认：这个排版结构我认可"
 }
