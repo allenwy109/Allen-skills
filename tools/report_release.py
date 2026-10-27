@@ -18,10 +18,11 @@ from tools import report_capabilities
 
 RELEASE = pathlib.Path("references/report-output-release.json")
 SCHEMA = pathlib.Path("references/report-output-release.schema.json")
-DIMENSIONS = {
+DIMENSION_ORDER = (
     "visual_focus", "evidence_geometry", "density", "typography",
     "chart_clarity", "book_rhythm", "source_integration", "finish",
-}
+)
+DIMENSIONS = set(DIMENSION_ORDER)
 ROOT_FIELDS = {
     "schemaVersion", "schema", "status", "releasedAt", "implementationHead",
     "provenance", "capabilities", "evidence", "a4", "deck", "scenarios",
@@ -53,6 +54,73 @@ def _score_errors(label, scores):
             errors.append(f"{label}: {dimension} score must be an integer from 1 to 5")
         elif value < 4:
             errors.append(f"{label}: {dimension} score must be at least 4")
+    return errors
+
+
+def validate_deck_verdict(release, scorecard, reveal):
+    """Recompute the comparative result and reject any declarative drift."""
+    errors = []
+    deck = release.get("deck", {}) if isinstance(release, dict) else {}
+    identities = reveal.get("identities", {}) if isinstance(reveal, dict) else {}
+    labels = scorecard.get("labels", {}) if isinstance(scorecard, dict) else {}
+    candidate_labels = [label for label, identity in identities.items() if identity == "candidate"]
+    reference_labels = [label for label, identity in identities.items() if identity == "reference"]
+    if len(candidate_labels) != 1 or len(reference_labels) != 1:
+        return ["deck verdict: reveal must identify exactly one candidate and one reference"]
+    candidate_label, reference_label = candidate_labels[0], reference_labels[0]
+    if candidate_label not in labels or reference_label not in labels:
+        return ["deck verdict: revealed labels are missing from raw scorecard"]
+    candidate = labels[candidate_label].get("scores")
+    reference = labels[reference_label].get("scores")
+    score_errors = _score_errors("raw candidate", candidate)
+    if score_errors or not isinstance(reference, dict) or set(reference) != DIMENSIONS:
+        return score_errors + ["deck verdict: raw reference scores are incomplete"]
+    threshold = 4
+    better = [key for key in DIMENSION_ORDER if candidate[key] > reference[key]]
+    tied = [key for key in DIMENSION_ORDER if candidate[key] == reference[key]]
+    lower = [key for key in DIMENSION_ORDER if candidate[key] < reference[key]]
+    all_at_least = all(candidate[key] >= threshold for key in DIMENSION_ORDER)
+    no_worse = not lower
+    blockers = []
+    if not all_at_least:
+        blockers.append("candidate score below threshold")
+    if len(better) < 2:
+        blockers.append("candidate wins fewer than two dimensions")
+    if lower:
+        blockers.append("candidate is lower than reference")
+
+    expected_verdict = {
+        "passingLabel": candidate_label if not blockers else None,
+        "threshold": threshold,
+        "allDimensionsAtLeast": all_at_least,
+        "betterDimensions": better,
+        "tiedDimensions": tied,
+        "lowerDimensions": lower,
+        "noWorse": no_worse,
+        "blockers": blockers,
+    }
+    verdict = scorecard.get("verdict")
+    if verdict != expected_verdict:
+        errors.append("deck verdict: raw scorecard verdict does not match recomputed result")
+
+    expected_release = {
+        "candidateLabel": candidate_label,
+        "referenceLabel": reference_label,
+        "passingLabel": expected_verdict["passingLabel"],
+        "scoreThreshold": threshold,
+        "winningDimensions": better,
+        "tiedDimensions": tied,
+        "losingDimensions": lower,
+        "noWorse": no_worse,
+        "blockers": blockers,
+    }
+    for field, expected in expected_release.items():
+        if deck.get(field) != expected:
+            errors.append(f"deck verdict: release {field} does not match recomputed result")
+    if deck.get("candidateScores") != candidate:
+        errors.append("deck verdict: release candidate scores do not match raw scorecard")
+    if deck.get("referenceScores") != reference:
+        errors.append("deck verdict: release reference scores do not match raw scorecard")
     return errors
 
 
@@ -184,6 +252,7 @@ def check_evidence(root, release):
     artifacts = loaded["deckArtifacts"]
     a4_evidence = loaded["a4Evidence"]
     scenario = loaded["scenarioTests"]
+    errors.extend(validate_deck_verdict(release, scorecard, reveal))
     if reveal.get("bindings", {}).get("deckScorecardSha256") != evidence["deckScorecard"]["sha256"]:
         errors.append("deck reveal: scorecard hash binding mismatch")
     if reveal.get("bindings", {}).get("deckArtifactsSha256") != evidence["deckArtifacts"]["sha256"]:

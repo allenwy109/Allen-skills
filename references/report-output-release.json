@@ -21,11 +21,11 @@
   "evidence": {
     "deckScorecard": {
       "path": "references/release-evidence/deck-scorecard.json",
-      "sha256": "5e581d5f640ed668157ad225416823779a69eb3079947fe775d452fb2c2cf4eb"
+      "sha256": "9f062757945d1ec3ae99c1599268c5061223ee149ba352873ff5f8c790dbba12"
     },
     "deckReveal": {
       "path": "references/release-evidence/deck-reveal.json",
-      "sha256": "b106831f1dd34d21e58e225a20cbbf79078cebaab5e7b661015850c40b3645ce"
+      "sha256": "0bef09bd9a462b08dd3327cebec6b2890f5c02ea1c8433260443539f7477125f"
     },
     "deckArtifacts": {
       "path": "references/release-evidence/deck-artifacts.json",
@@ -73,6 +73,8 @@
     "blueprintSha256": "4838621e1af9d2251cc8313c8b4cd2676335b27bff35d97d68f94b32d4a73db5",
     "candidateLabel": "Cinder",
     "referenceLabel": "Willow",
+    "passingLabel": "Cinder",
+    "scoreThreshold": 4,
     "candidatePdfSha256": "ac2275ccd34ad34a3f78b05b31aa24d4f0418736e2c82011e69a650d9595c81d",
     "candidateCrossMediaSha256": "0d8046af8e2fdde9d425d9fb178edfcfdad3a1548578cbebf47634f5ae6ab5dd",
     "candidateScores": {
@@ -97,6 +99,9 @@
     },
     "winningDimensions": ["evidence_geometry", "book_rhythm", "source_integration"],
     "tiedDimensions": ["visual_focus", "density", "typography", "chart_clarity", "finish"],
+    "losingDimensions": [],
+    "noWorse": true,
+    "blockers": [],
     "qa": {
       "candidateAcceptance": true,
       "referenceAcceptance": true,

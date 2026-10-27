@@ -64,9 +64,12 @@
   },
   "verdict": {
     "passingLabel": "Cinder",
-    "allDimensionsAtLeast": 4,
+    "threshold": 4,
+    "allDimensionsAtLeast": true,
     "betterDimensions": ["evidence_geometry", "book_rhythm", "source_integration"],
     "tiedDimensions": ["visual_focus", "density", "typography", "chart_clarity", "finish"],
+    "lowerDimensions": [],
+    "noWorse": true,
     "blockers": []
   }
 }

@@ -52,6 +52,49 @@ class ReportReleaseTests(unittest.TestCase):
         revealed = json.loads(reveal.read_text(encoding="utf-8"))
         self.assertEqual(revealed["identities"], {"Cinder": "candidate", "Willow": "reference"})
 
+    def test_deck_verdict_is_recomputed_not_trusted(self):
+        release = self.load()
+        scorecard = json.loads((ROOT / release["evidence"]["deckScorecard"]["path"]).read_text(encoding="utf-8"))
+        reveal = json.loads((ROOT / release["evidence"]["deckReveal"]["path"]).read_text(encoding="utf-8"))
+        self.assertEqual(report_release.validate_deck_verdict(release, scorecard, reveal), [])
+
+        mutations = []
+        wrong_label = copy.deepcopy(scorecard)
+        wrong_label["verdict"]["passingLabel"] = "Willow"
+        mutations.append(wrong_label)
+        false_tie = copy.deepcopy(scorecard)
+        false_tie["verdict"]["tiedDimensions"].append("evidence_geometry")
+        mutations.append(false_tie)
+        fake_threshold = copy.deepcopy(scorecard)
+        fake_threshold["verdict"]["threshold"] = 3
+        mutations.append(fake_threshold)
+        fake_blocker = copy.deepcopy(scorecard)
+        fake_blocker["verdict"]["blockers"] = ["fabricated"]
+        mutations.append(fake_blocker)
+
+        for mutation in mutations:
+            with self.subTest(mutation=mutation["verdict"]):
+                errors = report_release.validate_deck_verdict(release, mutation, reveal)
+                self.assertTrue(errors)
+
+        release_mutations = []
+        wrong_release_label = copy.deepcopy(release)
+        wrong_release_label["deck"]["passingLabel"] = "Willow"
+        release_mutations.append(wrong_release_label)
+        false_release_tie = copy.deepcopy(release)
+        false_release_tie["deck"]["tiedDimensions"].append("evidence_geometry")
+        release_mutations.append(false_release_tie)
+        fake_release_threshold = copy.deepcopy(release)
+        fake_release_threshold["deck"]["scoreThreshold"] = 3
+        release_mutations.append(fake_release_threshold)
+        fake_release_blocker = copy.deepcopy(release)
+        fake_release_blocker["deck"]["blockers"] = ["fabricated"]
+        release_mutations.append(fake_release_blocker)
+        for mutation in release_mutations:
+            with self.subTest(release=mutation["deck"]):
+                errors = report_release.validate_deck_verdict(mutation, scorecard, reveal)
+                self.assertTrue(errors)
+
 
 if __name__ == "__main__":
     unittest.main()

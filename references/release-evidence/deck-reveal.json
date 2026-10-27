@@ -19,7 +19,7 @@
     "commonBlueprintSha256": "4838621e1af9d2251cc8313c8b4cd2676335b27bff35d97d68f94b32d4a73db5"
   },
   "bindings": {
-    "deckScorecardSha256": "5e581d5f640ed668157ad225416823779a69eb3079947fe775d452fb2c2cf4eb",
+    "deckScorecardSha256": "9f062757945d1ec3ae99c1599268c5061223ee149ba352873ff5f8c790dbba12",
     "deckArtifactsSha256": "0dddc8a131df6b0b9c4c026f589b1837276a8d6401568201be6bd4f2978b6834"
   }
 }
