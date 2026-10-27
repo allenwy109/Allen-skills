@@ -44,6 +44,7 @@ let html = replaceExact(fs.readFileSync(files.html, "utf8"), "__GOLDEN_CSS__", c
 if (/__[A-Z0-9_]+__/.test(html)) throw new Error("Compiled HTML contains unresolved placeholders");
 
 fs.mkdirSync(build, {recursive: true});
+fs.rmSync(path.join(build, "current-review"), {recursive: true, force: true});
 for (const name of fs.readdirSync(build)) {
   if (["golden-report.html", "golden-report.pdf", "visual-candidate.json", "golden-report.txt"].includes(name) || /^page-\d+\.png$/.test(name)) fs.rmSync(path.join(build, name));
 }
@@ -112,6 +113,58 @@ fs.writeFileSync(compiledHtml, html);
     console.error("approved baseline does not match the rendered candidate; approval was not overwritten");
     process.exit(2);
   }
+
+  const reviewDir = path.join(build, "current-review");
+  const reviewPagesDir = path.join(reviewDir, "pages");
+  const sheetDir = path.join(reviewDir, "contact-sheets");
+  fs.mkdirSync(reviewPagesDir, {recursive: true});
+  fs.mkdirSync(sheetDir, {recursive: true});
+  fs.copyFileSync(compiledHtml, path.join(reviewDir, "golden-report.html"));
+  fs.copyFileSync(pdfPath, path.join(reviewDir, "golden-report.pdf"));
+  for (const name of pngs) fs.copyFileSync(path.join(build, name), path.join(reviewPagesDir, name));
+
+  const sheetGroups = [
+    {id: "whole-book", pages: report.pages.map(page => page.id)},
+    {id: "chapter-1", pages: ["p01", "p02", "p03", "p04", "p05"]},
+    {id: "chapter-2", pages: ["p06", "p07", "p08", "p09"]},
+    {id: "chapter-3", pages: ["p10", "p11", "p12", "p13", "p14"]},
+    {id: "chapter-4", pages: ["p15", "p16"]},
+  ];
+  const sheetBrowser = await chromium.launch({headless: true});
+  const reviewPage = await sheetBrowser.newPage({viewport: {width: 1400, height: 1000}, deviceScaleFactor: 1});
+  const contactSheets = [];
+  for (const group of sheetGroups) {
+    const entries = group.pages.map(pageId => {
+      const name = `page-${pageId.slice(1)}.png`;
+      const data = fs.readFileSync(path.join(build, name)).toString("base64");
+      return `<figure><img src="data:image/png;base64,${data}" alt="${pageId}"><figcaption>${pageId}</figcaption></figure>`;
+    }).join("");
+    await reviewPage.setContent(`<!doctype html><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0;padding:28px;background:#d9dddb;color:#263034;font:600 18px Arial,sans-serif}h1{margin:0 0 20px;font-size:24px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}figure{margin:0;background:#fff;padding:8px;border:1px solid #aeb7b4}img{display:block;width:100%;height:auto}figcaption{padding:7px 2px 1px;text-align:center}</style><h1>${group.id} · ${candidate.candidateDigest.slice(0, 12)}</h1><div class="grid">${entries}</div>`, {waitUntil: "load"});
+    const relative = `contact-sheets/${group.id}.png`;
+    const output = path.join(reviewDir, relative);
+    await reviewPage.screenshot({path: output, fullPage: true});
+    contactSheets.push({
+      id: group.id,
+      path: relative,
+      pageIds: group.pages,
+      inputPageSha256: Object.fromEntries(group.pages.map(pageId => {
+        const name = `page-${pageId.slice(1)}.png`;
+        return [name, candidate.artifacts.pagePngSha256[name]];
+      })),
+      sha256: shaFile(output),
+    });
+  }
+  await sheetBrowser.close();
+  const reviewManifest = {
+    schemaVersion: "1.0",
+    status: baseline.status,
+    candidateDigest: candidate.candidateDigest,
+    sourcePageHashes: candidate.artifacts.pagePngSha256,
+    reportHtmlSha256: shaFile(compiledHtml),
+    reportPdfSha256: shaFile(pdfPath),
+    contactSheets,
+  };
+  fs.writeFileSync(path.join(reviewDir, "manifest.json"), JSON.stringify(reviewManifest, null, 2) + "\n");
   fs.writeFileSync(path.join(build, "visual-candidate.json"), JSON.stringify(candidate, null, 2) + "\n");
   console.log(`Rendered ${pngs.length} pages with ${chromiumRevision}; external requests: 0; approval: ${baseline.status}`);
 })().catch(error => { console.error(error.stack || error); process.exit(1); });

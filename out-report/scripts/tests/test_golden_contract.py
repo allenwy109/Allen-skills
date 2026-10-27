@@ -74,10 +74,13 @@ class GoldenReportContractTest(unittest.TestCase):
         for stale in ("黄金小册候选", "UNAPPROVED", "Unapproved", "未批准", "设计候选"):
             self.assertNotIn(stale, visible)
         self.assertIn("黄金小册基准 v1.0", visible)
-        self.assertIn("已批准 / Approved", visible)
+        self.assertIn("原版结构已批准 / Original approved", visible)
+        self.assertIn("当前修订待确认 / Revision pending", visible)
+        self.assertNotIn("已批准 / Approved", visible)
         self.assertIn("批准人：user", visible)
         self.assertIn("批准日期：2026-10-27", visible)
-        self.assertIn("审批状态：approved", visible)
+        self.assertIn("current digest: needs-reapproval", visible)
+        self.assertEqual(self.baseline["status"], "needs-reapproval")
 
     def test_approval_record_is_separate_and_records_user_approval(self):
         self.assertEqual(self.baseline["status"], "needs-reapproval")
@@ -132,6 +135,22 @@ class GoldenRenderIntegrationTest(unittest.TestCase):
         self.assertEqual(self.second["status"], "captured"); self.assertEqual(self.second["approvalStatus"], baseline["status"])
         self.assertNotEqual(self.second["candidateDigest"], baseline["contentApproval"]["candidateDigest"])
         self.assertFalse(self.second["accessibility"]["pdfTagged"]); self.assertIn("Chromium", self.second["accessibility"]["limitation"])
+
+    def test_current_review_contact_sheets_bind_current_page_hashes(self):
+        review = json.loads((BUILD / "current-review" / "manifest.json").read_text())
+        self.assertEqual(review["status"], "needs-reapproval")
+        self.assertEqual(review["candidateDigest"], self.second["candidateDigest"])
+        self.assertEqual(review["sourcePageHashes"], self.second["artifacts"]["pagePngSha256"])
+        self.assertEqual({sheet["id"] for sheet in review["contactSheets"]}, {"whole-book", "chapter-1", "chapter-2", "chapter-3", "chapter-4"})
+        seen = set()
+        for sheet in review["contactSheets"]:
+            path = BUILD / "current-review" / sheet["path"]
+            self.assertTrue(path.is_file())
+            self.assertEqual(sha(path), sheet["sha256"])
+            expected = {f"page-{page_id[1:]}.png": self.second["artifacts"]["pagePngSha256"][f"page-{page_id[1:]}.png"] for page_id in sheet["pageIds"]}
+            self.assertEqual(sheet["inputPageSha256"], expected)
+            seen.update(sheet["pageIds"])
+        self.assertEqual(seen, {f"p{n:02}" for n in range(1, 17)})
 
     def test_approved_baseline_refuses_changed_candidate(self):
         with tempfile.TemporaryDirectory() as tmp:
