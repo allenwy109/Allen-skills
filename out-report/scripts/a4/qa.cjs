@@ -9,6 +9,7 @@ const A4 = Object.freeze([210, 297]);
 const MEDIA_TOLERANCE_MM = 0.2;
 const PAGE_ID = /^page-\d{3,}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
+const ISO8601_TZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 function normalizedText(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
@@ -44,10 +45,21 @@ function validDisposition(value, regression) {
   return value && value.decision === 'accepted' &&
     typeof value.reviewer === 'string' && value.reviewer.trim() &&
     typeof value.reason === 'string' && value.reason.trim() &&
-    typeof value.reviewedAt === 'string' && value.reviewedAt.trim() &&
+    typeof value.reviewedAt === 'string' && ISO8601_TZ.test(value.reviewedAt) && Number.isFinite(Date.parse(value.reviewedAt)) &&
     value.baselineDigest === regression.baselineDigest &&
     value.candidateDigest === regression.candidateDigest &&
     value.differenceDigest === regression.differenceDigest;
+}
+
+function deriveDifferences(baselinePages, candidatePages) {
+  const baseline = new Map((baselinePages || []).map(page => [page.id, page.digest]));
+  const candidate = new Map((candidatePages || []).map(page => [page.id, page.digest]));
+  return [...new Set([...baseline.keys(), ...candidate.keys()])].sort().flatMap(page => {
+    const before = baseline.get(page) ?? null;
+    const after = candidate.get(page) ?? null;
+    if (before === after) return [];
+    return [{ page, kind: before === null ? 'added' : after === null ? 'removed' : 'changed', baseline: before, candidate: after }];
+  });
 }
 
 function finiteNumber(value) {
@@ -119,10 +131,10 @@ function evidenceErrors(evidence) {
     if (!['identical', 'different'].includes(regression.status)) invalid('regression.status', 'must be identical or different');
     if (!SHA256.test(regression.baselineDigest || '') || !SHA256.test(regression.candidateDigest || '') || !SHA256.test(regression.differenceDigest || '')) invalid('regression', 'summary and difference digests must be SHA-256 hex');
     if (regression.baselineUpdated !== false) invalid('regression.baselineUpdated', 'must be false');
-    for (const name of ['baselinePages', 'candidatePages']) {
-      const pages = regression[name];
-      if (!Array.isArray(pages) || pages.length !== paginationIds.length || pages.some((page, index) => !page || page.id !== paginationIds[index] || !SHA256.test(page.digest || ''))) invalid(`regression.${name}`, 'page IDs/order must match pagination and digests must be SHA-256 hex');
-    }
+    const baselinePages = regression.baselinePages;
+    if (!Array.isArray(baselinePages) || !baselinePages.length || baselinePages.some(page => !page || !PAGE_ID.test(page.id || '') || !SHA256.test(page.digest || '')) || new Set((baselinePages || []).map(page => page.id)).size !== (baselinePages || []).length) invalid('regression.baselinePages', 'must be a non-empty unique stable-page-ID to SHA-256 sequence');
+    const candidatePages = regression.candidatePages;
+    if (!Array.isArray(candidatePages) || candidatePages.length !== paginationIds.length || candidatePages.some((page, index) => !page || page.id !== paginationIds[index] || !SHA256.test(page.digest || ''))) invalid('regression.candidatePages', 'page IDs/order must match pagination and digests must be SHA-256 hex');
     if (!Array.isArray(regression.differences)) invalid('regression.differences', 'must be an array');
     if (Array.isArray(regression.baselinePages)) {
       const summary = Object.fromEntries(regression.baselinePages.map(page => [page.id, page.digest]));
@@ -133,6 +145,11 @@ function evidenceErrors(evidence) {
       if (regression.candidateDigest !== structuredDigest(summary)) invalid('regression.candidateDigest', 'does not summarize candidatePages');
     }
     if (Array.isArray(regression.differences) && regression.differenceDigest !== structuredDigest(regression.differences)) invalid('regression.differenceDigest', 'does not summarize differences');
+    if (Array.isArray(baselinePages) && Array.isArray(candidatePages) && Array.isArray(regression.differences)) {
+      const expected = deriveDifferences(baselinePages, candidatePages);
+      if (canonicalJson(regression.differences) !== canonicalJson(expected)) invalid('regression.differences', 'does not equal differences derived from baselinePages and candidatePages');
+      if (regression.differenceDigest !== structuredDigest(expected)) invalid('regression.differenceDigest', 'does not summarize derived differences');
+    }
     if (regression.status === 'identical' && (regression.baselineDigest !== regression.candidateDigest || (regression.differences || []).length)) invalid('regression.status', 'identical status contradicts digests or differences');
     if (regression.status === 'different' && regression.baselineDigest === regression.candidateDigest && !(regression.differences || []).length) invalid('regression.status', 'different status requires a digest or page difference');
   }
@@ -250,4 +267,4 @@ if (require.main === module) {
   try { main(); } catch (error) { process.stderr.write(`${error.code || 'REPORT_QA_FAILED'}: ${error.message}\n`); process.exit(1); }
 }
 
-module.exports = { A4, COVERAGE_SETS, MEDIA_TOLERANCE_MM, evaluate, evidenceErrors };
+module.exports = { A4, COVERAGE_SETS, MEDIA_TOLERANCE_MM, evaluate, evidenceErrors, deriveDifferences };

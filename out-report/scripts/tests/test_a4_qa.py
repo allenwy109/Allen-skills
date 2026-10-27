@@ -21,7 +21,7 @@ BASELINE_DIGEST = json_digest({"page-001": PAGE_DIGEST})
 CHANGED_PAGE_DIGEST = "e" * 64
 CANDIDATE_DIGEST = json_digest({"page-001": CHANGED_PAGE_DIGEST})
 EMPTY_DIFFERENCE_DIGEST = json_digest([])
-VISUAL_DIFFERENCES = [{"page": "page-001", "ratio": 0.04}]
+VISUAL_DIFFERENCES = [{"page": "page-001", "kind": "changed", "baseline": PAGE_DIGEST, "candidate": CHANGED_PAGE_DIGEST}]
 VISUAL_DIFFERENCE_DIGEST = json_digest(VISUAL_DIFFERENCES)
 
 
@@ -197,6 +197,40 @@ class A4QualityGateTest(unittest.TestCase):
                                       disposition={"decision": "accepted", "reviewer": "reviewer", "reason": "accepted", "reviewedAt": "2026-10-27T12:00:00+10:30", "baselineDigest": BASELINE_DIGEST, "candidateDigest": "0" * 64, "differenceDigest": VISUAL_DIFFERENCE_DIGEST})
         self.assertIn("REPORT_VISUAL_REGRESSION", {item["code"] for item in run_qa(evidence)["blocking"]})
 
+    def test_regression_differences_are_rederived_and_cannot_be_omitted(self):
+        evidence = good_evidence()
+        evidence["regression"].update(status="different", candidateDigest=CANDIDATE_DIGEST,
+                                      candidatePages=[{"id": "page-001", "digest": CHANGED_PAGE_DIGEST}],
+                                      differences=[], differenceDigest=EMPTY_DIFFERENCE_DIGEST)
+        self.assertIn("REPORT_QA_EVIDENCE_INVALID", {item["code"] for item in run_qa(evidence)["blocking"]})
+
+    def test_regression_derives_added_and_removed_pages_in_stable_order(self):
+        evidence = good_evidence()
+        baseline_pages = [{"id": "page-000", "digest": "1" * 64}]
+        differences = [
+            {"page": "page-000", "kind": "removed", "baseline": "1" * 64, "candidate": None},
+            {"page": "page-001", "kind": "added", "baseline": None, "candidate": PAGE_DIGEST},
+        ]
+        evidence["regression"].update(
+            status="different", baselinePages=baseline_pages,
+            baselineDigest=json_digest({"page-000": "1" * 64}),
+            differences=differences, differenceDigest=json_digest(differences),
+        )
+        result = run_qa(evidence)
+        self.assertNotIn("REPORT_QA_EVIDENCE_INVALID", {item["code"] for item in result["blocking"]})
+
+    def test_disposition_timestamp_requires_valid_iso8601_timezone(self):
+        for timestamp in ["not-a-date", "2026-10-27T12:00:00"]:
+            evidence = good_evidence()
+            evidence["regression"].update(
+                status="different", candidateDigest=CANDIDATE_DIGEST,
+                candidatePages=[{"id": "page-001", "digest": CHANGED_PAGE_DIGEST}],
+                differences=VISUAL_DIFFERENCES, differenceDigest=VISUAL_DIFFERENCE_DIGEST,
+                disposition={"decision": "accepted", "reviewer": "reviewer", "reason": "accepted", "reviewedAt": timestamp,
+                             "baselineDigest": BASELINE_DIGEST, "candidateDigest": CANDIDATE_DIGEST, "differenceDigest": VISUAL_DIFFERENCE_DIGEST},
+            )
+            self.assertIn("REPORT_VISUAL_REGRESSION", {item["code"] for item in run_qa(evidence)["blocking"]})
+
     def test_duplicate_or_invalid_coverage_and_page_ids_are_rejected(self):
         mutations = [
             lambda value: value["coverage"]["input"].update(claims=["cl-1", "cl-1"]),
@@ -249,7 +283,7 @@ class A4QualityGateTest(unittest.TestCase):
         baseline = {"artifacts": {"pagePngSha256": {"page-01.png": "a" * 64, "page-02.png": "b" * 64}}}
         candidate = {"artifacts": {"pagePngSha256": {"page-01.png": "a" * 64, "page-02.png": "c" * 64}}}
         result = visual.compare_manifests(baseline, candidate)
-        self.assertEqual([{"page": "page-02.png", "baseline": "b" * 64, "candidate": "c" * 64}], result["differences"])
+        self.assertEqual([{"page": "page-02.png", "kind": "changed", "baseline": "b" * 64, "candidate": "c" * 64}], result["differences"])
         self.assertNotIn("disposition", result)
 
     def test_visual_manifests_require_nonempty_exact_pagination_page_set(self):
@@ -259,7 +293,7 @@ class A4QualityGateTest(unittest.TestCase):
             ({"artifacts": {"pagePngSha256": {}}}, valid, ["page-001"]),
             (valid, {"artifacts": {"pagePngSha256": {}}}, ["page-001"]),
             (valid, {"artifacts": {"pagePngSha256": {"wrong": "a" * 64}}}, ["page-001"]),
-            ({"artifacts": {"pagePngSha256": {"page-001": "a" * 64, "page-002": "b" * 64}}}, valid, ["page-001"]),
+            ({"artifacts": {"pagePngSha256": {"page-001": "not-a-hash"}}}, valid, ["page-001"]),
         ]
         for baseline, candidate, pages in cases:
             with self.subTest(baseline=baseline, candidate=candidate):

@@ -55,7 +55,7 @@ def compare_manifests(baseline: dict, candidate: dict, pagination_page_ids: list
     for label, pages in (("baseline", baseline_pages), ("candidate", candidate_pages)):
         if not isinstance(pages, dict) or not pages or any(not isinstance(key, str) or not key or not isinstance(value, str) or not SHA256.fullmatch(value) for key, value in pages.items()):
             errors.append(f"{label} pagePngSha256 must be a non-empty page-to-SHA256 map")
-        elif list(pages) != expected:
+        elif label == "candidate" and list(pages) != expected:
             errors.append(f"{label} page set/order differs from pagination")
     if not expected:
         errors.append("pagination page IDs must be non-empty")
@@ -66,7 +66,7 @@ def compare_manifests(baseline: dict, candidate: dict, pagination_page_ids: list
         before = baseline_pages.get(page)
         after = candidate_pages.get(page)
         if before != after:
-            differences.append({"page": page, "baseline": before, "candidate": after})
+            differences.append({"page": page, "kind": "added" if before is None else "removed" if after is None else "changed", "baseline": before, "candidate": after})
     baseline_digest = hashlib.sha256(json.dumps(baseline_pages, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     candidate_digest = hashlib.sha256(json.dumps(candidate_pages, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     difference_digest = hashlib.sha256(json.dumps(differences, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
