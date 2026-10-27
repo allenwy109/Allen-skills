@@ -55,7 +55,7 @@ out_deck step <任务> compile
 out_deck compose <任务>
 ```
 
-`compose` 会核对三项规划是否绑定当前蓝图，再生成 `deck-work/pages.html`、`page.css` 和 composition manifest。它从证据关系选择趋势图、比较矩阵、路线图和证据引文等不同形式，把来源定位放在主证据附近，并在单一来源时取消稀疏参考页。所有文字默认转义；只允许渲染器自有 SVG，不用脚本、canvas、外链图片或字体。容量超限会失败，不会靠缩字或截断通过。
+`compose` 会通过 report-forge 的 execution-plan 引擎核对三项规划已真实接收并绑定当前蓝图，再生成 `deck-work/pages.html`、`page.css` 和 composition manifest。它从证据关系选择趋势图、比较矩阵、路线图和证据引文等不同形式，把来源定位放在主证据附近。完整报告即使只有一个来源，也按引擎合同保留唯一 references 页，并把它填成来源定位、主张绑定和逐页追溯的 provenance audit，不能留下近空列表。所有文字默认转义；只允许渲染器自有 SVG，不用脚本、canvas、外链图片或字体。容量超限会失败，不会靠缩字或截断通过。
 
 ```bash
 out_deck step <任务> assemble

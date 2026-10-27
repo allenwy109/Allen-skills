@@ -13,9 +13,26 @@ SPEC.loader.exec_module(benchmark)
 
 
 class VisualBenchmarkTest(unittest.TestCase):
-    def test_same_locked_input_builds_blind_distinct_complete_outputs(self):
+    def test_output_must_be_a_managed_child_of_build_directory(self):
+        build = SCRIPT.parents[1] / "build"
         with tempfile.TemporaryDirectory() as tmp:
-            output = pathlib.Path(tmp) / "packet"
+            for unsafe in (pathlib.Path(tmp) / "outside", SCRIPT.parents[2], build):
+                with self.assertRaisesRegex(RuntimeError, "BENCHMARK_OUTPUT_UNSAFE"):
+                    benchmark.validate_output(unsafe)
+        unmanaged = build / "unmanaged-existing-test"
+        unmanaged.mkdir(parents=True, exist_ok=True)
+        (unmanaged / "foreign.txt").write_text("do not delete")
+        try:
+            with self.assertRaisesRegex(RuntimeError, "BENCHMARK_OUTPUT_UNMANAGED"):
+                benchmark.validate_output(unmanaged)
+            self.assertTrue((unmanaged / "foreign.txt").is_file())
+        finally:
+            (unmanaged / "foreign.txt").unlink()
+            unmanaged.rmdir()
+
+    def test_same_locked_input_builds_blind_distinct_complete_outputs(self):
+        output = SCRIPT.parents[1] / "build" / "test-visual-benchmark"
+        try:
             manifest, mapping = benchmark.build(output)
             self.assertEqual(manifest["pageCount"], 5)
             self.assertEqual(set(manifest["labels"]), {"Atlas", "Juniper"})
@@ -43,6 +60,7 @@ class VisualBenchmarkTest(unittest.TestCase):
             self.assertEqual(set(identities["identities"].values()), {"candidate", "reference"})
             self.assertIn("releaseEvidence", identities)
             self.assertEqual(identities["releaseEvidence"]["reviewerSanitization"], {"pages": 5, "pixelIdentical": True})
+            self.assertEqual(identities["releaseEvidence"]["planMutation"], {"changedPages": [2], "unchangedPages": [1, 3, 4, 5]})
             readable = {label: "\n".join(p.read_text(encoding="utf-8") for p in sorted((output / label).rglob("*"))
                                            if p.is_file() and p.suffix in {".html", ".css", ".json", ".md", ".txt"})
                         for label in manifest["labels"]}
@@ -51,6 +69,10 @@ class VisualBenchmarkTest(unittest.TestCase):
             self.assertEqual(fingerprints["Atlas"], fingerprints["Juniper"])
             self.assertFalse(any(token.lower().startswith(("allen-", "data-allen-")) for token in fingerprints["Atlas"]))
             mapping.unlink()
+        finally:
+            if output.exists():
+                import shutil
+                shutil.rmtree(output)
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ import html
 import json
 import pathlib
 import re
+import subprocess
 
 
 class ComposeError(RuntimeError):
@@ -31,6 +32,8 @@ FORM_LIMITS = {"trend-bars": 6, "comparison-matrix": 8, "roadmap": 6, "evidence-
 CN_NUMBERS = ("一", "二", "三", "四", "五", "六", "七", "八")
 CATALOG = pathlib.Path(__file__).resolve().parents[2] / "vendor/report-forge/assets/layout-atlas/catalog.json"
 APPROVED_LAYOUTS = frozenset(item["id"] for item in json.loads(CATALOG.read_text(encoding="utf-8"))["layouts"])
+LAYOUTS = {item["id"]: item for item in json.loads(CATALOG.read_text(encoding="utf-8"))["layouts"]}
+EXECUTION_ENGINE = CATALOG.parents[2] / "scripts/execution_plan.cjs"
 
 
 def _sha(path):
@@ -48,7 +51,26 @@ def _esc(value):
     return html.escape(str(value or ""), quote=True)
 
 
-def _validate_plans(deck_dir, blueprint_sha, body_ids):
+def _engine_plan(deck_dir):
+    task = deck_dir / "task.json"
+    if not task.is_file():
+        raise ComposeError("REPORT_DECK_PLAN_MISSING: task.json")
+    script = ("const fs=require('fs'),path=require('path'),E=require(process.argv[1]);"
+              "const taskFile=path.resolve(process.argv[2]),ctx=E.load(taskFile);"
+              "E.assertGate(ctx.task,path.dirname(taskFile),'ready');"
+              "const effective=Object.fromEntries(E.effective(ctx).map(x=>[x.id,x.status]));"
+              "process.stdout.write(JSON.stringify({state:ctx.plan.state,items:ctx.plan.items,effective}));")
+    result = subprocess.run(["node", "-e", script, str(EXECUTION_ENGINE), str(task)], capture_output=True, text=True)
+    if result.returncode:
+        raise ComposeError(f"REPORT_DECK_PLAN_NOT_ACCEPTED: {result.stderr.strip() or result.stdout.strip()}")
+    try:
+        return json.loads(result.stdout)
+    except ValueError as exc:
+        raise ComposeError("REPORT_DECK_PLAN_INVALID: vendor validation returned invalid output") from exc
+
+
+def _validate_plans(deck_dir, blueprint_sha, body_panels):
+    body_ids = list(body_panels)
     documents = {}
     for name in ("chart-plan", "layout-plan", "module-fill-plan"):
         path = deck_dir / "obs" / f"{name}.json"
@@ -59,13 +81,12 @@ def _validate_plans(deck_dir, blueprint_sha, body_ids):
         if not bindings or bindings[0].get("sha256") != blueprint_sha:
             raise ComposeError(f"REPORT_DECK_PLAN_STALE: {name}")
         documents[name] = doc
-    plan_path = deck_dir / "execution-plan.json"
-    if not plan_path.is_file():
-        raise ComposeError("REPORT_DECK_PLAN_MISSING: execution-plan")
-    plan = _load(plan_path)
+    engine_plan = _engine_plan(deck_dir)
+    if engine_plan.get("state") != "active":
+        raise ComposeError("REPORT_DECK_PLAN_NOT_ACCEPTED: execution plan is not active")
     for name, document in documents.items():
-        item = next((item for item in plan.get("items", []) if item.get("id") == name), None)
-        if not item or item.get("state") != "done" or len(item.get("evidenceRefs", [])) != 1:
+        item = next((item for item in engine_plan.get("items", []) if item.get("id") == name), None)
+        if not item or engine_plan.get("effective", {}).get(name) != "done" or item.get("state") != "done" or len(item.get("evidenceRefs", [])) != 1:
             raise ComposeError(f"REPORT_DECK_PLAN_NOT_ACCEPTED: {name}")
         acceptance = item.get("acceptance") or {}
         if not isinstance(acceptance.get("reviewer"), str) or not acceptance["reviewer"].strip() or not isinstance(acceptance.get("basis"), str) or not acceptance["basis"].strip():
@@ -79,28 +100,37 @@ def _validate_plans(deck_dir, blueprint_sha, body_ids):
         if not isinstance(document.get("reviewer"), str) or not document["reviewer"].strip() or not isinstance(document.get("basis"), str) or not document["basis"].strip():
             raise ComposeError(f"REPORT_DECK_PLAN_NOT_ACCEPTED: {name} missing acceptance identity or basis")
 
-    def indexed(name, field, required):
+    def indexed(name, field):
         values = documents[name].get(field)
         if not isinstance(values, list) or len(values) != len(body_ids):
             raise ComposeError(f"REPORT_DECK_PLAN_INCOMPLETE: {name}.{field}")
         by_id = {item.get("pageId"): item for item in values if isinstance(item, dict)}
         if set(by_id) != set(body_ids):
             raise ComposeError(f"REPORT_DECK_PLAN_INCOMPLETE: {name}.{field}")
-        for page_id, item in by_id.items():
-            if any(not isinstance(item.get(key), (str, list)) or not item.get(key) for key in required):
-                raise ComposeError(f"REPORT_DECK_PLAN_INCOMPLETE: {name}.{page_id}")
         return by_id
 
-    charts = indexed("chart-plan", "chartDecisions", ("form", "relationship", "reason"))
-    layouts = indexed("layout-plan", "layoutDecisions", ("layout", "readingPath", "regions", "reason"))
+    charts = indexed("chart-plan", "chartDecisions")
+    layouts = indexed("layout-plan", "layoutDecisions")
+    for page_id, decision in charts.items():
+        if any(not isinstance(decision.get(key), str) or not decision[key].strip() for key in ("form", "relationship", "reason")):
+            raise ComposeError(f"REPORT_DECK_PLAN_INCOMPLETE: chart-plan.{page_id}")
     for page_id, decision in layouts.items():
+        if any(not isinstance(decision.get(key), str) or not decision[key].strip() for key in ("layout", "readingPath", "reason")):
+            raise ComposeError(f"REPORT_DECK_PLAN_INCOMPLETE: layout-plan.{page_id}")
+        if not isinstance(decision.get("regions"), list) or not decision["regions"] or any(not isinstance(v, str) or not v.strip() for v in decision["regions"]):
+            raise ComposeError(f"REPORT_DECK_PLAN_INCOMPLETE: layout-plan.{page_id}.regions")
+        if set(decision["regions"]) != body_panels[page_id] or len(decision["regions"]) != len(body_panels[page_id]):
+            raise ComposeError(f"REPORT_DECK_PLAN_INVALID: layout-plan.{page_id}.regions")
         if decision["layout"] not in APPROVED_LAYOUTS:
             raise ComposeError(f"REPORT_DECK_PLAN_INVALID: {page_id} layout={decision['layout']}")
-    modules = indexed("module-fill-plan", "modulePlans", ("regions",))
+    modules = indexed("module-fill-plan", "modulePlans")
     for page_id, plan in modules.items():
-        if any(not isinstance(region, dict) or any(not isinstance(region.get(key), str) or not region[key].strip()
+        if not isinstance(plan.get("regions"), list) or not plan["regions"] or any(not isinstance(region, dict) or any(not isinstance(region.get(key), str) or not region[key].strip()
                for key in ("id", "content", "layout", "whitespace")) for region in plan["regions"]):
             raise ComposeError(f"REPORT_DECK_PLAN_INCOMPLETE: module-fill-plan.{page_id}")
+        region_ids = [region["id"] for region in plan["regions"]]
+        if set(region_ids) != body_panels[page_id] or len(region_ids) != len(body_panels[page_id]):
+            raise ComposeError(f"REPORT_DECK_PLAN_INVALID: module-fill-plan.{page_id}.regions")
     return {page_id: {"chart": charts[page_id], "layout": layouts[page_id], "module": modules[page_id]} for page_id in body_ids}
 
 
@@ -234,14 +264,14 @@ def _selection(page, decision, recent):
     return form, layout
 
 
-def _body_page(page, form, layout, claims, metrics, sources):
+def _body_page(page, form, layout, decision, claims, metrics, sources):
     page_claims = _claims(page, claims, metrics)
     source_ids = _source_ids(page, claims)
     exhibit = RENDERERS[form](page, page_claims, metrics)
     composition = (((page.get("exhibit") or {}).get("semantics") or {}).get("composition") or {})
     panels = composition.get("panels") or {}
     anchor = composition.get("anchorPanel") or next(iter(panels), "main")
-    panel_html = [f'<div class="allen-primary-panel" data-panel-id="{_esc(anchor)}" data-module="exhibit">{exhibit}</div>']
+    panel_content = {anchor: ("allen-primary-panel", "exhibit", exhibit)}
     for panel_id, panel in panels.items():
         if panel_id == anchor:
             continue
@@ -251,7 +281,21 @@ def _body_page(page, form, layout, claims, metrics, sources):
         content = f'<h2>{_esc(panel.get("purpose", "补充证据"))}</h2>{statements}'
         if panel.get("form") == "html.kpi":
             content = f'<div class="kpi-card">{content}</div>'
-        panel_html.append(f'<aside class="allen-support-panel" data-panel-id="{_esc(panel_id)}" data-module="annotation">{content}</aside>')
+        panel_content[panel_id] = ("allen-support-panel", "annotation", content)
+    module_plan = {region["id"]: region for region in decision["module"]["regions"]}
+    layout_modules = LAYOUTS[layout]["modules"]
+    panel_html = []
+    for index, panel_id in enumerate(decision["layout"]["regions"]):
+        klass, module_kind, content = panel_content[panel_id]
+        module = layout_modules[min(index, len(layout_modules) - 1)]
+        fill = module_plan[panel_id]
+        padding = 8 if "无" in fill["whitespace"] else 18 if "保留" in fill["whitespace"] else 12
+        align = "center" if "居中" in fill["layout"] else "end" if "底" in fill["layout"] else "stretch"
+        style = (f'grid-column:{module["c"]}/span {module["w"]};grid-row:{module["r"]}/span {module["h"]};'
+                 f'padding:{padding}px;align-self:{align}')
+        tag = "div" if panel_id == anchor else "aside"
+        panel_html.append(f'<{tag} class="{klass}" data-panel-id="{_esc(panel_id)}" data-module="{module_kind}" '
+                          f'data-plan-content="{_esc(fill["content"])}" style="{style}">{content}</{tag}>')
     relations = "".join(f'<span class="relation-audit" data-relation-id="{_esc(rel.get("id"))}" aria-label="{_esc(rel.get("reason"))}"></span>'
                         for rel in composition.get("relations", []))
     metric_strip = "".join(f'<span data-content-key="metric:{_esc(mid)}">{_esc(_metric_text(metrics[mid])) if mid in metrics else _esc(mid)}</span>'
@@ -262,7 +306,7 @@ def _body_page(page, form, layout, claims, metrics, sources):
             f'<header class="slide__header"><div class="corner">{_esc(corner)}</div>'
             f'<h1 class="slide__title" data-content-key="title">{_esc(_replace_metrics(page.get("title", ""), metrics))}</h1>'
             f'<p class="slide__lead">{_esc(page.get("subtitle", ""))}</p></header>'
-            f'<main class="slide__body"><div class="allen-panel-grid">{"".join(panel_html)}</div>{relations}</main>'
+            f'<main class="slide__body"><div class="allen-panel-grid" style="grid-template-columns:repeat(12,minmax(0,1fr));grid-template-rows:repeat(6,minmax(0,1fr))">{"".join(panel_html)}</div>{relations}</main>'
             f'<div class="metric-strip" aria-label="本页指标">{metric_strip}</div>{_source_block(source_ids, sources)}'
             f'<div class="takeaway" data-reading-role="takeaway">{_esc(page.get("adds") or page.get("proves", ""))}</div></section>')
 
@@ -303,8 +347,16 @@ def compose(deck_dir):
     blueprint = _load(blueprint_path)
     digest = _sha(blueprint_path)
     ordered_slides = sorted(blueprint.get("slides", []), key=lambda item: item.get("sequence", 0))
-    body_ids = [page["id"] for page in ordered_slides if page.get("pageRole") not in ("cover", "close")]
-    decisions = _validate_plans(deck_dir, digest, body_ids)
+    body_panels = {}
+    for page in ordered_slides:
+        if page.get("pageRole") in ("cover", "close"):
+            continue
+        composition = (((page.get("exhibit") or {}).get("semantics") or {}).get("composition") or {})
+        panels = composition.get("panels") or {}
+        if not panels:
+            raise ComposeError(f"REPORT_DECK_INPUT_INVALID: {page.get('id')} has no composition panels")
+        body_panels[page["id"]] = set(panels)
+    decisions = _validate_plans(deck_dir, digest, body_panels)
     claims, metrics = _claim_maps(blueprint)
     sources = blueprint.get("sources") or {}
     for page in ordered_slides:
@@ -328,7 +380,7 @@ def compose(deck_dir):
             decision = decisions[page["id"]]
             form, layout = _selection(page, decision, recent)
             recent.append(layout)
-            page_html = _body_page(page, form, layout, claims, metrics, sources)
+            page_html = _body_page(page, form, layout, decision, claims, metrics, sources)
             metadata = (f' data-reading-path="{_esc(decision["layout"]["readingPath"])}"'
                         f' data-module-plan="{_esc(json.dumps(decision["module"]["regions"], ensure_ascii=False, sort_keys=True))}"')
             page_html = page_html.replace(' data-frame-boundary="line">', metadata + ' data-frame-boundary="line">', 1)

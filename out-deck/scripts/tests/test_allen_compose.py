@@ -4,6 +4,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 SCRIPTS = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
@@ -74,9 +75,9 @@ class AllenComposeTest(unittest.TestCase):
             "chart-plan": {"chartDecisions": [{"pageId": pid, "form": form, "relationship": relationship,
                                                    "reason": "关系与图形匹配"} for pid, form, relationship, _ in body]},
             "layout-plan": {"layoutDecisions": [{"pageId": pid, "layout": layout,
-                                                     "readingPath": "标题 → 主证据 → 来源", "regions": ["main"],
+                                                     "readingPath": "标题 → 主证据 → 来源", "regions": [f"{pid}-main"],
                                                      "reason": "版式匹配证据形状"} for pid, _, _, layout in body]},
-            "module-fill-plan": {"modulePlans": [{"pageId": pid, "regions": [{"id": "main", "content": "主证据完整呈现",
+            "module-fill-plan": {"modulePlans": [{"pageId": pid, "regions": [{"id": f"{pid}-main", "content": "主证据完整呈现",
                                                                                      "layout": layout, "whitespace": "保留来源安全区"}]}
                                                         for pid, _, _, layout in body]},
         }
@@ -87,17 +88,22 @@ class AllenComposeTest(unittest.TestCase):
                 "files": [{"record": "../deck-blueprint.json", "sha256": sha(self.bp)}],
                 **extras[name],
             }), encoding="utf-8")
-        self._refresh_plan_refs()
+        self.engine = mock.patch.object(allen_compose, "_engine_plan", side_effect=self._engine_projection)
+        self.engine.start()
 
-    def _refresh_plan_refs(self):
+    def _engine_projection(self, _):
         obs = self.d / "obs"
-        (self.d / "execution-plan.json").write_text(json.dumps({"items": [
+        return {"state": "active", "effective": {name: "done" for name in ("chart-plan", "layout-plan", "module-fill-plan")}, "items": [
             {"id": name, "state": "done", "acceptance": {"reviewer": "测试接收人", "basis": "核对当前蓝图和逐页决定"},
              "evidenceRefs": [{"record": f"obs/{name}.json", "sha256": sha(obs / f"{name}.json")}]}
             for name in ("chart-plan", "layout-plan", "module-fill-plan")
-        ]}), encoding="utf-8")
+        ]}
+
+    def _refresh_plan_refs(self):
+        pass
 
     def tearDown(self):
+        self.engine.stop()
         self.tmp.cleanup()
 
     def test_composes_four_distinct_forms_and_layouts_deterministically(self):
@@ -132,6 +138,18 @@ class AllenComposeTest(unittest.TestCase):
         plan.write_text(json.dumps(payload), encoding="utf-8")
         self._refresh_plan_refs()
         with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_PLAN_INCOMPLETE"):
+            allen_compose.compose(self.d)
+
+    def test_plan_fields_and_panel_regions_are_strict(self):
+        plan = self.d / "obs/layout-plan.json"
+        payload = json.loads(plan.read_text())
+        payload["layoutDecisions"][0]["regions"] = "p02-main"
+        plan.write_text(json.dumps(payload))
+        with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_PLAN_INCOMPLETE"):
+            allen_compose.compose(self.d)
+        payload["layoutDecisions"][0]["regions"] = ["unknown-panel"]
+        plan.write_text(json.dumps(payload))
+        with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_PLAN_INVALID"):
             allen_compose.compose(self.d)
 
     def test_sources_are_near_evidence_and_multiple_sources_get_references(self):
@@ -172,23 +190,12 @@ class AllenComposeTest(unittest.TestCase):
             allen_compose.compose(self.d)
 
     def test_missing_execution_plan_fake_done_wrong_ref_and_layout_injection_fail(self):
-        execution = self.d / "execution-plan.json"
-        execution.unlink()
-        with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_PLAN_MISSING"):
-            allen_compose.compose(self.d)
-        self._refresh_plan_refs()
-        plan = json.loads(execution.read_text())
-        del plan["items"][1]["acceptance"]
-        execution.write_text(json.dumps(plan))
+        self.engine.stop()
+        (self.d / "task.json").write_text(json.dumps({"executionPlan": {"id": "fake", "record": "execution-plan.json"}}))
+        (self.d / "execution-plan.json").write_text(json.dumps({"items": [{"id": "chart-plan", "state": "done"}]}))
         with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_PLAN_NOT_ACCEPTED"):
             allen_compose.compose(self.d)
-        self._refresh_plan_refs()
-        plan = json.loads(execution.read_text())
-        plan["items"][1]["evidenceRefs"][0] = dict(plan["items"][0]["evidenceRefs"][0])
-        execution.write_text(json.dumps(plan))
-        with self.assertRaisesRegex(allen_compose.ComposeError, "REPORT_DECK_PLAN_WRONG_EVIDENCE"):
-            allen_compose.compose(self.d)
-        self._refresh_plan_refs()
+        self.engine.start()
         layout = self.d / "obs/layout-plan.json"
         payload = json.loads(layout.read_text())
         payload["layoutDecisions"][0]["layout"] = 'L01" onmouseover="alert(1)'

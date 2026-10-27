@@ -45,12 +45,12 @@ def planning(d, item, requirement):
         layouts = ("L01", "L02", "L03", "L04")
         obs["layoutDecisions"] = [{"pageId": slide["id"], "layout": layouts[index % len(layouts)],
                                     "readingPath": slide["visual"]["readingPath"],
-                                    "regions": [region["slot"] for region in slide["visual"]["regions"]],
+                                    "regions": list(slide["exhibit"]["semantics"]["composition"]["panels"]),
                                     "reason": "合成夹具：布局匹配蓝图区域与阅读路径"}
                                    for index, slide in enumerate(body)]
     if item == "module-fill-plan":
-        obs["modulePlans"] = [{"pageId": s["id"], "regions": [{"id": r["slot"], "content": "合成内容", "layout": "合成布局", "whitespace": "无预留"}
-                                                             for r in s["visual"]["regions"]]}
+        obs["modulePlans"] = [{"pageId": s["id"], "regions": [{"id": panel_id, "content": "合成内容", "layout": "合成布局", "whitespace": "无预留"}
+                                                             for panel_id in s["exhibit"]["semantics"]["composition"]["panels"]]}
                               for s in bp["slides"] if s["pageRole"] in BODY]
     return _write(d, f"{item}.json", obs)
 
