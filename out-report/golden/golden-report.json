@@ -1,0 +1,24 @@
+{
+  "id": "regional-compute-pool-golden-v1",
+  "title": "区域算力资源池创业评估",
+  "fixtureKind": "synthetic-example",
+  "disclaimer": "全部业务数据均为合成示例，仅用于版式评估，不构成市场事实或投资建议。",
+  "pages": [
+    {"id":"p01","role":"cover","title":"封面"},
+    {"id":"p02","role":"toc","title":"目录"},
+    {"id":"p03","role":"executive-summary","title":"执行摘要"},
+    {"id":"p04","role":"section","title":"机会定义"},
+    {"id":"p05","role":"quantitative","title":"需求结构"},
+    {"id":"p06","role":"chart-table","title":"经济性"},
+    {"id":"p07","role":"comparison","title":"方案比较"},
+    {"id":"p08","role":"evidence","title":"客户证据"},
+    {"id":"p09","role":"quantitative","title":"敏感性"},
+    {"id":"p10","role":"section","title":"经营边界"},
+    {"id":"p11","role":"evidence","title":"尽调长表（上）"},
+    {"id":"p12","role":"evidence","title":"尽调长表（续）"},
+    {"id":"p13","role":"risk","title":"风险"},
+    {"id":"p14","role":"roadmap","title":"路线图"},
+    {"id":"p15","role":"references","title":"来源与口径（一）"},
+    {"id":"p16","role":"references","title":"来源与口径（二）"}
+  ]
+}
