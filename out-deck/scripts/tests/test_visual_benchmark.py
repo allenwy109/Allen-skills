@@ -1,10 +1,12 @@
 import importlib.util
 import json
+import os
 import pathlib
 import re
 import tempfile
 import unittest
 from collections import Counter
+from unittest import mock
 
 SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "build_visual_benchmark.py"
 SPEC = importlib.util.spec_from_file_location("build_visual_benchmark", SCRIPT)
@@ -13,6 +15,15 @@ SPEC.loader.exec_module(benchmark)
 
 
 class VisualBenchmarkTest(unittest.TestCase):
+    def test_missing_render_runtime_skips_unless_tools_are_required(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(unittest.SkipTest):
+                benchmark.require_benchmark_tools(self, ["Playwright"])
+        with mock.patch.dict(os.environ, {"ALLEN_REQUIRE_TOOLS": "1"}, clear=True):
+            with self.assertRaises(AssertionError):
+                benchmark.require_benchmark_tools(self, ["Playwright"])
+        benchmark.require_benchmark_tools(self, [])
+
     def test_output_must_be_a_managed_child_of_build_directory(self):
         build = SCRIPT.parents[1] / "build"
         with tempfile.TemporaryDirectory() as tmp:
@@ -31,6 +42,7 @@ class VisualBenchmarkTest(unittest.TestCase):
             unmanaged.rmdir()
 
     def test_same_locked_input_builds_blind_distinct_complete_outputs(self):
+        benchmark.require_benchmark_tools(self)
         output = SCRIPT.parents[1] / "build" / "test-visual-benchmark"
         try:
             manifest, mapping = benchmark.build(output)

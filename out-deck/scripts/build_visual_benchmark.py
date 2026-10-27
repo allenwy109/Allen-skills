@@ -30,6 +30,28 @@ BUILD_ROOT = (ROOT / "out-deck/build").resolve()
 MANAGED_MARKER = ".allen-visual-benchmark"
 
 
+def benchmark_missing_tools():
+    need = [name for name in ("node", "pdfinfo", "pdftoppm", "pdftotext") if not shutil.which(name)]
+    try:
+        need.extend(F.missing_tools())
+        playwright = runtime.engine_dir("report-forge", skill_dir=ROOT / "out-deck") / "node_modules" / "playwright"
+        if not playwright.is_dir():
+            need.append("Playwright")
+    except (OSError, runtime.RuntimeNotFound):
+        need.append("Allen runtime with Playwright")
+    return list(dict.fromkeys(need))
+
+
+def require_benchmark_tools(test_case, missing=None):
+    need = benchmark_missing_tools() if missing is None else missing
+    if not need:
+        return
+    message = f"缺少工具：{', '.join(need)}"
+    if os.environ.get("ALLEN_REQUIRE_TOOLS") == "1":
+        test_case.fail(message)
+    test_case.skipTest(message)
+
+
 def sha(path):
     return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 
@@ -174,7 +196,7 @@ def render_hashes(html_file, count):
 def inspect_evidence_geometry(html_file):
     playwright = runtime.engine_dir("report-forge", skill_dir=ROOT / "out-deck") / "node_modules" / "playwright"
     page_probe = runtime.engine_dir("report-forge", skill_dir=ROOT / "out-deck") / "scripts" / "page_probe.cjs"
-    script = """const {chromium}=require(process.argv[1]),probe=require(process.argv[2]),{pathToFileURL}=require('url');(async()=>{const b=await chromium.launch({channel:process.env.CHROME_CHANNEL||'chrome',headless:true});const p=await b.newPage({viewport:{width:1400,height:820}});await p.goto(pathToFileURL(process.argv[3]).href,{waitUntil:'networkidle'});await p.evaluate(()=>window.deckReady||document.fonts.ready);const out=[];for(const i of [1,2]){await probe.activate(p,i);out.push(await p.locator('.slide.active').evaluate(s=>{const body=s.querySelector('.slide__body').getBoundingClientRect(),panels=[...s.querySelectorAll('[data-panel-id]')].map(e=>{const r=e.getBoundingClientRect(),cs=getComputedStyle(e),text=[...e.querySelectorAll('p')];return {w:r.width/body.width,h:r.height/body.height,bottom:(body.bottom-r.bottom)/body.height,border:parseFloat(cs.borderTopWidth)||0,bg:cs.backgroundColor,textMin:text.length?Math.min(...text.map(x=>parseFloat(getComputedStyle(x).fontSize))):null,textUse:text.reduce((n,x)=>n+x.getBoundingClientRect().height,0)/r.height}}),k=s.querySelector('.kpi-card'),ks=k?getComputedStyle(k):null,src=s.querySelector('.evidence-source,.mature-source');return {panels,periods:[...s.querySelectorAll('.chart-label,svg text')].map(e=>e.textContent.trim()).filter(x=>/^(19|20)\d{2}$/.test(x)),pills:s.querySelectorAll('.metric-strip span').length,source:src?parseFloat(getComputedStyle(src).fontSize):0,limitations:[...s.querySelectorAll('.limitation,[data-content-key^="limitation:"]')].map(e=>+getComputedStyle(e).fontSize.replace('px','')),kpi:k?{border:parseFloat(ks.borderTopWidth)||0,bg:ks.backgroundColor}:null}}));}console.log(JSON.stringify(out));await b.close()})().catch(e=>{console.error(e);process.exit(1)})"""
+    script = r"""const {chromium}=require(process.argv[1]),probe=require(process.argv[2]),{pathToFileURL}=require('url');(async()=>{const b=await chromium.launch({channel:process.env.CHROME_CHANNEL||'chrome',headless:true});const p=await b.newPage({viewport:{width:1400,height:820}});await p.goto(pathToFileURL(process.argv[3]).href,{waitUntil:'networkidle'});await p.evaluate(()=>window.deckReady||document.fonts.ready);const out=[];for(const i of [1,2]){await probe.activate(p,i);out.push(await p.locator('.slide.active').evaluate(s=>{const body=s.querySelector('.slide__body').getBoundingClientRect(),panels=[...s.querySelectorAll('[data-panel-id]')].map(e=>{const r=e.getBoundingClientRect(),cs=getComputedStyle(e),text=[...e.querySelectorAll('p')];return {w:r.width/body.width,h:r.height/body.height,bottom:(body.bottom-r.bottom)/body.height,border:parseFloat(cs.borderTopWidth)||0,bg:cs.backgroundColor,textMin:text.length?Math.min(...text.map(x=>parseFloat(getComputedStyle(x).fontSize))):null,textUse:text.reduce((n,x)=>n+x.getBoundingClientRect().height,0)/r.height}}),k=s.querySelector('.kpi-card'),ks=k?getComputedStyle(k):null,src=s.querySelector('.evidence-source,.mature-source');return {panels,periods:[...s.querySelectorAll('.chart-label,svg text')].map(e=>e.textContent.trim()).filter(x=>/^(19|20)\d{2}$/.test(x)),pills:s.querySelectorAll('.metric-strip span').length,source:src?parseFloat(getComputedStyle(src).fontSize):0,limitations:[...s.querySelectorAll('.limitation,[data-content-key^="limitation:"]')].map(e=>+getComputedStyle(e).fontSize.replace('px','')),kpi:k?{border:parseFloat(ks.borderTopWidth)||0,bg:ks.backgroundColor}:null}}));}console.log(JSON.stringify(out));await b.close()})().catch(e=>{console.error(e);process.exit(1)})"""
     env = dict(os.environ, CHROME_CHANNEL=runtime.chrome_channel())
     result = subprocess.run(["node", "-e", script, str(playwright), str(page_probe), str(html_file)], capture_output=True, text=True, env=env, check=True)
     return json.loads(result.stdout)
