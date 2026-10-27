@@ -1,23 +1,55 @@
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+
+from tools.lib import runtime as runtime_lib
 
 
 ROOT = Path(__file__).resolve().parents[3]
 RENDER = ROOT / "out-report" / "scripts" / "a4" / "render.cjs"
 
 
-def runtime_root():
-    if (ROOT / "vendor" / "report-forge" / "node_modules" / "playwright").is_dir():
-        return ROOT
-    common = subprocess.run(
-        ["git", "rev-parse", "--git-common-dir"], cwd=ROOT,
-        check=True, capture_output=True, text=True,
-    ).stdout.strip()
-    return (ROOT / common).resolve().parent
+def browser_requirements(env=None):
+    env = os.environ if env is None else env
+    missing = []
+    if not shutil.which("node"):
+        missing.append("node")
+    try:
+        root = runtime_lib.runtime_root(skill_dir=ROOT / "out-report", env=env)
+    except runtime_lib.RuntimeNotFound as error:
+        return None, [str(error)]
+    playwright = root / "vendor/report-forge/node_modules/playwright"
+    required = [
+        playwright,
+        root / "vendor/report-forge/assets/fonts/noto-sans-sc-400.woff2",
+        root / "vendor/report-forge/assets/fonts/noto-sans-sc-600.woff2",
+        root / "vendor/report-forge/assets/fonts/noto-serif-sc-600.woff2",
+    ]
+    missing.extend(str(item) for item in required if not item.exists())
+    if not missing:
+        probe = subprocess.run(
+            ["node", "-e", "process.stdout.write(require(process.argv[1]).chromium.executablePath())", str(playwright)],
+            capture_output=True, text=True,
+        )
+        executable = Path(probe.stdout.strip()) if probe.returncode == 0 else None
+        if not executable or not executable.is_file():
+            missing.append("Playwright Chromium executable")
+    return root, missing
+
+
+def require_browser(test_case, env=None):
+    env = os.environ if env is None else env
+    root, missing = browser_requirements(env)
+    if missing:
+        message = "missing A4 browser runtime: " + ", ".join(missing)
+        if env.get("ALLEN_REQUIRE_TOOLS") == "1":
+            test_case.fail(message)
+        test_case.skipTest(message)
+    return root
 
 
 def block(block_id="b-1", kind="text", anchor=True):
@@ -53,7 +85,6 @@ def component(component_id, kind="claim-evidence", **updates):
 
 def render(document):
     env = dict(os.environ)
-    env.setdefault("ALLEN_RUNTIME", str(runtime_root()))
     result = subprocess.run(
         ["node", str(RENDER)], cwd=ROOT, env=env,
         input=json.dumps(document, ensure_ascii=False), capture_output=True, text=True,
@@ -64,6 +95,9 @@ def render(document):
 
 
 class A4PaginationTest(unittest.TestCase):
+    def setUp(self):
+        require_browser(self)
+
     def test_normal_document_has_explicit_pages_and_two_pass_navigation(self):
         doc = {
             "title": "A4 report",
@@ -91,7 +125,6 @@ class A4PaginationTest(unittest.TestCase):
         huge = component("huge")
         huge["payload"]["blocks"][0]["content"]["purpose"] = "very long evidence " * 20000
         env = dict(os.environ)
-        env.setdefault("ALLEN_RUNTIME", str(runtime_root()))
         process = subprocess.run(
             ["node", str(RENDER)], cwd=ROOT, env=env,
             input=json.dumps({"title": "Overflow", "components": [huge]}),
@@ -162,7 +195,6 @@ class A4PaginationTest(unittest.TestCase):
     def test_file_mode_writes_html_and_pagination_manifest(self):
         doc = {"title": "Artifacts", "components": [component("finding")]}
         env = dict(os.environ)
-        env.setdefault("ALLEN_RUNTIME", str(runtime_root()))
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = root / "document.json"
@@ -176,6 +208,21 @@ class A4PaginationTest(unittest.TestCase):
             self.assertIn("data-page-id=", (output / "report.html").read_text())
             manifest = json.loads((output / "pagination-manifest.json").read_text())
             self.assertEqual(1, manifest["pageCount"])
+
+
+class A4PaginationCapabilityTest(unittest.TestCase):
+    def test_missing_runtime_skips_by_default(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            env = {"ALLEN_RUNTIME": temporary}
+            with self.assertRaises(unittest.SkipTest):
+                require_browser(unittest.TestCase(), env)
+
+    def test_missing_runtime_fails_when_tools_are_required(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            env = {"ALLEN_RUNTIME": temporary, "ALLEN_REQUIRE_TOOLS": "1"}
+            with self.assertRaises(AssertionError) as raised:
+                require_browser(unittest.TestCase(), env)
+            self.assertIn("missing A4 browser runtime", str(raised.exception))
 
 
 if __name__ == "__main__":
