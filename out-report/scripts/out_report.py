@@ -135,6 +135,19 @@ def _component_for_block(block, section, index, report, metrics):
 
 def render_document(report, task):
     metrics = {item["id"]: item for item in Ledger(task).read("metrics")}
+    claims = {item["id"]: item for item in Ledger(task).read("claims")}
+    answer_claims = [claims[claim_id] for claim_id in report["executive_summary"]["answer_claim_refs"] if claim_id in claims]
+    summary_items = [{
+        "text": claim["statement"], "identity": claim["kind"], "confidence": claim["confidence"],
+        "qualification": claim.get("limitation") or claim.get("scope") or "以正文证据与限制为准",
+    } for claim in answer_claims[:4]]
+    if len(summary_items) == 1:
+        claim = answer_claims[0]
+        summary_items.append({
+            "text": f"适用范围：{claim.get('population') or claim.get('scope') or '未限定'}",
+            "identity": "qualification", "confidence": claim["confidence"],
+            "qualification": claim.get("limitation") or "需要结合正文边界判断",
+        })
     components = [
         {"kind": "cover", "payload": {"id": "cover", "title": report["metadata"]["title"], "layout_id": "overview-detail",
                                          "title_groups": [{"title": report["metadata"]["title"]}], "blocks": []}},
@@ -142,9 +155,8 @@ def render_document(report, task):
                                        "entries": [{"title": section["title"], "destination": f"chapter-{index:02d}"}
                                                    for index, section in enumerate(report["sections"], 1)]}},
         {"kind": "executive-summary", "payload": {"id": "executive-summary", "title": "执行摘要", "layout_id": "overview-detail", "blocks": [],
-                                                     "answers": [report["executive_summary"]["question"]],
-                                                     "summary_items": [{"text": claim, "qualification": "以正文证据与限制为准"}
-                                                                       for claim in report["executive_summary"]["answer_claim_refs"][:4]]}},
+                                                     "answers": [answer_claims[0]["statement"]],
+                                                     "summary_items": summary_items}},
     ]
     for section_index, section in enumerate(report["sections"], 1):
         chapter_id = f"chapter-{section_index:02d}"

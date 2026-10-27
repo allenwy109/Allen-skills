@@ -84,13 +84,16 @@ def run_qa(evidence):
 
 
 class A4QualityGateTest(unittest.TestCase):
-    def test_export_prints_each_dom_page_separately_before_merging(self):
+    def test_export_rebuilds_internal_links_and_cleans_temporary_pages_in_finally(self):
         source = EXPORT.read_text(encoding="utf-8")
-        self.assertIn("pdfunite", source)
+        self.assertNotIn("pdfunite", source)
         self.assertIn("window.__reportPages", source)
-        self.assertIn("document.body.replaceChildren", source)
-        self.assertNotIn("section.hidden = pageIndex !== index", source)
-        self.assertIn("page-break-after:auto!important", source)
+        self.assertIn("mkdtempSync", source)
+        self.assertIn("link_pdf.swift", source)
+        self.assertIn("internal-links.json", source)
+        self.assertIn("finally", source)
+        self.assertIn("await browser.close()", source)
+        self.assertIn("rmSync", source)
 
     def test_visible_body_rejects_raw_url_but_allows_hidden_traceability(self):
         evidence = good_evidence()
@@ -182,6 +185,13 @@ class A4QualityGateTest(unittest.TestCase):
         codes = {item["code"] for item in run_qa(evidence)["blocking"]}
         self.assertNotIn("REPORT_TEXT_MISMATCH", codes)
 
+    def test_text_manifest_normalizes_pdfkit_cjk_and_punctuation_variants(self):
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0]["text"] = "客户，验长见页角门风齐：｜；2024–2025"
+        evidence["media"]["pdfPages"][0]["text"] = "客戶,验⻓⻅⻚⻆⻔⻛⻬:|;2024‒2025"
+        codes = {item["code"] for item in run_qa(evidence)["blocking"]}
+        self.assertNotIn("REPORT_TEXT_MISMATCH", codes)
+
     def test_geometry_inventory_and_visual_baseline_cannot_be_omitted(self):
         evidence = good_evidence()
         evidence["geometry"]["pages"] = []
@@ -224,14 +234,14 @@ class A4QualityGateTest(unittest.TestCase):
             ("page-006", "references", '<p>Forged role https://example.invalid/forged</p>'),
             ("page-007", "body", '<p class="css-hidden">https://example.invalid/hidden</p><p>Visible body</p>'),
             ("page-008", "body", '<a class="citation-marker" href="#ref-hidden">[8]</a>'),
-            ("page-009", "references", '<aside data-component-kind="references-appendix"><div style="width:20mm">编号 https://example.invalid/advisory-guidelines-of-cloud-services-and-data-centres</div></aside>'),
+            ("page-009", "references", '<aside data-component-kind="references-appendix"><div style="width:120mm">Number https://example.invalid/advisory-guidelines-of-cloud-services-and-data-centres</div></aside>'),
         ]
         sections = "".join(
             f'<section class="page" data-page-id="{page_id}" data-page-role="{role}"><div class="page__body">{body}</div></section>'
             for page_id, role, body in pages
         )
         html = ('<!doctype html><style>@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0}'
-                '.page{width:210mm;height:297mm;break-after:page;padding:20mm;font:12pt Arial}.tiny{font-size:7pt}'
+                '.page{width:210mm;height:297mm;break-after:page;padding:20mm;font:12pt Arial;overflow-wrap:anywhere}.tiny{font-size:7pt}'
                 '.css-hidden,.hidden-anchor{display:none}</style>' + sections)
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

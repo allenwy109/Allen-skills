@@ -12,7 +12,9 @@ const SHA256 = /^[0-9a-f]{64}$/;
 const ISO8601_TZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 function normalizedText(value) {
-  return String(value || '').replace(/\s+/g, ' ').trim()
+  return String(value || '').normalize('NFKC').replaceAll('戶', '户').replaceAll('⻓', '长').replaceAll('⻅', '见')
+    .replaceAll('⻚', '页').replaceAll('⻆', '角').replaceAll('⻔', '门').replaceAll('⻛', '风').replaceAll('⻬', '齐')
+    .replace(/‒/g, '–').replace(/[，,]/g, ',').replace(/[；;]/g, ';').replace(/[：:]/g, ':').replace(/[｜|]/g, '|').replace(/\s+/g, ' ').trim()
     .replace(/(?<=\p{Script=Han})\s+(?=[\p{Script=Han}\d])|(?<=\d)\s+(?=\p{Script=Han})/gu, '')
     .replace(/-\s+(?=[A-Za-z0-9])/g, '-');
 }

@@ -102,6 +102,22 @@ class A4ComponentTest(unittest.TestCase):
                 self.assertIn('data-source-id="src-1"', html)
                 self.assertIn('data-source-locator="p. 4"', html)
 
+    def test_executive_summary_renders_answer_and_qualified_claims(self):
+        payload = {
+            "id": "summary", "title": "执行摘要", "layout_id": "overview-detail", "blocks": [],
+            "answers": ["只批准低成本验证"],
+            "summary_items": [{
+                "text": "目标客户付费意愿仍未证实", "identity": "judgment", "confidence": "low",
+                "qualification": "尚无访谈、订单或愿付价格",
+            }],
+        }
+        rendered = run_node("component.renderComponent('executive-summary', payload, {})", payload)
+        self.assertTrue(rendered["ok"], rendered)
+        self.assertIn("只批准低成本验证", rendered["value"])
+        self.assertIn("目标客户付费意愿仍未证实", rendered["value"])
+        self.assertIn("judgment · low", rendered["value"])
+        self.assertIn("尚无访谈、订单或愿付价格", rendered["value"])
+
     def test_semantic_blocks_render_real_claim_pain_and_competition_content(self):
         claim_block = block("text")
         claim_block["content"]["claims"] = [{

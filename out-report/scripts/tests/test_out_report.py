@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unicodedata
 import unittest
 
 SCRIPTS = pathlib.Path(__file__).resolve().parents[1]
@@ -45,7 +46,7 @@ def make_task(root, change=None):
 
 
 def missing():
-    return [name for name in ("node", "pdfinfo", "pdftoppm", "pdftotext") if not shutil.which(name)] + F.missing_tools()
+    return [name for name in ("node", "pdfinfo", "pdftohtml", "pdftoppm", "pdftotext") if not shutil.which(name)] + F.missing_tools()
 
 
 class A4OutReportPipelineTest(unittest.TestCase):
@@ -94,9 +95,14 @@ class A4OutReportPipelineTest(unittest.TestCase):
             }
 
             document = out_report.render_document(report, task)
+            summary = next(item for item in document["components"] if item["kind"] == "executive-summary")
             pain = next(item for item in document["components"] if item["kind"] == "pain-demand")
             comparison = next(item for item in document["components"] if item["kind"] == "comparison")
             references = next(item for item in document["components"] if item["kind"] == "references-appendix")
+            self.assertEqual(["收入从 1800 万元增至 3200 万元"], summary["payload"]["answers"])
+            self.assertEqual("data", summary["payload"]["summary_items"][0]["identity"])
+            self.assertEqual("high", summary["payload"]["summary_items"][0]["confidence"])
+            self.assertNotEqual("cl-0001", summary["payload"]["summary_items"][0]["text"])
             self.assertEqual("AI 应用创业公司", pain["payload"]["pain_groups"][0]["segment"])
             self.assertEqual("专业 GPU 云", comparison["payload"]["alternatives"][0]["name"])
             self.assertEqual([], references["payload"]["blocks"])
@@ -114,6 +120,8 @@ class A4OutReportPipelineTest(unittest.TestCase):
         self.assertIn("REPORT_VISUAL_REGRESSION", preview.stdout)
         self.assertTrue((self.work / "build/report.html").is_file())
         html = (self.work / "build/report.html").read_text(encoding="utf-8")
+        self.assertIn("收入从 1800 万元增至 3200 万元", html)
+        self.assertNotIn('<li class="summary-item">cl-0001</li>', html)
         body = html.split('aria-label="References and appendix"')[0]
         self.assertIn('class="citation-marker" href="#source-M001">[1]</a>', body)
         self.assertNotIn("https://", body)
@@ -123,6 +131,17 @@ class A4OutReportPipelineTest(unittest.TestCase):
         self.assertTrue(pdf.is_file())
         info = subprocess.run(["pdfinfo", str(pdf)], capture_output=True, text=True, check=True).stdout
         self.assertRegex(info, r"Page size:\s+594\.96 x 841\.92 pts \(A4\)")
+        pdf_text = unicodedata.normalize("NFKC", subprocess.run(
+            ["pdftotext", str(pdf), "-"], capture_output=True, text=True, check=True
+        ).stdout)
+        self.assertIn("收入从 1800 万元增至 3200 万元", pdf_text)
+        with tempfile.TemporaryDirectory() as links_dir:
+            xml = pathlib.Path(links_dir) / "report.xml"
+            subprocess.run(["pdftohtml", "-xml", "-hidden", str(pdf), str(xml)],
+                           capture_output=True, text=True, check=True)
+            annotations = xml.read_text(encoding="utf-8")
+            self.assertRegex(annotations, r'<a href="report\.html#2">')
+            self.assertRegex(annotations, r'<a href="report\.html#\d+">\[1\]</a>')
         self.assertFalse((self.story / "forge-work/pages.html").exists())
 
         regression = json.loads((self.work / "visual-regression.json").read_text(encoding="utf-8"))

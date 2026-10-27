@@ -313,6 +313,16 @@ function renderBlock(block, context = {}) {
   return `<article class="report-block report-block--${escapeHtml(block.kind)}" data-block-id="${escapeHtml(block.id)}" data-block-kind="${escapeHtml(block.kind)}" data-form="${escapeHtml(content.form)}" data-role="${escapeHtml(content.role)}" aria-labelledby="${escapeHtml(block.id)}-title"${anchor}>${blockHeader(block)}${BLOCK_RENDERERS[block.kind](block)}${citationMarkers(block, context)}${bindings(block, context)}</article>`;
 }
 
+function executiveSummaryBody(payload) {
+  const answer = `<p class="executive-answer">${escapeHtml(payload.answers[0])}</p>`;
+  const items = list(payload.summary_items).map(item =>
+    `<li class="summary-item"><strong>${escapeHtml(item.text)}</strong>` +
+    `<span class="summary-meta">${escapeHtml(item.identity || 'claim')} · ${escapeHtml(item.confidence || 'unspecified')}</span>` +
+    `<p>${escapeHtml(item.qualification)}</p></li>`
+  ).join('');
+  return `${answer}<ol class="summary-list">${items}</ol>`;
+}
+
 function renderComponent(kind, payload = {}, context = {}) {
   if (!APPROVED_COMPONENT_KINDS.includes(kind)) {
     throw reportError('REPORT_UNSUPPORTED_COMPONENT', `unsupported component kind: ${kind}`);
@@ -344,7 +354,8 @@ function renderComponent(kind, payload = {}, context = {}) {
   const tag = kind === 'toc' ? 'nav' : kind === 'references-appendix' ? 'aside' : 'section';
   const landmarkLabel = kind === 'toc' ? ' aria-label="Table of contents"' : kind === 'references-appendix' ? ' aria-label="References and appendix"' : '';
   const headingTag = kind === 'cover' ? 'h1' : 'h2';
-  return `<${tag} class="report-component report-component--${escapeHtml(kind)}" data-component-kind="${escapeHtml(kind)}" data-component-id="${escapeHtml(id)}" data-layout-id="${escapeHtml(layoutId)}" data-capacity-count="${capacityCount}" data-capacity-soft="${contract.capacity_dimensions.soft}" data-capacity-hard="${contract.capacity_dimensions.hard}" data-capacity-unit="${escapeHtml(contract.capacity_dimensions.unit)}" data-split-strategy="${escapeHtml(contract.split_strategy)}" aria-labelledby="${escapeHtml(id)}-title"${landmarkLabel}><${headingTag} id="${escapeHtml(id)}-title">${escapeHtml(title)}</${headingTag}>${blocks}</${tag}>`;
+  const componentBody = kind === 'executive-summary' ? executiveSummaryBody(payload) : blocks;
+  return `<${tag} class="report-component report-component--${escapeHtml(kind)}" data-component-kind="${escapeHtml(kind)}" data-component-id="${escapeHtml(id)}" data-layout-id="${escapeHtml(layoutId)}" data-capacity-count="${capacityCount}" data-capacity-soft="${contract.capacity_dimensions.soft}" data-capacity-hard="${contract.capacity_dimensions.hard}" data-capacity-unit="${escapeHtml(contract.capacity_dimensions.unit)}" data-split-strategy="${escapeHtml(contract.split_strategy)}" aria-labelledby="${escapeHtml(id)}-title"${landmarkLabel}><${headingTag} id="${escapeHtml(id)}-title">${escapeHtml(title)}</${headingTag}>${componentBody}</${tag}>`;
 }
 
 module.exports = {

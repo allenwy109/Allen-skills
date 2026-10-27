@@ -2,6 +2,7 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const cp = require('child_process');
 const crypto = require('crypto');
@@ -25,7 +26,9 @@ function sha(file) {
 }
 
 function canonicalText(value) {
-  return String(value).replace(/\s+/g, ' ').trim()
+  return String(value).normalize('NFKC').replaceAll('戶', '户').replaceAll('⻓', '长').replaceAll('⻅', '见')
+    .replaceAll('⻚', '页').replaceAll('⻆', '角').replaceAll('⻔', '门').replaceAll('⻛', '风').replaceAll('⻬', '齐')
+    .replace(/‒/g, '–').replace(/[，,]/g, ',').replace(/[；;]/g, ';').replace(/[：:]/g, ':').replace(/[｜|]/g, '|').replace(/\s+/g, ' ').trim()
     .replace(/(?<=\p{Script=Han})\s+(?=[\p{Script=Han}\d])|(?<=\d)\s+(?=\p{Script=Han})/gu, '')
     .replace(/-\s+(?=[A-Za-z0-9])/g, '-');
 }
@@ -36,12 +39,14 @@ function tool(name) {
 }
 
 (async () => {
-  for (const name of ['pdftoppm', 'pdftotext', 'pdfunite']) tool(name);
+  for (const name of ['pdftoppm', 'pdftotext', 'swift']) tool(name);
   const playwright = path.join(runtimeRoot(), 'vendor/report-forge/node_modules/playwright');
   if (!fs.existsSync(playwright)) throw new Error(`REPORT_RUNTIME_MISSING: ${playwright}`);
   fs.mkdirSync(outputDir, { recursive: true });
   const pdf = path.join(outputDir, 'report.pdf');
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'allen-report-pages-'));
   const browser = await require(playwright).chromium.launch({ headless: true });
+  try {
   const page = await browser.newPage({ viewport: { width: 1191, height: 1684 }, deviceScaleFactor: 1 });
   const external = [];
   page.on('request', request => { if (/^https?:/i.test(request.url())) external.push(request.url()); });
@@ -96,24 +101,40 @@ function tool(name) {
       };
     });
   });
-  const pageParts = [];
-  await page.evaluate(() => {
-    window.__reportPages = [...document.querySelectorAll('section.page[data-page-id]')]
-      .map(section => section.cloneNode(true));
+  const links = await page.evaluate(() => {
+    const sections = [...document.querySelectorAll('section.page[data-page-id]')];
+    const pageIndex = new Map(sections.map((section, index) => [section, index]));
+    return [...document.querySelectorAll('a[href^="#"]')].flatMap(anchor => {
+      const source = anchor.closest('section.page[data-page-id]');
+      const target = document.getElementById(decodeURIComponent(anchor.getAttribute('href').slice(1)));
+      const targetSection = target && target.closest('section.page[data-page-id]');
+      if (!source || !targetSection) return [];
+      const pageBox = source.getBoundingClientRect();
+      const box = anchor.getBoundingClientRect();
+      return [{ sourcePage: pageIndex.get(source), targetPage: pageIndex.get(targetSection),
+        x: box.left - pageBox.left, y: box.top - pageBox.top, width: box.width, height: box.height,
+        pageWidth: pageBox.width, pageHeight: pageBox.height }];
+    });
   });
-  await page.addStyleTag({ content: '.page{break-after:auto!important;page-break-after:auto!important}' });
+  await page.evaluate(() => {
+    window.__reportPages = [...document.querySelectorAll('section.page[data-page-id]')].map(section => {
+      const clone = section.cloneNode(true);
+      clone.querySelectorAll('a[href^="#"]').forEach(anchor => anchor.removeAttribute('href'));
+      return clone;
+    });
+  });
+  await page.addStyleTag({ content: '.page{height:296mm!important;break-after:auto!important;page-break-after:auto!important;break-inside:auto!important;page-break-inside:auto!important}' });
+  const pageParts = [];
   for (let index = 0; index < dom.length; index += 1) {
-    await page.evaluate(index => {
-      document.body.replaceChildren(window.__reportPages[index].cloneNode(true));
-    }, index);
-    const part = path.join(outputDir, `.pdf-page-${String(index + 1).padStart(4, '0')}.pdf`);
+    await page.evaluate(index => document.body.replaceChildren(window.__reportPages[index].cloneNode(true)), index);
+    const part = path.join(temporary, `page-${String(index + 1).padStart(4, '0')}.pdf`);
     await page.pdf({ path: part, format: 'A4', printBackground: true, preferCSSPageSize: true,
       margin: { top: '0', right: '0', bottom: '0', left: '0' } });
     pageParts.push(part);
   }
-  cp.execFileSync('pdfunite', [...pageParts, pdf]);
-  pageParts.forEach(part => fs.unlinkSync(part));
-  await browser.close();
+  const linkManifest = path.join(temporary, 'internal-links.json');
+  fs.writeFileSync(linkManifest, `${JSON.stringify(links)}\n`);
+  cp.execFileSync('swift', [path.join(__dirname, 'link_pdf.swift'), linkManifest, pdf, ...pageParts]);
   if (external.length) throw new Error(`REPORT_EXTERNAL_RESOURCE: ${external.join(',')}`);
 
   const prefix = path.join(outputDir, '.page');
@@ -150,4 +171,8 @@ function tool(name) {
     fs.writeFileSync(path.join(outputDir, name), `${JSON.stringify(value, null, 2)}\n`);
   }
   process.stdout.write(`${JSON.stringify({ pdf, pages: dom.length })}\n`);
+  } finally {
+    await browser.close();
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
 })().catch(error => { process.stderr.write(`${error.message || error}\n`); process.exit(1); });
