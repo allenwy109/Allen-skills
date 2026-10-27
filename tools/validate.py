@@ -22,6 +22,13 @@ CARD_SECTIONS = ["## 它解决什么问题", "## 什么时候换用别的", "## 
 
 errors, warnings = [], []
 
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from tools import report_capabilities
+
+for e in report_capabilities.check(ROOT):
+    errors.append("report capabilities：" + e)
+
 
 skills = sorted(p.parent for p in ROOT.glob("*/SKILL.md"))
 names = {p.name for p in skills}

@@ -1,0 +1,60 @@
+{
+  "phase": "phase-1-upstream-parity",
+  "status": "complete",
+  "capabilities": [
+    {
+      "id": "layout-atlas",
+      "category": "layout",
+      "upstream_ref": "vendor/report-forge/assets/layout-atlas/catalog.json",
+      "local_ref": "vendor/report-forge/assets/consulting-layouts.css",
+      "test": "vendor/report-forge/scripts/test_layout_contract.cjs",
+      "visual_evidence": "vendor/report-forge/docs/showcase/layout-overview.png",
+      "status": "parity"
+    },
+    {
+      "id": "page-masters",
+      "category": "master",
+      "upstream_ref": "vendor/report-forge/assets/layout-atlas/catalog.json",
+      "local_ref": "vendor/report-forge/scripts/bookends.cjs",
+      "test": "vendor/report-forge/scripts/check_bookends.cjs",
+      "visual_evidence": "vendor/report-forge/docs/showcase/layout-featured.png",
+      "status": "parity"
+    },
+    {
+      "id": "deck-themes",
+      "category": "theme",
+      "upstream_ref": "vendor/report-forge/assets/deck-themes.js",
+      "local_ref": "vendor/report-forge/scripts/apply_theme.cjs",
+      "test": "vendor/report-forge/scripts/test_report_regressions.cjs",
+      "visual_evidence": "vendor/report-forge/docs/showcase/report-overview.png",
+      "status": "parity"
+    },
+    {
+      "id": "deck-ratios",
+      "category": "ratio",
+      "upstream_ref": "vendor/report-forge/assets/deck-grid.js",
+      "local_ref": "vendor/report-forge/assets/deck-geometry.css",
+      "test": "vendor/report-forge/scripts/test_deck_grid.cjs",
+      "visual_evidence": "vendor/report-forge/docs/showcase/layout-atlas-workbench.png",
+      "status": "parity"
+    },
+    {
+      "id": "official-showcase",
+      "category": "showcase",
+      "upstream_ref": "vendor/report-forge/docs/showcase/README.md",
+      "local_ref": "vendor/report-forge/docs/showcase/build.cjs",
+      "test": "tools/tests/test_vendor_sync.py",
+      "visual_evidence": "vendor/report-forge/docs/showcase/skill-poster.png",
+      "status": "parity"
+    },
+    {
+      "id": "report-contract",
+      "category": "contract",
+      "upstream_ref": "vendor/report-forge/scripts/report_contract.cjs",
+      "local_ref": "out-report/scripts/out_report.py",
+      "test": "out-report/scripts/tests/test_out_report.py",
+      "visual_evidence": "vendor/report-forge/docs/showcase/report-action.png",
+      "status": "parity"
+    }
+  ]
+}
