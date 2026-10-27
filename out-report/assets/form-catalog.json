@@ -1,0 +1,88 @@
+{
+  "version": "1.0",
+  "status": "approved-design",
+  "source": "out-report/golden",
+  "approved_baseline_digest": "823c58f3473e6faf9e0ae3455cb23b2632d95f2badb4d026616f209e10eaae96",
+  "forms": [
+    {
+      "id": "metric-stack", "status": "approved-design", "relationship": "ranked headline measures with short definitions",
+      "priority": "Use for 2–4 decision-critical measures; lead with the measure that changes the decision.", "avoid": "Do not imply a trend or compare unlike units.",
+      "min_plot": "No plot; reserve 32mm width per metric.", "labels": "Always show measure name, value, unit or denominator, and qualification.",
+      "baseline": "Align numerals and units; use tabular figures.", "sort": "Decision priority, not magnitude.",
+      "identity_encodings": {"actual": "fact", "estimate": "estimate", "forecast": "forecast", "target": "target"},
+      "value_encodings": "Large numeral, explicit unit, and a small text qualifier; identity remains textual.",
+      "missing_zero_negative": {"missing": "Show — and state unavailable.", "zero": "Show 0 with unit.", "negative": "Use a true minus sign; never color alone."},
+      "capacity": {"soft": 3, "hard": 4, "unit": "metrics"}, "grayscale": "Hierarchy survives through size, weight, and rules.", "golden_page_refs": ["p03", "p12"]
+    },
+    {
+      "id": "waterfall", "status": "approved-design", "relationship": "additive bridge from opening value through positive and negative drivers to total",
+      "priority": "Use when components reconcile exactly to an outcome.", "avoid": "Do not use for independent categories or unreconciled values.",
+      "min_plot": "At least 95mm wide × 70mm high for five steps.", "labels": "Label every step, value, unit, and opening/total state.",
+      "baseline": "All columns share a zero baseline; intermediate bars start at the previous cumulative value.", "sort": "Causal or accounting sequence; total last.",
+      "identity_encodings": {"actual": "fact", "estimate": "estimate", "forecast": "forecast", "target": "target"},
+      "value_encodings": "Solid accent for opening/positive, outlined light fill for deductions, neutral solid total, connectors between cumulative levels.",
+      "missing_zero_negative": {"missing": "Omit the step and disclose the gap.", "zero": "Retain a labelled zero marker when material.", "negative": "Show a descending outlined bar and true minus sign."},
+      "capacity": {"soft": 5, "hard": 7, "unit": "steps"}, "grayscale": "Fill, outline, connectors, and signed labels distinguish roles.", "golden_page_refs": ["p06"]
+    },
+    {
+      "id": "comparison-table", "status": "approved-design", "relationship": "alternatives compared on shared criteria",
+      "priority": "Use when readers must choose among discrete options.", "avoid": "Do not mix criteria or hide the basis of a preferred column.",
+      "min_plot": "At least 155mm wide for one label column and three options.", "labels": "State each criterion, option, unit, and scoring scale.",
+      "baseline": "Align values within rows and repeat units in headers.", "sort": "Criteria by decision importance; options in a declared order.",
+      "identity_encodings": {"actual": "fact", "estimate": "estimate", "forecast": "forecast", "target": "target"},
+      "value_encodings": "Text and numerals in cells; preferred option gets a restrained tint plus explicit wording.",
+      "missing_zero_negative": {"missing": "Show — with not assessed.", "zero": "Show 0 rather than blank.", "negative": "Use signed values and explanatory labels."},
+      "capacity": {"soft": 3, "hard": 4, "unit": "options"}, "grayscale": "Preferred option remains legible through labels and weight, not tint alone.", "golden_page_refs": ["p07"]
+    },
+    {
+      "id": "heatmap", "status": "approved-design", "relationship": "outcome across two categorical or ordinal variables",
+      "priority": "Use for interaction, sensitivity, or threshold scanning.", "avoid": "Do not use continuous-looking color without printed values.",
+      "min_plot": "At least 110mm square for a 3×3 matrix.", "labels": "Name both axes, every level, each cell value, unit, and legend meaning.",
+      "baseline": "Not applicable; maintain equal cell dimensions.", "sort": "Both axes low-to-high or in a declared business order.",
+      "identity_encodings": {"actual": "fact", "estimate": "estimate", "forecast": "forecast", "target": "target"},
+      "value_encodings": "Sequential tint plus printed signed value in every cell.",
+      "missing_zero_negative": {"missing": "Hatch or label N/A; never assign a color-bin value.", "zero": "Print 0 and place it in the defined neutral bin.", "negative": "Print a true minus sign; color depth must not be the only sign cue."},
+      "capacity": {"soft": 9, "hard": 16, "unit": "cells"}, "grayscale": "Printed values and ordered lightness preserve interpretation.", "golden_page_refs": ["p09"]
+    },
+    {
+      "id": "risk-matrix", "status": "approved-design", "relationship": "items positioned by likelihood and impact with explicit response priority",
+      "priority": "Use for triage, not statistical precision.", "avoid": "Do not imply measured probability from qualitative placement.",
+      "min_plot": "At least 135mm wide × 105mm high.", "labels": "Label axes, item names, ordinal likelihood/impact, and response priority.",
+      "baseline": "Axes start at the declared lowest ordinal level.", "sort": "Assign priority separately; place by likelihood and impact.",
+      "identity_encodings": {"actual": "fact", "estimate": "estimate", "forecast": "forecast", "target": "target"},
+      "value_encodings": "Position carries likelihood/impact; numbered labels and border styles carry priority.",
+      "missing_zero_negative": {"missing": "List as unassessed outside the matrix.", "zero": "Use lowest labelled ordinal only when zero is defined.", "negative": "Not applicable; represent beneficial items in another form."},
+      "capacity": {"soft": 5, "hard": 8, "unit": "risks"}, "grayscale": "Numbers, text labels, and border styles remain distinct without color.", "golden_page_refs": ["p13"]
+    },
+    {
+      "id": "timeline", "status": "approved-design", "relationship": "ordered stages with actions and gated release conditions",
+      "priority": "Use when timing and stop/go governance matter together.", "avoid": "Do not present dates without accountable outputs and gates.",
+      "min_plot": "At least 150mm wide × 28mm high per stage.", "labels": "Show stage number, date range, action, output, and gate.",
+      "baseline": "Use a single chronological direction and aligned stage starts.", "sort": "Chronological only.",
+      "identity_encodings": {"actual": "fact", "estimate": "estimate", "forecast": "forecast", "target": "target"},
+      "value_encodings": "Stage number and position encode sequence; a ruled gate block encodes release criteria.",
+      "missing_zero_negative": {"missing": "Mark date or owner TBD explicitly.", "zero": "Show zero-duration gates as checkpoints.", "negative": "Not applicable; show slippage as signed text."},
+      "capacity": {"soft": 3, "hard": 5, "unit": "stages"}, "grayscale": "Sequence, headings, and left rules survive monochrome output.", "golden_page_refs": ["p14"]
+    },
+    {
+      "id": "evidence-quote", "status": "approved-design", "relationship": "primary-source statement paired with observation, interpretation, decision, and limitation",
+      "priority": "Use only when exact voice materially changes the decision.", "avoid": "Do not use anonymous decoration or treat one quote as representative evidence.",
+      "min_plot": "At least 62mm for the quote and 90mm for the analytical aside.", "labels": "Attribute speaker/source and label observation, interpretation, decision, and limitation.",
+      "baseline": "Align quote and aside at the first content line.", "sort": "Evidence first, then analytical consequence.",
+      "identity_encodings": {"actual": "fact", "estimate": "estimate", "forecast": "forecast", "target": "target"},
+      "value_encodings": "Typographic quotation and source footer; identity and limitations remain explicit text.",
+      "missing_zero_negative": {"missing": "Do not publish without attribution or a stated reason for anonymity.", "zero": "Render numeric zero verbatim in the quote.", "negative": "Preserve the speaker's wording and clarify analytical meaning."},
+      "capacity": {"soft": 1, "hard": 1, "unit": "quotes"}, "grayscale": "Serif quote, rule, and labelled aside preserve hierarchy.", "golden_page_refs": ["p08"]
+    },
+    {
+      "id": "dense-table", "status": "approved-design", "relationship": "auditable register of repeated records and status fields",
+      "priority": "Use when exact row-level evidence matters more than visual trend.", "avoid": "Do not shrink below the approved dense-table type or change columns across continuation pages.",
+      "min_plot": "Full content width; minimum 7.8pt type and 1.28 line height.", "labels": "Repeat column headers; label continuation range and define status symbols.",
+      "baseline": "Align numeric columns right and text columns left/top.", "sort": "Stable identifier or declared review priority.",
+      "identity_encodings": {"actual": "fact", "estimate": "estimate", "forecast": "forecast", "target": "target"},
+      "value_encodings": "Rows and rules carry records; status combines symbol, text, and line style.",
+      "missing_zero_negative": {"missing": "Show — with missing or pending status.", "zero": "Show 0 explicitly.", "negative": "Use a true minus sign and right alignment."},
+      "capacity": {"soft": 7, "hard": 8, "unit": "rows per page"}, "grayscale": "Double, dashed, and single status rules plus text remain distinguishable.", "golden_page_refs": ["p11", "p12"]
+    }
+  ]
+}
