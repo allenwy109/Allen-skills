@@ -10,6 +10,16 @@ ROOT = Path(__file__).resolve().parents[3]
 RENDER = ROOT / "out-report" / "scripts" / "a4" / "render.cjs"
 
 
+def runtime_root():
+    if (ROOT / "vendor" / "report-forge" / "node_modules" / "playwright").is_dir():
+        return ROOT
+    common = subprocess.run(
+        ["git", "rev-parse", "--git-common-dir"], cwd=ROOT,
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    return (ROOT / common).resolve().parent
+
+
 def block(block_id="b-1", kind="text", anchor=True):
     return {
         "id": block_id,
@@ -43,7 +53,7 @@ def component(component_id, kind="claim-evidence", **updates):
 
 def render(document):
     env = dict(os.environ)
-    env.setdefault("ALLEN_RUNTIME", "/Users/markjackson/Repos/Allen-skills")
+    env.setdefault("ALLEN_RUNTIME", str(runtime_root()))
     result = subprocess.run(
         ["node", str(RENDER)], cwd=ROOT, env=env,
         input=json.dumps(document, ensure_ascii=False), capture_output=True, text=True,
@@ -81,7 +91,7 @@ class A4PaginationTest(unittest.TestCase):
         huge = component("huge")
         huge["payload"]["blocks"][0]["content"]["purpose"] = "very long evidence " * 20000
         env = dict(os.environ)
-        env.setdefault("ALLEN_RUNTIME", "/Users/markjackson/Repos/Allen-skills")
+        env.setdefault("ALLEN_RUNTIME", str(runtime_root()))
         process = subprocess.run(
             ["node", str(RENDER)], cwd=ROOT, env=env,
             input=json.dumps({"title": "Overflow", "components": [huge]}),
@@ -115,6 +125,28 @@ class A4PaginationTest(unittest.TestCase):
         self.assertEqual(17, sum(result["html"].count(f">§{index}<") for index in range(1, 18)))
         self.assertTrue(all(item["startRow"] <= item["endRow"] for item in result["manifest"]["tableContinuations"]))
 
+    def test_few_very_long_rows_split_by_measured_height_not_fixed_row_count(self):
+        refs = [
+            {"id": f"long-{index}", "title": "Long record " + "detail " * 700, "locators": [f"§{index}"]}
+            for index in range(1, 4)
+        ]
+        source_component = component(
+            "long-sources", "references-appendix", layout_id="continued-table",
+            blocks=[block("long-sources", "table")], references=refs,
+        )
+        result = render({"title": "Measured rows", "components": [source_component]})
+        continuations = result["manifest"]["tableContinuations"]
+        self.assertGreater(len(continuations), 1)
+        self.assertEqual(3, sum(item["rowCount"] for item in continuations))
+        self.assertEqual(len(continuations) - 1, result["html"].count("data-table-continuation=\"true\""))
+        self.assertTrue(all(page["usedHeightPx"] <= page["contentHeightPx"] + 1 for page in result["manifest"]["pages"]))
+
+    def test_locked_fonts_are_embedded_loaded_and_never_fall_back(self):
+        result = render({"title": "Fonts", "components": [component("finding")]})
+        self.assertEqual({"NotoSansSC:400", "NotoSansSC:600", "NotoSerifSC:600"}, set(result["manifest"]["loadedFonts"]))
+        self.assertEqual(3, result["html"].count("data:font/woff2;base64,"))
+        self.assertNotIn("src:local(", result["html"])
+
     def test_chapter_openers_begin_on_recto_and_output_is_deterministic(self):
         opener = component(
             "chapter-2", "section-title", layout_id="overview-detail",
@@ -130,7 +162,7 @@ class A4PaginationTest(unittest.TestCase):
     def test_file_mode_writes_html_and_pagination_manifest(self):
         doc = {"title": "Artifacts", "components": [component("finding")]}
         env = dict(os.environ)
-        env.setdefault("ALLEN_RUNTIME", "/Users/markjackson/Repos/Allen-skills")
+        env.setdefault("ALLEN_RUNTIME", str(runtime_root()))
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = root / "document.json"

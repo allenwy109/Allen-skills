@@ -49,6 +49,7 @@ function expandComponents(components) {
         endRow: part.start + part.values.length - 1,
         rowCount: part.values.length,
         originalBlockIds: (payload.blocks || []).map(block => block.id),
+        sourceBlocks: payload.blocks || [],
       });
     }
   }
