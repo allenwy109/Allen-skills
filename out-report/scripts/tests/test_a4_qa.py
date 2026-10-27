@@ -301,6 +301,46 @@ class A4QualityGateTest(unittest.TestCase):
                 self.assertEqual("invalid", result["status"])
                 self.assertTrue(result["errors"])
 
+    def test_visual_compare_added_and_removed_pages_feed_qa_approval_path(self):
+        visual = load_visual()
+        baseline = {"artifacts": {"pagePngSha256": {
+            "page-000": "0" * 64,
+            "page-002": "2" * 64,
+        }}}
+        candidate = {"artifacts": {"pagePngSha256": {
+            "page-001": PAGE_DIGEST,
+            "page-002": "2" * 64,
+        }}}
+        regression = visual.compare_manifests(baseline, candidate, ["page-001", "page-002"])
+        self.assertEqual(["page-000", "page-002"], [page["id"] for page in regression["baselinePages"]])
+        self.assertEqual(["page-001", "page-002"], [page["id"] for page in regression["candidatePages"]])
+        self.assertEqual(
+            [
+                {"page": "page-000", "kind": "removed", "baseline": "0" * 64, "candidate": None},
+                {"page": "page-001", "kind": "added", "baseline": None, "candidate": PAGE_DIGEST},
+            ],
+            regression["differences"],
+        )
+
+        evidence = good_evidence()
+        evidence["pagination"]["pageCount"] = 2
+        evidence["pagination"]["pages"].append({"id": "page-002", "number": 2, "intentionalBlank": False, "usedHeightPx": 10, "contentHeightPx": 986, "geometry": {"widthMm": 210, "heightMm": 297}})
+        evidence["geometry"]["pages"].append({"id": "page-002", "mediaBoxMm": [210, 297], "overlaps": [], "clipped": [], "empty": False, "fonts": [{"role": "body", "minimumPt": 8.5}]})
+        evidence["media"]["htmlPages"].append({"id": "page-002", "text": "Second"})
+        evidence["media"]["pdfPages"].append({"id": "page-002", "text": "Second"})
+        evidence["regression"] = regression
+        blocked = run_qa(evidence)
+        self.assertNotIn("REPORT_QA_EVIDENCE_INVALID", {item["code"] for item in blocked["blocking"]})
+        self.assertIn("REPORT_VISUAL_REGRESSION", {item["code"] for item in blocked["blocking"]})
+        regression["disposition"] = {
+            "decision": "accepted", "reviewer": "independent-reviewer", "reason": "Intentional pagination change",
+            "reviewedAt": "2026-10-27T12:00:00+10:30", "baselineDigest": regression["baselineDigest"],
+            "candidateDigest": regression["candidateDigest"], "differenceDigest": regression["differenceDigest"],
+        }
+        approved = run_qa(evidence)
+        self.assertEqual([], approved["blocking"])
+        self.assertEqual("REPORT_VISUAL_DIFFERENCE_ACCEPTED", approved["warnings"][0]["code"])
+
 
 if __name__ == "__main__":
     unittest.main()
