@@ -40,6 +40,41 @@ Allen-skills 已具备研究、证据账、综合、故事线和正式验收能�
 4. 两条输出链路共享证据账、主张、指标和故事线真源，不维护两份分析结论；媒介专属模型分别生成。
 5. 默认视觉方向是国际咨询报告的编辑出版风格：浅色纸面、深灰正文、单一品牌强调色、克制装饰、强调结论和证据。
 6. 上游 `consulting-report-forge` 的优秀演示页作为演示稿基准；A4 报告另建立经用户认可的黄金样板。
+7. 参考仓库的报告生产能力必须完整吸收，不能只挑选布局或样式片段；先达到逐项等价，再在 A4 阅读、中文排印、确定性渲染和视觉验收上形成可验证改进。
+
+## 3.1 上游能力等价基线
+
+建立 `references/upstream-capability-matrix.json`，以锁定的上游 commit 为依据逐项登记实现位置、测试、基准样张和状态。以下能力全部是正式完成的前置条件，不能标记“不适用”来绕过：
+
+1. 38 个布局：30 个正文布局和 8 个首尾或结构布局；
+2. 6 个 master；
+3. `mckinsey`、`bcg`、`accenture` 三套主题；
+4. 16:9 与 4:3 两种比例；
+5. 完整 form catalog 与 form-capacity hard/soft limits；
+6. 图表多样性、布局多样性、模块填充三项独立规划和验收；
+7. 2–3 张代表页、整册缩略图或 contact sheet、最坏页检查；
+8. HTML 与 PDF 双媒介逐页审查；
+9. 官方 showcase、构建脚本、截图 manifest 和可重建样例；
+10. 作者审查、独立成品审查、审查复用、执行清单和中断恢复；
+11. narrative、composition、evidence binding、module-fill 和 packaging 合同；
+12. 上游现有合同测试和真实浏览器测试。
+
+本地已有但没有接入实际成品流程的能力，状态只能写“存在但未使用”，不能算“已达到”。上游能力只有在同题输入、同媒介输出和实际成品审查中证明等价后才能标记为 `parity`。
+
+vendored 代码、showcase 和其他上游资产必须保留原许可证、NOTICE、来源 commit 与文件 hash；不得删改归因，也不得把上游样张冒充本项目原创成品。
+
+## 3.2 明确的超越项
+
+“做得更好”不用宣传性形容词判断，而以新增能力和同题结果证明：
+
+- 上游 deck 能力完整保留，同时新增 A4 正式阅读报告；
+- A4 拥有独立 Layout Atlas，不把 16:9 页面缩放成纸张；
+- 中文排印增加 CJK 禁则、基线、孤行寡行、续表、目录页码和装订规则；
+- story → report/deck 的内容覆盖使用集合级 manifest，禁止静默丢失；
+- 显式两阶段分页使 HTML/PDF 页序和内容清单确定；
+- 黄金小册、六类场景、边界 fixture 和三次确定性构建进入回归；
+- 新成品与参考样张做匿名 A/B，不劣于参考只是最低门槛；
+- 对能够同题比较的 deck 页面，目标是在八项视觉维度中至少两项显著优于参考，其余不劣于参考；A4 则与批准的黄金小册比较。
 
 ## 4. 总体架构
 
@@ -270,7 +305,7 @@ v1 使用仓库锁定版本的 Playwright Chromium、内嵌字体和无外部网
 
 迁移不得降低以下锁定能力：38 个 layout（30 个正文与 8 个首尾/结构布局）、6 个 master、`mckinsey`/`bcg`/`accenture` 三主题、16:9 与 4:3 两种比例、完整 form-capacity catalog，以及 narrative、composition、module-fill、review-reuse、execution-plan 合同。若后续主动删除任何能力，必须单独设计并获得用户确认。
 
-官方 showcase 的批准子集、构建脚本和截图 manifest 应按明确的上游 commit、许可证、文件 hash 纳入 vendor lock 或独立 visual-baseline lock。上游同步不得自动覆盖已批准基准，必须生成差异审查记录。
+官方 showcase 全集、构建脚本和截图 manifest 应按明确的上游 commit、许可证、文件 hash 纳入 vendor lock 或独立 visual-baseline lock。上游同步不得自动覆盖已批准基准，必须生成差异审查记录。
 
 ## 9. 失败与降级
 
@@ -368,6 +403,8 @@ v1 使用仓库锁定版本的 Playwright Chromium、内嵌字体和无外部网
 6. `out-deck` 保留 16:9 咨询演示能力，并达到上游示范的视觉基准。
 7. 两条输出链路均没有未解决的 Blocking 或 Major 成品问题。
 8. 仓库安装、自检、文档与统一验收均反映新的输出架构。
+9. 上游能力等价矩阵全部为 `parity` 或有用户明确批准的 `superseded`；不得存在 `missing`、`untested` 或“存在但未使用”。
+10. 同题 deck 匿名 A/B 中至少两项视觉维度优于参考，其余维度不劣于参考；A4 达到批准黄金小册的全部锚点。
 
 其中“达到视觉基准”不能由文件生成成功、像素差或作者自评替代，必须通过第 11.6 节的匿名对标。
 
@@ -375,13 +412,13 @@ v1 使用仓库锁定版本的 Playwright Chromium、内嵌字体和无外部网
 
 该设计适合一个实施计划，但应分阶段交付：
 
-1. 冻结参考仓库能力清单，恢复 showcase 子集，建立视觉评分锚点；
+1. 完整恢复并锁定参考仓库的 capability matrix、官方 showcase、构建脚本和截图 manifest，建立视觉评分锚点；
 2. 制作并由用户批准 A4 黄金小册；
 3. 建立 `report.json` schema、逐字段映射、转换器和内容覆盖检查；
 4. 从黄金小册提炼并冻结 A4 design tokens、排印合同、layout atlas 和 form catalog；
 5. 实现首批组件、两阶段分页、HTML/PDF 和几何检查；
 6. 改造 `out-report`，接入机器证据、逐页人工审查和统一验收；
-7. 新增 `out-deck`，把现有 report-forge 链路迁入并跑完整能力矩阵回归；
+7. 新增 `out-deck`，把现有 report-forge 链路迁入并逐项跑完整能力矩阵、上游合同测试和同题视觉回归；
 8. 建立视觉回归、匿名 A/B 对标和多场景验收；
 9. 更新安装、架构、场景路由和用户文档。
 
