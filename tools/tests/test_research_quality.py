@@ -163,6 +163,19 @@ class ResearchQualityTest(unittest.TestCase):
         result = run_quality_check(contract, valid_ledger())
         self.assertIn("QUALITY_PAIN_PURCHASE_SIGNAL", result.stderr)
 
+    def test_material_pain_requires_at_least_one_pain_record(self):
+        contract = valid_contract()
+        contract["pain"] = []
+        result = run_quality_check(contract, valid_ledger())
+        self.assertIn("QUALITY_PAIN_REQUIRED", result.stderr)
+
+    def test_non_material_pain_accepts_empty_pain_records(self):
+        contract = valid_contract()
+        contract["material"]["pain"] = False
+        contract["pain"] = []
+        result = run_quality_check(contract, valid_ledger())
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_material_competition_requires_all_substitute_layers(self):
         contract = valid_contract()
         contract["competition"]["layers"].pop("do_nothing")

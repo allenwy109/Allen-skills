@@ -79,6 +79,8 @@ def check(task):
     material = contract.get("material") if isinstance(contract.get("material"), dict) else {}
     pains = contract.get("pain") if isinstance(contract.get("pain"), list) else []
     if material.get("pain"):
+        if not pains:
+            errors.append(issue("QUALITY_PAIN_REQUIRED", "material pain needs at least one pain record"))
         for pain in pains:
             if not isinstance(pain, dict):
                 continue

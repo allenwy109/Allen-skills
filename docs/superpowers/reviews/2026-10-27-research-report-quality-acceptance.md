@@ -50,7 +50,7 @@ The first two independent passes rejected the artifact for blank pages, generic 
 - `python3 core-research/scripts/research.py check <AIDC task>` — automated checks passed with 36 parsed snapshots and 18 quote checks; five legacy search-log timestamps remain warnings
 - `python3 tools/lib/ledger.py <AIDC task> check` — 0 errors, 0 warnings
 - `python3 core-storyline/scripts/storyline.py check <AIDC task> --json` — passed after sync; only the non-blocking presentation-backup warning remains
-- `python3 -m unittest tools.tests.test_research_quality -v` — 29 passed
+- `python3 -m unittest tools.tests.test_research_quality -v` — 31 passed, including material-pain empty-set rejection and non-material empty-set acceptance
 - `python3 -m unittest discover -s out-report/scripts/tests -p 'test_*.py' -v` — 98 passed
 - `ALLEN_RUNTIME=/Users/markjackson/Repos/Allen-skills tools/selftest.sh --quick` — passed (including the report backend and empty-summary regression tests)
 - `git diff --check` — passed
