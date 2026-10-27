@@ -358,6 +358,17 @@ class ReportCapabilitiesTests(unittest.TestCase):
         self.assertNotIn("Traceback", output.getvalue())
 
     def test_baseline_check_cli_rejects_malformed_schema_without_traceback(self):
+        canonical = json.loads(
+            (ROOT / "references" / "visual-baseline.schema.json").read_text(encoding="utf-8")
+        )
+        approved_only = json.loads(json.dumps(canonical))
+        approved_only["properties"]["approval"]["enum"] = ["approved"]
+        empty_status = json.loads(json.dumps(canonical))
+        empty_status["properties"]["status"]["enum"] = []
+        missing_hash_pattern = json.loads(json.dumps(canonical))
+        del missing_hash_pattern["properties"]["artifacts"]["items"]["properties"]["sha256"]["pattern"]
+        missing_item_properties = json.loads(json.dumps(canonical))
+        del missing_item_properties["properties"]["artifacts"]["items"]["properties"]
         malformed_schemas = {
             "numeric required": {
                 "type": "object",
@@ -374,6 +385,10 @@ class ReportCapabilitiesTests(unittest.TestCase):
                     "artifacts": {"items": None},
                 },
             },
+            "approved only": approved_only,
+            "empty status": empty_status,
+            "missing hash pattern": missing_hash_pattern,
+            "missing item properties": missing_item_properties,
         }
         for label, schema in malformed_schemas.items():
             with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:

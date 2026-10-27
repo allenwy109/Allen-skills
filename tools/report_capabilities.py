@@ -98,17 +98,48 @@ def _schema_errors(schema):
             or set(item_required) != {"path", "sha256", "size"}):
         return ["baseline schema: artifact fields do not match contract"]
     expected_constants = {
-        "version": 1,
-        "upstream_repo": UPSTREAM_REPO,
-        "upstream_commit": UPSTREAM_COMMIT,
-        "license": "Apache-2.0",
+        "version": ("integer", 1),
+        "upstream_repo": ("string", UPSTREAM_REPO),
+        "upstream_commit": ("string", UPSTREAM_COMMIT),
+        "license": ("string", "Apache-2.0"),
     }
-    for field, value in expected_constants.items():
+    for field, (field_type, value) in expected_constants.items():
         field_schema = properties.get(field)
-        if not isinstance(field_schema, dict) or field_schema.get("const") != value:
-            return [f"baseline schema: {field} const does not match contract"]
+        if (not isinstance(field_schema, dict)
+                or field_schema.get("type") != field_type
+                or field_schema.get("const") != value):
+            return [f"baseline schema: {field} does not match contract"]
+    expected_enums = {
+        "status": {"draft", "captured"},
+        "approval": {"unapproved", "approved"},
+    }
+    for field, values in expected_enums.items():
+        field_schema = properties.get(field)
+        enum = field_schema.get("enum") if isinstance(field_schema, dict) else None
+        if (not isinstance(enum, list)
+                or not all(isinstance(value, str) for value in enum)
+                or field_schema.get("type") != "string"
+                or set(enum) != values):
+            return [f"baseline schema: {field} does not match contract"]
     if schema.get("additionalProperties") is not False or items.get("additionalProperties") is not False:
         return ["baseline schema: additional properties must be rejected"]
+    if artifacts_schema.get("type") != "array" or artifacts_schema.get("minItems") != 1:
+        return ["baseline schema: artifacts does not match contract"]
+    if items.get("type") != "object":
+        return ["baseline schema: artifact items must be objects"]
+    item_properties = items.get("properties")
+    if not isinstance(item_properties, dict):
+        return ["baseline schema: artifact properties do not match contract"]
+    expected_item_properties = {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size": {"type": "integer", "minimum": 0},
+    }
+    for field, expected_schema in expected_item_properties.items():
+        field_schema = item_properties.get(field)
+        if (not isinstance(field_schema, dict)
+                or any(field_schema.get(key) != value for key, value in expected_schema.items())):
+            return [f"baseline schema: artifact {field} does not match contract"]
     return []
 
 

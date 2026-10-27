@@ -6,7 +6,8 @@
       "enum": [
         "unapproved",
         "approved"
-      ]
+      ],
+      "type": "string"
     },
     "artifacts": {
       "items": {
@@ -36,22 +37,27 @@
       "type": "array"
     },
     "license": {
-      "const": "Apache-2.0"
+      "const": "Apache-2.0",
+      "type": "string"
     },
     "status": {
       "enum": [
         "draft",
         "captured"
-      ]
+      ],
+      "type": "string"
     },
     "upstream_commit": {
-      "const": "ee1f980c8dd7c53408e1a05a084229e6ec03c660"
+      "const": "ee1f980c8dd7c53408e1a05a084229e6ec03c660",
+      "type": "string"
     },
     "upstream_repo": {
-      "const": "https://github.com/ZeroxZhang/zerox-skills.git"
+      "const": "https://github.com/ZeroxZhang/zerox-skills.git",
+      "type": "string"
     },
     "version": {
-      "const": 1
+      "const": 1,
+      "type": "integer"
     }
   },
   "required": [
