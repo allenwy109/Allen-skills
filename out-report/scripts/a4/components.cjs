@@ -34,8 +34,8 @@ function componentContract(allowedBlocks, visualHierarchy, allowedLayouts, capac
 const COMPONENT_CONTRACTS = Object.freeze({
   cover: componentContract(
     ['text'], ['title', 'decision', 'date'], ['overview-detail'],
-    { soft: 1, hard: 1, unit: 'title groups' }, 'Never split the cover.',
-    ['More than one title group', 'Analytical exhibits on the cover'],
+    { soft: 1, hard: 1, unit: 'title groups', field: 'title_groups' }, 'Never split the cover.',
+    ['More than one title group', 'Analytical exhibits on the cover'], ['title', 'title_groups'], ['single_title_group'],
   ),
   toc: componentContract(
     ['text'], ['title', 'chapter list', 'page reference'], ['full-evidence'],
@@ -44,18 +44,18 @@ const COMPONENT_CONTRACTS = Object.freeze({
   ),
   'executive-summary': componentContract(
     ['text', 'metric', 'chart'], ['answer', 'decisions', 'evidence chain'], ['overview-detail', 'small-multiples'],
-    { soft: 3, hard: 4, unit: 'decisions or metrics' }, 'Move supporting analysis to dedicated evidence pages.',
-    ['More than one governing answer', 'Metric without qualification'],
+    { soft: 3, hard: 4, unit: 'decisions or metrics', field: 'summary_items' }, 'Move supporting analysis to dedicated evidence pages.',
+    ['More than one governing answer', 'Metric without qualification'], ['answers', 'summary_items'], ['single_answer', 'qualified_summary_item'],
   ),
   'section-title': componentContract(
     ['text'], ['chapter number', 'chapter claim', 'reading cue'], ['overview-detail'],
-    { soft: 1, hard: 1, unit: 'chapter claims' }, 'Never split a chapter opener.',
-    ['More than one chapter claim', 'Evidence table on a chapter opener'],
+    { soft: 1, hard: 1, unit: 'chapter claims', field: 'chapter_claims' }, 'Never split a chapter opener.',
+    ['More than one chapter claim', 'Evidence table on a chapter opener'], ['title', 'chapter_claims'], ['single_chapter_claim'],
   ),
   'claim-evidence': componentContract(
     ['text', 'table', 'chart'], ['claim', 'primary evidence', 'limitation', 'source'], ['full-evidence', 'prose-aside'],
-    { soft: 4, hard: 6, unit: 'evidence groups' }, 'Split after the primary exhibit and repeat the claim context.',
-    ['Evidence without a claim', 'Source detached from evidence'],
+    { soft: 4, hard: 6, unit: 'evidence groups', field: 'evidence_groups' }, 'Split after the primary exhibit and repeat the claim context.',
+    ['Evidence without a claim', 'Source detached from evidence'], ['claim', 'evidence_groups'], ['evidence_source_locator'],
   ),
   'data-chart': componentContract(
     ['chart', 'table', 'text'], ['claim', 'plot', 'annotation', 'source'], ['full-evidence', 'chart-sidebar', 'chart-table', 'small-multiples', 'decision-matrix'],
@@ -69,18 +69,18 @@ const COMPONENT_CONTRACTS = Object.freeze({
   ),
   'pain-demand': componentContract(
     ['text', 'metric', 'chart', 'table'], ['pain claim', 'customer evidence', 'demand strength', 'limitation'], ['chart-sidebar', 'small-multiples', 'prose-aside', 'full-evidence'],
-    { soft: 4, hard: 6, unit: 'pain or evidence groups' }, 'Keep one pain cluster per page and carry limitations forward.',
-    ['Anonymous evidence without limitation', 'Demand strength without observable behavior'],
+    { soft: 4, hard: 6, unit: 'pain or evidence groups', field: 'pain_groups' }, 'Keep one pain cluster per page and carry limitations forward.',
+    ['Anonymous evidence without limitation', 'Demand strength without observable behavior'], ['pain_groups'], ['observable_behavior'],
   ),
   'market-trend': componentContract(
     ['chart', 'table', 'text', 'metric'], ['market claim', 'trend exhibit', 'drivers', 'uncertainty'], ['chart-sidebar', 'full-evidence', 'small-multiples'],
-    { soft: 4, hard: 6, unit: 'series or drivers' }, 'Split by horizon or driver while repeating unit and period.',
-    ['Mixed units without normalization', 'Forecast shown as actual'],
+    { soft: 4, hard: 6, unit: 'series or drivers', field: 'series_or_drivers' }, 'Split by horizon or driver while repeating unit and period.',
+    ['Mixed units without normalization', 'Forecast shown as actual'], ['unit', 'period', 'series_or_drivers'], ['unit_period', 'series_or_driver_nonempty'],
   ),
   'risk-boundary': componentContract(
     ['chart', 'table', 'text'], ['risk claim', 'risk field', 'counter-evidence', 'boundary'], ['decision-matrix', 'full-evidence'],
-    { soft: 5, hard: 8, unit: 'risks' }, 'Move lower-priority risks to a continued register.',
-    ['Risk without response priority', 'Qualitative position presented as measured probability'],
+    { soft: 5, hard: 8, unit: 'risks', field: 'risks' }, 'Move lower-priority risks to a continued register.',
+    ['Risk without response priority', 'Qualitative position presented as measured probability'], ['risks'], ['risk_priority'],
   ),
   'recommendation-roadmap': componentContract(
     ['text', 'metric', 'table'], ['recommendation', 'stages', 'decision gates', 'stop condition'], ['process-roadmap'],
@@ -188,11 +188,28 @@ function present(value) {
 }
 
 const COMPONENT_PREDICATES = Object.freeze({
+  single_title_group(payload) {
+    return present(payload.title) && Array.isArray(payload.title_groups) && payload.title_groups.length === 1 && present(payload.title_groups[0] && payload.title_groups[0].title);
+  },
   entry_destination(payload) {
     return Array.isArray(payload.entries) && payload.entries.length > 0 && payload.entries.every(entry => entry && present(entry.destination));
   },
   unit_period(payload) {
     return present(payload.unit) && present(payload.period);
+  },
+  single_answer(payload) {
+    return Array.isArray(payload.answers) && payload.answers.length === 1 && present(payload.answers[0]);
+  },
+  qualified_summary_item(payload) {
+    return Array.isArray(payload.summary_items) && payload.summary_items.length > 0 && payload.summary_items.every(item => item && present(item.text) && present(item.qualification));
+  },
+  single_chapter_claim(payload) {
+    return present(payload.title) && Array.isArray(payload.chapter_claims) && payload.chapter_claims.length === 1 && present(payload.chapter_claims[0]);
+  },
+  evidence_source_locator(payload) {
+    return present(payload.claim) && Array.isArray(payload.evidence_groups) && payload.evidence_groups.length > 0 && payload.evidence_groups.every(group =>
+      group && present(group.source_id) && Array.isArray(group.locators) && group.locators.length > 0 && group.locators.every(present)
+    );
   },
   shared_criteria(payload) {
     if (!Array.isArray(payload.criteria) || payload.criteria.length === 0 || !Array.isArray(payload.alternatives) || payload.alternatives.length === 0) return false;
@@ -200,6 +217,17 @@ const COMPONENT_PREDICATES = Object.freeze({
       const values = alternative && alternative.values;
       return values && payload.criteria.every(criterion => Object.hasOwn(values, criterion));
     });
+  },
+  observable_behavior(payload) {
+    return Array.isArray(payload.pain_groups) && payload.pain_groups.length > 0 && payload.pain_groups.every(group =>
+      group && present(group.pain) && present(group.observable_behavior)
+    );
+  },
+  series_or_driver_nonempty(payload) {
+    return Array.isArray(payload.series_or_drivers) && payload.series_or_drivers.length > 0 && payload.series_or_drivers.every(item => item && present(item.name));
+  },
+  risk_priority(payload) {
+    return Array.isArray(payload.risks) && payload.risks.length > 0 && payload.risks.every(risk => risk && present(risk.name) && present(risk.priority));
   },
   stage_gate(payload) {
     return Array.isArray(payload.stages) && payload.stages.length > 0 && payload.stages.every(stage => stage && present(stage.gate));

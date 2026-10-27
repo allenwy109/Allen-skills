@@ -63,9 +63,16 @@ def component_payload(kind, contract):
         "blocks": [block(permitted_kind)],
     }
     required = {
+        "cover": {"title_groups": [{"title": "标题"}]},
         "toc": {"entries": [{"title": "第一章", "destination": "section-1"}]},
+        "executive-summary": {"answers": ["优先验证"], "summary_items": [{"text": "两项付费试点", "qualification": "目标"}]},
+        "section-title": {"chapter_claims": ["需求验证"]},
+        "claim-evidence": {"claim": "客户存在等待", "evidence_groups": [{"source_id": "s1", "locators": ["interview 1"]}]},
         "data-chart": {"unit": "percent", "period": "2026", "items": [{"label": "A", "value": 1}]},
         "comparison": {"criteria": ["cost"], "alternatives": [{"id": "a", "values": {"cost": 1}}]},
+        "pain-demand": {"pain_groups": [{"pain": "交付等待", "observable_behavior": "主动询价"}]},
+        "market-trend": {"unit": "GPU-hours", "period": "2026–2028", "series_or_drivers": [{"name": "需求", "values": [1, 2]}]},
+        "risk-boundary": {"risks": [{"name": "回款", "priority": "P1"}]},
         "recommendation-roadmap": {"stages": [{"title": "POC", "gate": "two paid pilots"}]},
         "references-appendix": {"references": [{"id": "s1", "locators": ["p. 4"]}]},
     }
@@ -119,6 +126,8 @@ class A4ComponentTest(unittest.TestCase):
                 self.assertGreaterEqual(contract["capacity_dimensions"]["hard"], contract["capacity_dimensions"]["soft"])
                 self.assertTrue(contract["split_strategy"])
                 self.assertTrue(contract["failure_conditions"])
+                self.assertTrue(contract["required_fields"])
+                self.assertTrue(contract["predicates"])
                 rendered = run_node(
                     "component.renderComponent(payload.kind, payload.payload, {})",
                     {"kind": kind, "payload": component_payload(kind, contract)}
@@ -180,6 +189,36 @@ class A4ComponentTest(unittest.TestCase):
                 result = run_node("component.renderComponent(payload.kind, payload.payload, {})", {"kind": kind, "payload": payload})
                 self.assertFalse(result["ok"])
                 self.assertEqual("REPORT_COMPONENT_CONTRACT", result["code"])
+
+    def test_every_remaining_component_enforces_a_failure_condition(self):
+        cases = {
+            "cover": {"title": "", "title_groups": []},
+            "executive-summary": {"answers": [], "summary_items": []},
+            "section-title": {"title": "", "chapter_claims": []},
+            "claim-evidence": {"claim": "", "evidence_groups": [{"source_id": "s1", "locators": []}]},
+            "pain-demand": {"pain_groups": [{"pain": "等待", "observable_behavior": ""}]},
+            "market-trend": {"unit": "", "period": "", "series_or_drivers": []},
+            "risk-boundary": {"risks": [{"name": "回款", "priority": ""}]},
+        }
+        for kind, mutation in cases.items():
+            with self.subTest(kind=kind):
+                contract = run_node("component.COMPONENT_CONTRACTS[payload]", kind)["value"]
+                payload = component_payload(kind, contract)
+                payload.update(mutation)
+                result = run_node("component.renderComponent(payload.kind, payload.payload, {})", {"kind": kind, "payload": payload})
+                self.assertFalse(result["ok"])
+                self.assertEqual("REPORT_COMPONENT_CONTRACT", result["code"])
+
+    def test_every_component_capacity_uses_its_structured_dimension(self):
+        contracts = run_node("component.COMPONENT_CONTRACTS")["value"]
+        for kind, contract in contracts.items():
+            with self.subTest(kind=kind):
+                self.assertNotEqual("blocks", contract["capacity_dimensions"]["field"])
+                payload = component_payload(kind, contract)
+                result = run_node("component.renderComponent(payload.kind, payload.payload, {})", {"kind": kind, "payload": payload})
+                self.assertTrue(result["ok"], result)
+                expected = len(payload[contract["capacity_dimensions"]["field"]])
+                self.assertIn(f'data-capacity-count="{expected}"', result["value"])
 
     def test_component_contracts_only_reference_frozen_layouts_and_schema_blocks(self):
         layouts = json.loads((ROOT / "out-report" / "assets" / "layout-atlas" / "catalog.json").read_text())["layouts"]
