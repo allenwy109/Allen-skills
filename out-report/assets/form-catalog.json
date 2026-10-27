@@ -2,7 +2,7 @@
   "version": "1.0",
   "status": "approved-design",
   "source": "out-report/golden",
-  "approved_baseline_digest": "823c58f3473e6faf9e0ae3455cb23b2632d95f2badb4d026616f209e10eaae96",
+  "approved_baseline_digest": "59742bde7d67fc1ecbe5c96684a4d9212ecc5c813500d3d1befc69ac04cb2fe7",
   "forms": [
     {
       "id": "metric-stack", "status": "approved-design", "relationship": "ranked headline measures with short definitions",

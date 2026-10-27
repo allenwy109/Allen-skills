@@ -52,9 +52,8 @@ class DesignCatalogTest(unittest.TestCase):
         cls.schema = json.loads((ROOT / "tools" / "lib" / "schema" / "report.schema.json").read_text())
 
     def test_catalogs_record_the_approved_baseline_digest(self):
-        self.assertEqual(self.baseline["status"], "needs-reapproval")
-        digest = self.baseline["contentApproval"]["candidateDigest"]
-        self.assertEqual(self.baseline["contentApproval"]["status"], "approved")
+        self.assertEqual(self.baseline["status"], "approved")
+        digest = self.baseline["candidateDigest"]
         self.assertRegex(digest, r"^[0-9a-f]{64}$")
         self.assertEqual(self.layouts_doc["approved_baseline_digest"], digest)
         self.assertEqual(self.forms_doc["approved_baseline_digest"], digest)

@@ -1,6 +1,10 @@
 {
   "schemaVersion": "1.0",
-  "status": "needs-reapproval",
+  "status": "approved",
+  "approvedBy": "user",
+  "approvedAt": "2026-10-27T15:17:48+10:30",
+  "candidateDigest": "59742bde7d67fc1ecbe5c96684a4d9212ecc5c813500d3d1befc69ac04cb2fe7",
+  "changeReason": "确认 A4 新基准",
   "contentApproval": {
     "status": "approved",
     "approvedBy": "user",
@@ -8,5 +12,30 @@
     "candidateDigest": "823c58f3473e6faf9e0ae3455cb23b2632d95f2badb4d026616f209e10eaae96",
     "changeReason": "用户确认：这个排版结构我认可"
   },
-  "changeReason": "修正目录第 02 章页码，并使可见审批文案与历史用户批准记录一致；新像素候选待用户重新确认"
+  "auditTrail": [
+    {
+      "type": "approval",
+      "approvedBy": "user",
+      "approvedAt": "2026-10-27T11:43:00+10:30",
+      "candidateDigest": "823c58f3473e6faf9e0ae3455cb23b2632d95f2badb4d026616f209e10eaae96",
+      "reason": "用户确认：这个排版结构我认可"
+    },
+    {
+      "type": "revision",
+      "commit": "332400d",
+      "reason": "修正目录第 02 章页码，并使可见审批文案与历史用户批准记录一致"
+    },
+    {
+      "type": "revision",
+      "commit": "8497ccd",
+      "reason": "区分原版结构批准与当前像素候选待确认，并重建当前联系表"
+    },
+    {
+      "type": "approval",
+      "approvedBy": "user",
+      "approvedAt": "2026-10-27T15:17:48+10:30",
+      "candidateDigest": "59742bde7d67fc1ecbe5c96684a4d9212ecc5c813500d3d1befc69ac04cb2fe7",
+      "reason": "确认 A4 新基准"
+    }
+  ]
 }
