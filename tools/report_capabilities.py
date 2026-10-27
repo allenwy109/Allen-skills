@@ -79,6 +79,8 @@ def check(root, strict=False):
         matrix = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         return [f"{MATRIX}: cannot read matrix: {error}"]
+    if not isinstance(matrix, dict):
+        return ["matrix: must be an object"]
 
     errors = []
     for field in ("phase", "status"):
@@ -126,6 +128,8 @@ def check(root, strict=False):
             else:
                 if not target.exists():
                     errors.append(f"{label}: {field} does not exist: {reference}")
+                elif not target.is_file():
+                    errors.append(f"{label}: {field} is not a file: {reference}")
     actual = set(ids)
     missing = sorted(REQUIRED_CAPABILITY_IDS - actual)
     extra = sorted(actual - REQUIRED_CAPABILITY_IDS)
@@ -157,7 +161,9 @@ def main(argv=None):
             errors = check(root, strict=args.strict)
             try:
                 matrix = json.loads((root / MATRIX).read_text(encoding="utf-8"))
-                effective_strict = args.strict or _requires_strict(matrix)
+                effective_strict = args.strict or (
+                    isinstance(matrix, dict) and _requires_strict(matrix)
+                )
             except (OSError, json.JSONDecodeError):
                 effective_strict = args.strict
             result = {"errors": errors, "ok": not errors, "strict": effective_strict}

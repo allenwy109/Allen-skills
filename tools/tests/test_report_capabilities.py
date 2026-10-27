@@ -1,6 +1,8 @@
 import json
 import io
 import pathlib
+import shutil
+import subprocess
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -77,6 +79,59 @@ class ReportCapabilitiesTests(unittest.TestCase):
 
         self.assertIn("layouts-38: duplicate id", errors)
         self.assertIn("matrix: extra capability ids: unexpected", errors)
+
+    def test_check_rejects_directories_for_every_reference_field(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            for name in ("upstream", "local", "tests", "visual"):
+                (root / name).mkdir()
+            capabilities = []
+            for capability_id in sorted(REQUIRED_IDS):
+                capability = self.capability(capability_id)
+                capability.update({
+                    "upstream_ref": "upstream",
+                    "local_ref": "local",
+                    "test": "tests",
+                    "visual_evidence": "visual",
+                })
+                capabilities.append(capability)
+            self.write_matrix(root, capabilities)
+
+            errors = report_capabilities.check(root)
+
+        for field in ("upstream_ref", "local_ref", "test", "visual_evidence"):
+            self.assertTrue(any(f"{field} is not a file" in error for error in errors))
+
+    def test_non_object_matrix_returns_stable_error_and_real_cli_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            matrix = root / "references" / "upstream-capability-matrix.json"
+            matrix.parent.mkdir()
+            matrix.write_text("[]\n", encoding="utf-8")
+
+            self.assertEqual(report_capabilities.check(root), ["matrix: must be an object"])
+
+            tools = root / "tools"
+            tools.mkdir()
+            (tools / "__init__.py").write_text("", encoding="utf-8")
+            shutil.copy2(ROOT / "tools" / "report_capabilities.py", tools / "report_capabilities.py")
+            result = subprocess.run(
+                ["python3", str(tools / "report_capabilities.py"), "check"],
+                capture_output=True, text=True,
+            )
+            shutil.copy2(ROOT / "tools" / "validate.py", tools / "validate.py")
+            validation = subprocess.run(
+                ["python3", str(tools / "validate.py")], capture_output=True, text=True,
+            )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(json.loads(result.stdout), {
+            "errors": ["matrix: must be an object"], "ok": False, "strict": False,
+        })
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual(validation.returncode, 1)
+        self.assertIn("错误：report capabilities：matrix: must be an object", validation.stdout)
+        self.assertNotIn("Traceback", validation.stderr)
 
     def test_check_rejects_missing_unknown_and_bad_references(self):
         with tempfile.TemporaryDirectory() as directory:
