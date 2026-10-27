@@ -4,7 +4,8 @@
     "scene": "创业点子评估",
     "input_snapshot": {
       "path": "tests/report-output-fixtures/idea-validation.snapshot.json",
-      "sha256": "6f30e7fc13fd8734adc139024732ffe4e331a9d5753bd1ab7cd0d09b484f5543"
+      "sha256": "3eae5af87c34375ed9560d24095bbd1fe3a709b513f33f056a600fdf9ecfd1a7",
+      "inventory_sha256": "9a5a3b73a8f7ddd9a23e4c78f13d78e66297b50402c48ae623eefa6d1386d704"
     },
     "expected_claims": [
       "cl-0001",
@@ -50,7 +51,8 @@
     "scene": "企业全景",
     "input_snapshot": {
       "path": "tests/report-output-fixtures/company-profile.snapshot.json",
-      "sha256": "52678e59e179bb62a72be600c5d0f1bed6167ec0b08f849b8af1935257a8c1e2"
+      "sha256": "8f52079a735a1ef4ed6b7fbd0057d8f46a0cd36e10129b999cda131341107207",
+      "inventory_sha256": "e5cc9e4d4b83250552c4a5b3e8243a60984b7429f32fddaad4a28152067f9134"
     },
     "expected_claims": [
       "cl-0001",
@@ -93,7 +95,8 @@
     "scene": "BP 评审",
     "input_snapshot": {
       "path": "tests/report-output-fixtures/bp-review.snapshot.json",
-      "sha256": "3701906f73c041483fe76c822864e2edc01fb6d6d6c4da6294457857ddef82bd"
+      "sha256": "1285c2ac1c9ca8ea4813fa79dbcc7a162c66190e0e2d6620304efb4e4c518542",
+      "inventory_sha256": "e1aa808bc86cd5d8f57162d1837b24be2ace214635362325660ddd2301592a9e"
     },
     "expected_claims": [
       "cl-0001",
@@ -131,7 +134,8 @@
     "scene": "行业／话题研究",
     "input_snapshot": {
       "path": "tests/report-output-fixtures/topic-research.snapshot.json",
-      "sha256": "0f3b6092098c8bc45607510cf4d2e40f40a63538e8c1fd74a6db0de234be1d23"
+      "sha256": "ee342919ac863a9c36ed6ef82fd7cd6b9848e7351c435e52c644121c4e3a4f1f",
+      "inventory_sha256": "20a2a8ccb6072620745020f509dc17d07ed59be32a3caf304ebb612a122f4fe4"
     },
     "expected_claims": [
       "cl-0001"
@@ -164,7 +168,8 @@
     "scene": "定量图表密集报告",
     "input_snapshot": {
       "path": "tests/report-output-fixtures/quantitative-heavy.snapshot.json",
-      "sha256": "d0f3c0c6cf42d4a5ae67076e7dcf88652dfc050e23e92089b165239ed149c7f7"
+      "sha256": "8244084bd7da18b1a5ab65c797a9b63533122c6bc24388bdb7337a251c0529d1",
+      "inventory_sha256": "8ce14c480ef6269b2fdf0241f3c30ac2a962c9081ad644ca9b43410ced95c5a0"
     },
     "expected_claims": [
       "cl-0001",
@@ -205,7 +210,8 @@
     "scene": "文字证据密集报告",
     "input_snapshot": {
       "path": "tests/report-output-fixtures/evidence-heavy.snapshot.json",
-      "sha256": "73434bc69a5c3a5410c58c3a6c4b727d34e1bc38632c5b18c4d57e57886ddc40"
+      "sha256": "585d78ead85cba9299ec037e54bbf4cc217d2baf0b895bb56159171e63cfbb2a",
+      "inventory_sha256": "563f08ce99b83226cf6c3d9d41dd58ccdddb7c6e839c13131c963a727edea859"
     },
     "expected_claims": [
       "cl-0001",

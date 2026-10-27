@@ -5,7 +5,6 @@ import hashlib
 import json
 import os
 import pathlib
-import re
 import subprocess
 import sys
 import tempfile
@@ -13,6 +12,7 @@ import unittest
 
 from tools.tests import fixtures as F
 from tools.acceptance import Acceptance
+from tools.lib.ledger import Ledger
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -27,6 +27,21 @@ CASE_FIELDS = {
 
 def file_digest(path):
     return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
+
+
+def task_input_digest(task):
+    task = pathlib.Path(task)
+    files = sorted((task / "03_evidence/ledger").glob("*.jsonl"))
+    files += sorted(path for path in (task / "07_storyline").iterdir() if path.is_file())
+    digest = hashlib.sha256()
+    for path in files:
+        relative = path.relative_to(task).as_posix().encode()
+        payload = path.read_bytes()
+        digest.update(len(relative).to_bytes(4, "big"))
+        digest.update(relative)
+        digest.update(len(payload).to_bytes(8, "big"))
+        digest.update(payload)
+    return digest.hexdigest()
 
 
 def runtime_root():
@@ -93,19 +108,20 @@ def make_case_task(root, case, negative=False):
         apply_negative(slides, case["negative_mutation"])
     write_json(slides_file, slides)
     write_json(task / "07_storyline/sidecar.json", snapshot["sidecar"])
-    storyline = task / "07_storyline/03_storyline.md"
-    storyline.write_text(
-        re.sub(r"故事线模式：[^\n]+", f"故事线模式：{snapshot['story_mode_label']}", storyline.read_text(encoding="utf-8")),
-        encoding="utf-8",
-    )
+    (task / "07_storyline/03_storyline.md").write_text(snapshot["storyline_md"], encoding="utf-8")
     (task / "07_storyline/06_slides.md").write_text(snapshot["slides_md"], encoding="utf-8")
     manuscript = task / "07_storyline/04_manuscript.md"
-    manuscript.write_text(manuscript.read_text(encoding="utf-8") + snapshot["manuscript_appendix"], encoding="utf-8")
-    clean = subprocess.run(
-        [sys.executable, str(F.STORYLINE), "clean", str(task)], capture_output=True, text=True,
-    )
-    if clean.returncode:
-        raise AssertionError(clean.stdout + clean.stderr)
+    manuscript.write_text(snapshot["manuscript"], encoding="utf-8")
+    ledger = Ledger(task)
+    for table, records in snapshot["ledger_patches"].items():
+        for record_id, fields in records.items():
+            ledger.patch(table, record_id, fields)
+    for command in ("cards", "clean"):
+        generated = subprocess.run(
+            [sys.executable, str(F.STORYLINE), command, str(task)], capture_output=True, text=True,
+        )
+        if generated.returncode:
+            raise AssertionError(generated.stdout + generated.stderr)
     return task
 
 
@@ -156,6 +172,9 @@ class ReportOutputScenarioAcceptanceTest(unittest.TestCase):
         self.assertEqual(6, len({tuple(case["expected_panels"]) for case in self.cases}))
         self.assertGreaterEqual(len({tuple(case["expected_relations"]) for case in self.cases}), 4)
         self.assertGreaterEqual(len({tuple(case["expected_components"]) for case in self.cases}), 5)
+        assertions = [read_json(snapshot_path(case["input_snapshot"]))["assertions"] for case in self.cases]
+        for field in ("domain", "question", "claim_phrase", "source_title", "metric_unit"):
+            self.assertEqual(6, len({item[field] for item in assertions}), field)
         for case in self.cases:
             with self.subTest(case=case["id"]):
                 self.assertEqual(CASE_FIELDS, set(case))
@@ -171,6 +190,17 @@ class ReportOutputScenarioAcceptanceTest(unittest.TestCase):
         for case in self.cases:
             with self.subTest(case=case["id"], path="positive"), tempfile.TemporaryDirectory() as temporary:
                 task = make_case_task(temporary, case)
+                self.assertEqual(case["input_snapshot"]["inventory_sha256"], task_input_digest(task))
+                snapshot = read_json(snapshot_path(case["input_snapshot"]))
+                semantic = snapshot["assertions"]
+                materialized_slides = read_json(task / "07_storyline/slides.json")
+                self.assertEqual(semantic["question"], materialized_slides["deck"]["brief"]["question"])
+                self.assertTrue(all(semantic["domain"] in panel["purpose"] for slide in materialized_slides["slides"] for panel in slide.get("panels", [])))
+                ledger = Ledger(task)
+                self.assertIn(semantic["claim_phrase"], ledger.get("claims", "cl-0001")["statement"])
+                self.assertEqual(semantic["source_title"], ledger.get("sources", "M001")["title"])
+                self.assertEqual(semantic["metric_unit"], ledger.get("metrics", "m-0001")["unit"])
+                self.assertIn(semantic["claim_phrase"], (task / "07_storyline/04_manuscript.md").read_text(encoding="utf-8"))
                 init = run_cli("init", task)
                 self.assertEqual(0, init.returncode, init.stdout + init.stderr)
                 work = task / "07_storyline/a4-work"
