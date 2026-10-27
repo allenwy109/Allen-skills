@@ -36,7 +36,7 @@ function tool(name) {
 }
 
 (async () => {
-  for (const name of ['pdftoppm', 'pdftotext']) tool(name);
+  for (const name of ['pdftoppm', 'pdftotext', 'pdfunite']) tool(name);
   const playwright = path.join(runtimeRoot(), 'vendor/report-forge/node_modules/playwright');
   if (!fs.existsSync(playwright)) throw new Error(`REPORT_RUNTIME_MISSING: ${playwright}`);
   fs.mkdirSync(outputDir, { recursive: true });
@@ -96,8 +96,23 @@ function tool(name) {
       };
     });
   });
-  await page.pdf({ path: pdf, format: 'A4', printBackground: true, preferCSSPageSize: true,
-    margin: { top: '0', right: '0', bottom: '0', left: '0' } });
+  const pageParts = [];
+  await page.evaluate(() => {
+    window.__reportPages = [...document.querySelectorAll('section.page[data-page-id]')]
+      .map(section => section.cloneNode(true));
+  });
+  await page.addStyleTag({ content: '.page{break-after:auto!important;page-break-after:auto!important}' });
+  for (let index = 0; index < dom.length; index += 1) {
+    await page.evaluate(index => {
+      document.body.replaceChildren(window.__reportPages[index].cloneNode(true));
+    }, index);
+    const part = path.join(outputDir, `.pdf-page-${String(index + 1).padStart(4, '0')}.pdf`);
+    await page.pdf({ path: part, format: 'A4', printBackground: true, preferCSSPageSize: true,
+      margin: { top: '0', right: '0', bottom: '0', left: '0' } });
+    pageParts.push(part);
+  }
+  cp.execFileSync('pdfunite', [...pageParts, pdf]);
+  pageParts.forEach(part => fs.unlinkSync(part));
   await browser.close();
   if (external.length) throw new Error(`REPORT_EXTERNAL_RESOURCE: ${external.join(',')}`);
 

@@ -84,6 +84,14 @@ def run_qa(evidence):
 
 
 class A4QualityGateTest(unittest.TestCase):
+    def test_export_prints_each_dom_page_separately_before_merging(self):
+        source = EXPORT.read_text(encoding="utf-8")
+        self.assertIn("pdfunite", source)
+        self.assertIn("window.__reportPages", source)
+        self.assertIn("document.body.replaceChildren", source)
+        self.assertNotIn("section.hidden = pageIndex !== index", source)
+        self.assertIn("page-break-after:auto!important", source)
+
     def test_visible_body_rejects_raw_url_but_allows_hidden_traceability(self):
         evidence = good_evidence()
         evidence["media"]["htmlPages"][0]["visibleHtml"] = (
