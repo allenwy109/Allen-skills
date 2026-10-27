@@ -66,6 +66,20 @@ function finiteNumber(value) {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function visibleHtml(value) {
+  let html = String(value || '');
+  let previous;
+  do {
+    previous = html;
+    html = html.replace(/<([a-z][\w:-]*)\b[^>]*\bhidden(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
+  } while (html !== previous);
+  return html.replace(/<[^>]*\bhidden(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?[^>]*\/?>/gi, '');
+}
+
+function classPattern(name) {
+  return new RegExp(`class\\s*=\\s*["'][^"']*\\b${name}\\b[^"']*["']`, 'i');
+}
+
 function evidenceErrors(evidence) {
   const errors = [];
   const invalid = (location, detail) => errors.push(issue('REPORT_QA_EVIDENCE_INVALID', location, detail));
@@ -193,7 +207,7 @@ function evaluate(evidence) {
     const paginationPage = paginationPages.find(candidate => candidate.id === page.id);
     if (page.empty && !(paginationPage && paginationPage.intentionalBlank)) blocking.push(issue('REPORT_EMPTY_PAGE', page.id, 'unintentional empty page'));
     for (const font of Array.isArray(page.fonts) ? page.fonts : []) {
-      const minimum = font.role === 'source' ? 7.5 : 8.5;
+      const minimum = ['source', 'citation'].includes(font.role) ? 7.5 : 8.5;
       if (finiteNumber(font.minimumPt) && font.minimumPt < minimum) blocking.push(issue('REPORT_FONT_TOO_SMALL', page.id, `${font.role} ${font.minimumPt}pt is below ${minimum}pt`, font));
     }
   }
@@ -209,6 +223,30 @@ function evaluate(evidence) {
 
   const htmlPages = Array.isArray(evidence.media && evidence.media.htmlPages) ? evidence.media.htmlPages : [];
   const pdfPages = Array.isArray(evidence.media && evidence.media.pdfPages) ? evidence.media.pdfPages : [];
+  const appendixDestinations = Array.isArray(evidence.media && evidence.media.appendixDestinations)
+    ? evidence.media.appendixDestinations : [];
+  const destinationCounts = appendixDestinations.reduce((counts, id) => counts.set(id, (counts.get(id) || 0) + 1), new Map());
+  for (const page of htmlPages) {
+    const html = visibleHtml(page.visibleHtml);
+    if (!html) continue;
+    const isReference = page.role === 'references';
+    if (!isReference && /https?:\/\//i.test(html.replace(/<[^>]+>/g, ' '))) {
+      blocking.push(issue('REPORT_BODY_RAW_REFERENCE', page.id, 'visible body content contains a raw HTTP(S) reference'));
+    }
+    if (!isReference && (classPattern('source-strip').test(html) || classPattern('source').test(html) || /\bdata-reference-band(?:\s|=|>)/i.test(html))) {
+      blocking.push(issue('REPORT_BODY_SOURCE_STRIP', page.id, 'visible body content contains a legacy reference band'));
+    }
+    const markers = [...html.matchAll(/<[^>]*class\s*=\s*["'][^"']*\bcitation-marker\b[^"']*["'][^>]*>/gi)].map(match => {
+      const href = match[0].match(/\bhref\s*=\s*["']#([^"']+)["']/i);
+      return href && href[1];
+    });
+    for (const target of markers) if (!target || destinationCounts.get(target) !== 1) {
+      blocking.push(issue('REPORT_CITATION_MISMATCH', page.id, target ? `citation target ${target} must resolve to exactly one appendix destination` : 'citation marker has no appendix destination', { target: target || '', destinations: target ? destinationCounts.get(target) || 0 : 0 }));
+    }
+    if (isReference && /\bdata-row-split\s*=\s*["']continued["']/i.test(html) && !/\bdata-continuation-header(?:\s|=|>)/i.test(html)) {
+      blocking.push(issue('REPORT_PAGE_OVERFLOW', page.id, 'appendix row continues without a continuation header'));
+    }
+  }
   const htmlText = htmlPages.map(page => ({ id: page.id, text: normalizedText(page.text), digest: digest(normalizedText(page.text)) }));
   const pdfText = pdfPages.map(page => ({ id: page.id, text: normalizedText(page.text), digest: digest(normalizedText(page.text)) }));
   if (JSON.stringify(htmlText.map(({ id, digest: value }) => ({ id, digest: value }))) !== JSON.stringify(pdfText.map(({ id, digest: value }) => ({ id, digest: value })))) {

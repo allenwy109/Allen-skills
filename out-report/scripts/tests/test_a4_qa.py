@@ -55,8 +55,10 @@ def good_evidence():
             "output": {"claims": ["cl-1"], "a_cards": ["A-1"], "panels": ["p-1"], "relations": ["r-1"], "metrics": ["m-1"], "sources": ["s-1"]},
         },
         "media": {
-            "htmlPages": [{"id": "page-001", "text": "Decision evidence source"}],
+            "htmlPages": [{"id": "page-001", "role": "body", "text": "Decision evidence source",
+                           "visibleHtml": '<p>Decision evidence <a class="citation-marker" href="#ref-s-1">[1]</a></p>'}],
             "pdfPages": [{"id": "page-001", "text": "Decision evidence source"}],
+            "appendixDestinations": ["ref-s-1"],
             "resources": [{"type": "font", "url": "data:font/woff2;base64,AA==", "embedded": True}],
         },
         "regression": {
@@ -79,6 +81,54 @@ def run_qa(evidence):
 
 
 class A4QualityGateTest(unittest.TestCase):
+    def test_visible_body_rejects_raw_url_but_allows_hidden_traceability(self):
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0]["visibleHtml"] = (
+            '<span hidden data-source-locator="https://allowed.invalid/source"></span>'
+            '<p>Read https://example.invalid/source</p>'
+        )
+        result = run_qa(evidence)
+        self.assertIn("REPORT_BODY_RAW_REFERENCE", {item["code"] for item in result["blocking"]})
+        evidence["media"]["htmlPages"][0]["visibleHtml"] = '<span hidden>https://allowed.invalid/source</span><p>Decision</p>'
+        self.assertNotIn("REPORT_BODY_RAW_REFERENCE", {item["code"] for item in run_qa(evidence)["blocking"]})
+
+    def test_visible_body_rejects_legacy_or_equivalent_reference_band(self):
+        for html in (
+            '<div class="source-strip">Source A<br>Source B</div>',
+            '<footer data-reference-band><p>Source A</p><p>Source B</p></footer>',
+        ):
+            with self.subTest(html=html):
+                evidence = good_evidence()
+                evidence["media"]["htmlPages"][0]["visibleHtml"] = html
+                self.assertIn("REPORT_BODY_SOURCE_STRIP", {item["code"] for item in run_qa(evidence)["blocking"]})
+
+    def test_citation_marker_requires_exactly_one_appendix_destination(self):
+        evidence = good_evidence()
+        evidence["media"]["appendixDestinations"] = []
+        self.assertIn("REPORT_CITATION_MISMATCH", {item["code"] for item in run_qa(evidence)["blocking"]})
+        evidence["media"]["appendixDestinations"] = ["ref-s-1", "ref-s-1"]
+        self.assertIn("REPORT_CITATION_MISMATCH", {item["code"] for item in run_qa(evidence)["blocking"]})
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0]["visibleHtml"] = '<a href="#ref-s-1" class="citation-marker">[1]</a><span class="citation-marker">[2]</span>'
+        self.assertIn("REPORT_CITATION_MISMATCH", {item["code"] for item in run_qa(evidence)["blocking"]})
+
+    def test_citation_font_uses_approved_minimum(self):
+        evidence = good_evidence()
+        evidence["geometry"]["pages"][0]["fonts"].append({"role": "citation", "minimumPt": 7.4})
+        self.assertIn("REPORT_FONT_TOO_SMALL", {item["code"] for item in run_qa(evidence)["blocking"]})
+
+    def test_split_appendix_row_requires_continuation_header(self):
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0].update(
+            role="references", visibleHtml='<div class="ref" data-row-split="continued">continued text</div>'
+        )
+        self.assertIn("REPORT_PAGE_OVERFLOW", {item["code"] for item in run_qa(evidence)["blocking"]})
+        evidence["media"]["htmlPages"][0]["visibleHtml"] = (
+            '<div data-continuation-header>References (continued)</div>'
+            '<div class="ref" data-row-split="continued">continued text</div>'
+        )
+        self.assertNotIn("REPORT_PAGE_OVERFLOW", {item["code"] for item in run_qa(evidence)["blocking"]})
+
     def test_clean_evidence_passes_and_emits_page_and_text_manifests(self):
         result = run_qa(good_evidence())
         self.assertEqual([], result["blocking"])
@@ -263,6 +313,19 @@ class A4QualityGateTest(unittest.TestCase):
             pdf = Path(temporary) / "sample.pdf"
             pdf.write_bytes(b"%PDF-1.4\n1 0 obj << /Type /Page /MediaBox [0 0 595.276 841.89] >> endobj\n%%EOF")
             self.assertEqual([[210.0, 297.0]], visual.pdf_media_boxes_mm(pdf))
+
+    def test_visual_html_evidence_excludes_hidden_traceability(self):
+        visual = load_visual()
+        pages = visual.html_page_evidence(
+            '<section class="page" data-page-id="page-001" data-page-role="body">'
+            '<span hidden data-source-locator="https://hidden.invalid/source"></span>'
+            '<p>Decision <a class="citation-marker" href="#ref-s-1">[1]</a></p></section>'
+            '<section class="page" data-page-id="page-002" data-page-role="references">'
+            '<div class="ref" id="ref-s-1">https://visible.invalid/source</div></section>'
+        )
+        self.assertNotIn("hidden.invalid", pages[0]["visibleHtml"])
+        self.assertEqual("body", pages[0]["role"])
+        self.assertEqual(["ref-s-1"], visual.appendix_destinations(pages))
 
     def test_visual_manifest_never_mutates_baseline(self):
         visual = load_visual()

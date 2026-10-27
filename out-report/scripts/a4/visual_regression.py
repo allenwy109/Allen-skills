@@ -13,6 +13,8 @@ from pathlib import Path
 POINTS_PER_MM = 72 / 25.4
 MEDIABOX = re.compile(rb"/MediaBox\s*\[\s*([-+0-9.]+)\s+([-+0-9.]+)\s+([-+0-9.]+)\s+([-+0-9.]+)\s*\]")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
+PAGE = re.compile(r'<section\b(?=[^>]*\bclass=["\'][^"\']*\bpage\b)(?=[^>]*\bdata-page-id=["\']([^"\']+)["\'])(?=[^>]*\bdata-page-role=["\']([^"\']+)["\'])[^>]*>[\s\S]*?</section>', re.I)
+HIDDEN = re.compile(r'<([a-z][\w:-]*)\b[^>]*\bhidden(?:\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+))?[^>]*>[\s\S]*?</\1\s*>', re.I)
 
 
 def sha256(path: Path) -> str:
@@ -29,6 +31,25 @@ def pdf_media_boxes_mm(path: Path) -> list[list[float]]:
         x0, y0, x1, y1 = (float(value) for value in match.groups())
         boxes.append([round((x1 - x0) / POINTS_PER_MM, 3), round((y1 - y0) / POINTS_PER_MM, 3)])
     return boxes
+
+
+def html_page_evidence(html: str) -> list[dict]:
+    """Capture visible page fragments while excluding hidden traceability bindings."""
+    pages = []
+    for match in PAGE.finditer(html):
+        fragment = match.group(0)
+        previous = None
+        while fragment != previous:
+            previous = fragment
+            fragment = HIDDEN.sub("", fragment)
+        pages.append({"id": match.group(1), "role": match.group(2), "visibleHtml": fragment})
+    return pages
+
+
+def appendix_destinations(pages: list[dict]) -> list[str]:
+    return [destination for page in pages if page.get("role") == "references"
+            for destination in re.findall(r'\bid=["\']([^"\']+)["\']', page.get("visibleHtml", ""))
+            if destination != page.get("id")]
 
 
 def compare_files(baseline: Path, candidate: Path) -> dict:

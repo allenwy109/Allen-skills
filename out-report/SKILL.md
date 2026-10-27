@@ -37,4 +37,6 @@ python3 <本 skill>/scripts/out_report.py <命令> <任务文件夹>
 
 系统机械检查 A4 MediaBox、溢出、遮挡、裁切、空页、最小字号、内嵌资源、HTML/PDF 页序与文字清单、claim/A 卡/panel/relation/metric/source 覆盖集合和逐页视觉哈希。审查时锁定 HTML、PDF、逐页 PNG、report/render document，以及 coverage、pagination、geometry、media/page-text、visual candidate 这些原始 QA 输入；打包前重新计算，任何篡改都失败。`qa-evidence`、visual-regression 和 QA result 含作者处置，处置本身又绑定 artifact digest，因此不放进同一 digest，避免哈希循环；它们进入正式包后由 acceptance 文件哈希锁定。正式包保留全部审计清单和逐页 PNG。缺测量证据本身就是失败。
 
+完整来源（标题、URL、locator、质量与访问日期）只渲染在 references appendix。正文引用标记由 renderer 根据 `source_ids` 和 `source_bindings` 自动生成并链接到 appendix；作者不得手写 URL、引用编号、`.source-strip` 或其他多行页底来源带。隐藏的 source ID/locator 继续保留用于机器追溯，但不属于读者可见正文。
+
 四个企业应用完成主报告后，仍需运行 `tools/package_support.py <任务>` 生成并验收支撑文件包。
