@@ -71,9 +71,9 @@ function visibleHtml(value) {
   let previous;
   do {
     previous = html;
-    html = html.replace(/<([a-z][\w:-]*)\b[^>]*\bhidden(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
+    html = html.replace(/<([a-z][\w:-]*)\b[^>]*\s+hidden(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
   } while (html !== previous);
-  return html.replace(/<[^>]*\bhidden(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?[^>]*\/?>/gi, '');
+  return html.replace(/<[^>]*\s+hidden(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?[^>]*\/?>/gi, '');
 }
 
 function classPattern(name) {

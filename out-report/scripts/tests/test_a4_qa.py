@@ -205,14 +205,18 @@ class A4QualityGateTest(unittest.TestCase):
             ("page-002", "body", '<div class="source-strip">Source A<br>Source B</div>'),
             ("page-003", "body", '<a class="citation-marker" href="#missing">[9]</a>'),
             ("page-004", "body", '<a class="citation-marker tiny" href="#ref-ok">[1]</a>'),
-            ("page-005", "references", '<div class="ref" id="ref-ok" data-row-split="continued">Reference</div>'),
+            ("page-005", "references", '<aside data-component-kind="references-appendix"><div class="ref" id="ref-ok" data-row-split="continued">Reference</div><div class="ref hidden-anchor" id="ref-hidden">Hidden</div></aside>'),
+            ("page-006", "references", '<p>Forged role https://example.invalid/forged</p>'),
+            ("page-007", "body", '<p class="css-hidden">https://example.invalid/hidden</p><p>Visible body</p>'),
+            ("page-008", "body", '<a class="citation-marker" href="#ref-hidden">[8]</a>'),
         ]
         sections = "".join(
             f'<section class="page" data-page-id="{page_id}" data-page-role="{role}"><div class="page__body">{body}</div></section>'
             for page_id, role, body in pages
         )
         html = ('<!doctype html><style>@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0}'
-                '.page{width:210mm;height:297mm;break-after:page;padding:20mm;font:12pt Arial}.tiny{font-size:7pt}</style>' + sections)
+                '.page{width:210mm;height:297mm;break-after:page;padding:20mm;font:12pt Arial}.tiny{font-size:7pt}'
+                '.css-hidden,.hidden-anchor{display:none}</style>' + sections)
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source, build = root / "report.html", root / "build"
@@ -222,6 +226,8 @@ class A4QualityGateTest(unittest.TestCase):
             self.assertEqual(0, process.returncode, process.stderr)
             media = json.loads((build / "media-manifest.json").read_text())
             geometry = json.loads((build / "geometry-manifest.json").read_text())
+            self.assertEqual(["ref-ok"], media["appendixDestinations"])
+            self.assertIn("citation-marker", media["htmlPages"][7]["visibleHtml"])
             evidence = good_evidence()
             evidence["pagination"] = {"pageCount": len(pages), "pages": [
                 {"id": page_id, "number": index + 1, "intentionalBlank": False,
@@ -237,8 +243,13 @@ class A4QualityGateTest(unittest.TestCase):
                 baselinePages=candidate_pages, candidatePages=candidate_pages,
             )
             result = run_qa(evidence)
+            codes = {item["code"] for item in result["blocking"]}
             self.assertTrue({"REPORT_BODY_RAW_REFERENCE", "REPORT_BODY_SOURCE_STRIP", "REPORT_CITATION_MISMATCH",
-                             "REPORT_FONT_TOO_SMALL", "REPORT_PAGE_OVERFLOW"} <= {item["code"] for item in result["blocking"]})
+                             "REPORT_FONT_TOO_SMALL", "REPORT_PAGE_OVERFLOW"} <= codes)
+            self.assertEqual(["page-001", "page-006"], [item["location"] for item in result["blocking"] if item["code"] == "REPORT_BODY_RAW_REFERENCE"])
+            self.assertEqual(["page-003", "page-008"], [item["location"] for item in result["blocking"] if item["code"] == "REPORT_CITATION_MISMATCH"], result)
+            self.assertEqual("body", media["htmlPages"][5]["role"])
+            self.assertNotIn("example.invalid/hidden", media["htmlPages"][6]["visibleHtml"])
 
     def test_html_pdf_and_pagination_page_ids_and_order_must_match(self):
         evidence = good_evidence()
@@ -365,19 +376,6 @@ class A4QualityGateTest(unittest.TestCase):
             pdf = Path(temporary) / "sample.pdf"
             pdf.write_bytes(b"%PDF-1.4\n1 0 obj << /Type /Page /MediaBox [0 0 595.276 841.89] >> endobj\n%%EOF")
             self.assertEqual([[210.0, 297.0]], visual.pdf_media_boxes_mm(pdf))
-
-    def test_visual_html_evidence_excludes_hidden_traceability(self):
-        visual = load_visual()
-        pages = visual.html_page_evidence(
-            '<section class="page" data-page-id="page-001" data-page-role="body">'
-            '<span hidden data-source-locator="https://hidden.invalid/source"></span>'
-            '<p>Decision <a class="citation-marker" href="#ref-s-1">[1]</a></p></section>'
-            '<section class="page" data-page-id="page-002" data-page-role="references">'
-            '<div class="ref" id="ref-s-1">https://visible.invalid/source</div></section>'
-        )
-        self.assertNotIn("hidden.invalid", pages[0]["visibleHtml"])
-        self.assertEqual("body", pages[0]["role"])
-        self.assertEqual(["ref-s-1"], visual.appendix_destinations(pages))
 
     def test_visual_manifest_never_mutates_baseline(self):
         visual = load_visual()

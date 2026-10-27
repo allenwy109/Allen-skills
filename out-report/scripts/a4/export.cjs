@@ -50,7 +50,6 @@ function tool(name) {
   const dom = await page.evaluate(() => {
     const overlap = (a, b) => a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
     return [...document.querySelectorAll('section.page[data-page-id]')].map(section => {
-      const role = section.dataset.pageRole || (section.querySelector('[data-component-kind="references-appendix"]') ? 'references' : 'body');
       const body = section.querySelector('.page__body') || section;
       const bounds = body.getBoundingClientRect();
       const items = [...body.querySelectorAll(':scope > .page-item')];
@@ -75,13 +74,24 @@ function tool(name) {
       if (sourceMinimum !== null) fonts.push({ role: 'source', minimumPt: Math.round(sourceMinimum * 1000) / 1000 });
       if (citationMinimum !== null) fonts.push({ role: 'citation', minimumPt: Math.round(citationMinimum * 1000) / 1000 });
       const visible = section.cloneNode(true);
-      visible.querySelectorAll('[hidden]').forEach(node => node.remove());
+      const originals = [...section.querySelectorAll('*')];
+      const clones = [...visible.querySelectorAll('*')];
+      const hiddenIndexes = originals.flatMap((node, index) => {
+        const style = getComputedStyle(node);
+        const hidden = node.hidden || node.getAttribute('aria-hidden') === 'true' ||
+          style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' ||
+          (style.display !== 'contents' && node.getClientRects().length === 0);
+        return hidden ? [index] : [];
+      });
+      hiddenIndexes.reverse().forEach(index => clones[index].remove());
+      const role = visible.querySelector('[data-component-kind="references-appendix"]') ? 'references' : 'body';
+      const appendixDestinations = role === 'references'
+        ? [...visible.querySelectorAll('[data-source-record][id], .ref[id]')].map(node => node.id)
+        : [];
       return {
         id: section.dataset.pageId, role, text,
         visibleHtml: visible.innerHTML, empty: !text, overlaps, clipped: [...new Set(clipped)], fonts,
-        appendixDestinations: role === 'references'
-          ? [...section.querySelectorAll('[data-source-record][id], .ref[id]')].map(node => node.id)
-          : [],
+        appendixDestinations,
       };
     });
   });
