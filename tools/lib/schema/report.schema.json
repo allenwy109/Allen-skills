@@ -2,7 +2,10 @@
  "version": "1.0.0",
  "comment": "媒介无关的 A4 报告内容合同；coverage manifest 由 bridge 单独返回。",
  "enums": {
-  "block_kind": {"values": ["chart", "text", "metric", "table"], "labels": {"chart": "图表", "text": "文字", "metric": "指标", "table": "表格"}}
+  "block_kind": {"values": ["chart", "text", "metric", "table"], "labels": {"chart": "图表", "text": "文字", "metric": "指标", "table": "表格"}},
+  "block_form": {"values": ["svg.custom", "html.text", "html.kpi", "html.table"], "labels": {"svg.custom": "自定义矢量图", "html.text": "文字", "html.kpi": "指标", "html.table": "表格"}},
+  "claim_identity": {"values": ["fact", "data", "estimate", "forecast", "assumption", "judgment", "recommendation", "third_party_view"], "labels": {"fact": "事实", "data": "数据", "estimate": "估算", "forecast": "预测", "assumption": "假设", "judgment": "判断", "recommendation": "建议", "third_party_view": "第三方观点"}},
+  "panel_role": {"values": ["primary", "support", "context", "evidence", "implication"], "labels": {"primary": "主展品", "support": "支持", "context": "背景", "evidence": "证据", "implication": "含义"}}
  },
  "root": {
   "type": "object",
@@ -20,6 +23,14 @@
     "answer_claim_refs": {"type": "array", "required": true, "items": {"type": "string"}},
     "a_card_refs": {"type": "array", "required": true, "items": {"type": "string"}}
    }},
+   "registry": {"type": "object", "required": true, "fields": {
+    "claim_ids": {"type": "array", "required": true, "items": {"type": "string"}},
+    "metric_ids": {"type": "array", "required": true, "items": {"type": "string"}},
+    "source_ids": {"type": "array", "required": true, "items": {"type": "string"}},
+    "card_ids": {"type": "array", "required": true, "items": {"type": "string"}},
+    "panel_ids": {"type": "array", "required": true, "items": {"type": "string"}},
+    "relation_ids": {"type": "array", "required": true, "items": {"type": "string"}}
+   }},
    "sections": {"type": "array", "required": true, "items": {"type": "object", "fields": {
     "id": {"type": "string", "required": true},
     "title": {"type": "string", "required": true},
@@ -29,17 +40,29 @@
      "claim_refs": {"type": "array", "required": true, "items": {"type": "string"}},
      "metric_refs": {"type": "array", "required": true, "items": {"type": "string"}},
      "source_ids": {"type": "array", "required": true, "items": {"type": "string"}},
+     "source_bindings": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+      "source_id": {"type": "string", "required": true},
+      "locators": {"type": "array", "required": true, "items": {"type": "string"}}
+     }}},
      "panel_refs": {"type": "array", "required": true, "items": {"type": "string"}},
      "relation_refs": {"type": "array", "required": true, "items": {"type": "string"}},
-     "identity": {"type": "array", "required": true, "items": {"type": "string"}},
+     "identity": {"type": "array", "required": true, "items": {"type": "string", "enum": "claim_identity"}},
      "content": {"type": "object", "required": true, "fields": {
       "title": {"type": "string", "required": true},
       "subtitle": {"type": "string"},
       "purpose": {"type": "string", "required": true},
-      "form": {"type": "string", "required": true},
+      "form": {"type": "string", "enum": "block_form", "required": true},
       "relationship": {"type": "string", "required": true},
       "reason": {"type": "string", "required": true},
-      "anchor": {"type": "boolean", "required": true}
+      "anchor": {"type": "boolean", "required": true},
+      "role": {"type": "string", "enum": "panel_role", "required": true},
+      "alternative": {"type": "string"},
+      "tradeoff": {"type": "string"},
+      "capacity": {"type": "map", "values": {"type": "integer", "min": 0}},
+      "semantic_type": {"type": "string"},
+      "visual": {"type": "string"},
+      "slot": {"type": "string", "required": true},
+      "span": {"type": "number", "min": 0, "required": true}
      }}
     }}},
     "relations": {"type": "array", "required": true, "items": {"type": "object", "fields": {
@@ -53,7 +76,8 @@
     "id": {"type": "string", "required": true},
     "title": {"type": "string", "required": true},
     "url": {"type": "string"},
-    "origin": {"type": "string", "required": true}
+    "origin": {"type": "string", "required": true},
+    "locators": {"type": "array", "required": true, "items": {"type": "string"}}
    }}},
    "appendix": {"type": "array", "required": true, "items": {"type": "object", "fields": {
     "id": {"type": "string", "required": true},

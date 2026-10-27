@@ -8,7 +8,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from tools.lib import schema_check  # noqa: E402
-from tools.lib.ledger import Ledger  # noqa: E402
+from tools.lib.ledger import Ledger, LedgerError  # noqa: E402
 
 
 CONTENT_ROLES = {"analysis", "decision", "action", "risk"}
@@ -24,7 +24,7 @@ class ReportError(Exception):
     def __init__(self, code, problems):
         self.code = code
         self.problems = problems if isinstance(problems, list) else [problems]
-        super().__init__("；".join(self.problems))
+        super().__init__(f"{code}: " + "；".join(self.problems))
 
 
 def _unique(values, label, problems):
@@ -56,6 +56,58 @@ def _refs_for_claims(claim_ids, links, evidence):
     return {evidence[eid]["source_id"] for eid in evidence_ids if eid in evidence}
 
 
+def _source_bindings(claim_ids, links, evidence, explicit=()):
+    locators = {source_id: set() for source_id in explicit}
+    for link in links:
+        if link["claim_id"] not in claim_ids:
+            continue
+        item = evidence[link["evidence_id"]]
+        locators.setdefault(item["source_id"], set()).add(item["locator"])
+    return [{"source_id": source_id, "locators": sorted(values)}
+            for source_id, values in sorted(locators.items())]
+
+
+def validate_report(report):
+    """Validate report structure plus uniqueness and internal reference integrity."""
+    problems = schema_check.check_document(schema_check.load("report.schema.json"), report, "report.json")
+    if problems:
+        raise ReportError("REPORT_COVERAGE_MISMATCH", problems)
+    registry = report["registry"]
+    known = {key: set(values) for key, values in registry.items()}
+    for key, values in registry.items():
+        _unique(values, f"registry.{key}", problems)
+    blocks = [block for section in report["sections"] for block in section["blocks"]]
+    _unique([block["id"] for block in blocks], "block id", problems)
+    relations = [relation for section in report["sections"] for relation in section["relations"]]
+    _unique([relation["id"] for relation in relations], "relation id", problems)
+    actual_relations = {relation["id"] for relation in relations}
+    checks = (("claim_refs", "claim_ids", "claim"), ("metric_refs", "metric_ids", "metric"),
+              ("source_ids", "source_ids", "source"), ("panel_refs", "panel_ids", "panel"),
+              ("relation_refs", "relation_ids", "relation"))
+    for block in blocks:
+        for field, registry_field, label in checks:
+            for ref in sorted(set(block[field]) - known[registry_field]):
+                problems.append(f"block {block['id']} 引用了未知 {label}：{ref}")
+        binding_ids = {binding["source_id"] for binding in block["source_bindings"]}
+        if binding_ids != set(block["source_ids"]):
+            problems.append(f"block {block['id']} 的 source_bindings 与 source_ids 不一致")
+    for ref in sorted(set(report["executive_summary"]["answer_claim_refs"]) - known["claim_ids"]):
+        problems.append(f"executive_summary 引用了未知 claim：{ref}")
+    for relation in relations:
+        for ref in sorted(set(relation["panel_refs"]) - known["panel_ids"]):
+            problems.append(f"relation {relation['id']} 引用了未知 panel：{ref}")
+    actual_panels = {ref for block in blocks for ref in block["panel_refs"]}
+    if actual_panels != known["panel_ids"]:
+        problems.append("registry.panel_ids 与 blocks.panel_refs 不一致")
+    if actual_relations != known["relation_ids"]:
+        problems.append("registry.relation_ids 与 sections.relations 不一致")
+    if {ref["id"] for ref in report["references"]} != known["source_ids"]:
+        problems.append("references 与 registry.source_ids 不一致")
+    if problems:
+        raise ReportError("REPORT_COVERAGE_MISMATCH", problems)
+    return []
+
+
 def build(task, slides, sidecar=None):
     """Return ``(report, coverage)`` or raise ReportError with a stable code."""
     problems = schema_check.check_document(schema_check.load("slides.schema.json"), slides, "slides.json")
@@ -64,6 +116,20 @@ def build(task, slides, sidecar=None):
 
     ledger = Ledger(task)
     problems = []
+    relevant = {"claims", "metrics", "sources", "cards", "evidence", "claim_evidence"}
+    try:
+        ledger_issues = ledger.check()
+    except (LedgerError, KeyError, TypeError, ValueError) as error:
+        raise ReportError("REPORT_COVERAGE_MISMATCH", f"证据账无法校验：{error}") from error
+    for issue in ledger_issues:
+        if issue["level"] != "error" or issue["table"] not in relevant:
+            continue
+        message = issue["message"]
+        if message == "id 重复":
+            message = f"{issue['table']} 重复 id：{issue['id']}"
+        problems.append(message)
+    if problems:
+        raise ReportError("REPORT_COVERAGE_MISMATCH", problems)
     claim_records = ledger.read("claims")
     metric_records = ledger.read("metrics")
     source_records = ledger.read("sources")
@@ -74,8 +140,13 @@ def build(task, slides, sidecar=None):
     _index(cards, "cards", problems)
     if problems:
         raise ReportError("REPORT_COVERAGE_MISMATCH", problems)
-    evidence = {item["id"]: item for item in ledger.read("evidence")}
-    links = ledger.read("claim_evidence")
+    evidence_records = ledger.read("evidence")
+    link_records = ledger.read("claim_evidence")
+    evidence = _index(evidence_records, "evidence", problems)
+    _index(link_records, "claim_evidence", problems)
+    if problems:
+        raise ReportError("REPORT_COVERAGE_MISMATCH", problems)
+    links = link_records
     content = sorted((slide for slide in slides["slides"] if slide["page_role"] in CONTENT_ROLES),
                      key=lambda slide: slide["page"])
 
@@ -155,6 +226,7 @@ def build(task, slides, sidecar=None):
             panel_claims = sorted(set(panel["claim_refs"]))
             panel_metrics = sorted(mid for cid in panel_claims for mid in claims[cid].get("metric_refs", []) if mid in slide_metrics)
             panel_sources = _refs_for_claims(set(panel_claims), links, evidence) | set(panel.get("source_ids", []))
+            source_bindings = _source_bindings(set(panel_claims), links, evidence, panel.get("source_ids", []))
             rel_refs = sorted(r["id"] for r in relations if panel["id"] in r["panel_refs"])
             blocks.append({
                 "id": f"p{slide['page']:02d}-{panel['id']}",
@@ -162,6 +234,7 @@ def build(task, slides, sidecar=None):
                 "claim_refs": panel_claims,
                 "metric_refs": sorted(set(panel_metrics)),
                 "source_ids": sorted(panel_sources),
+                "source_bindings": source_bindings,
                 "panel_refs": [panel["id"]],
                 "relation_refs": rel_refs,
                 "identity": sorted({claims[cid]["kind"] for cid in panel_claims}),
@@ -170,6 +243,10 @@ def build(task, slides, sidecar=None):
                     "purpose": panel["purpose"], "form": panel["form"],
                     "relationship": panel["relationship"], "reason": panel["reason"],
                     "anchor": panel["id"] == slide.get("anchor_panel"),
+                    "role": panel["role"], "alternative": panel.get("alternative"),
+                    "tradeoff": panel.get("tradeoff"), "capacity": panel.get("capacity"),
+                    "semantic_type": panel.get("semantic_type"), "visual": panel.get("visual"),
+                    "slot": panel["slot"], "span": panel["span"],
                 }.items() if v is not None},
             })
             output_claims.update(panel_claims)
@@ -196,6 +273,14 @@ def build(task, slides, sidecar=None):
 
     deck = slides["deck"]
     cover = deck.get("cover", {})
+    reference_locators = {source_id: set() for source_id in source_ids}
+    for binding in _source_bindings(set(claim_refs), links, evidence):
+        reference_locators[binding["source_id"]].update(binding["locators"])
+    for card in cards:
+        if card.get("value_tier") == "A":
+            for ref in card.get("source_refs", []):
+                if ref.get("locator"):
+                    reference_locators[ref["source_id"]].add(ref["locator"])
     report = {
         "version": "1.0.0",
         "metadata": {k: v for k, v in {"title": deck["title"], "language": deck["language"],
@@ -203,12 +288,14 @@ def build(task, slides, sidecar=None):
                                         "date": cover.get("date")}.items() if v is not None},
         "executive_summary": {"question": deck.get("brief", {}).get("question", deck["title"]),
                               "answer_claim_refs": sorted(set(answer_claim_refs)), "a_card_refs": a_cards},
+        "registry": {"claim_ids": expected["claims"], "metric_ids": expected["metrics"],
+                     "source_ids": expected["sources"], "card_ids": expected["a_cards"],
+                     "panel_ids": expected["panels"], "relation_ids": expected["relations"]},
         "sections": sections,
         "references": [{k: v for k, v in {"id": sid, "title": sources[sid]["title"], "url": sources[sid].get("final_url") or sources[sid].get("url"),
-                                                "origin": sources[sid]["origin"]}.items() if v is not None} for sid in sorted(source_ids)],
+                                                "origin": sources[sid]["origin"],
+                                                "locators": sorted(reference_locators[sid])}.items() if v is not None} for sid in sorted(source_ids)],
         "appendix": [],
     }
-    schema_errors = schema_check.check_document(schema_check.load("report.schema.json"), report, "report.json")
-    if schema_errors:
-        raise ReportError("REPORT_COVERAGE_MISMATCH", schema_errors)
+    validate_report(report)
     return report, {"version": "1.0.0", "input": expected, "output": actual}

@@ -20,20 +20,25 @@
 
 | slides.json / 证据账 | report block | 规则 |
 |---|---|---|
-| 正文页的一个 panel | 一个 block | block ID 为 `p<两位页码>-<panel id>`；panel、relation、anchor 和选型理由原样保留 |
+| 正文页的一个 panel | 一个 block | block ID 为 `p<两位页码>-<panel id>`；`purpose/form/relationship/reason/role/alternative/tradeoff/capacity/semantic_type/visual/slot/span`、relation 与 anchor 原值保留 |
 | `svg.custom` | `chart` | 首批支持的图表块 |
 | `html.text` | `text` | 首批支持的文字块 |
 | `html.kpi` | `metric` | 首批支持的指标块 |
 | `html.table` | `table` | 首批支持的表格块 |
 | panel 的 claim_refs | `claim_refs`、`identity` | identity 是所引用主张的 kind 集合；未知主张拦下 |
 | 页的 metric_refs 与 panel 主张的 metric_refs 交集 | `metric_refs` | 防止把未在正文声明的指标带入，也防止正文指标在输出消失 |
-| 主张 → claim_evidence → evidence | `source_ids`、`references` | panel 显式 source_ids 一并保留；未知来源拦下 |
+| 主张 → claim_evidence → evidence | `source_ids`、`source_bindings`、`references` | binding 按 source_id 排序并带排序去重后的 evidence locator；references 汇总正文 evidence locator 与 A 卡 source_refs locator，保留来源标题和 URL；panel 显式 source_ids 一并保留 |
 | A 级卡片 | `executive_summary.a_card_refs` | A 卡关联的主张必须进入正文，否则覆盖失败 |
 
 coverage 的 `input` 和 `output` 都含排序后的 `claims`、`answer_claims`、`a_cards`、`panels`、`relations`、
 `metrics`、`sources` 集合。deck.answer_claim_refs 必须存在于证据账；A 卡必须有 claim_id 且对应主张进入正文。
 两侧必须完全相等；ledger 关键表或内容对象的重复 ID、孤儿 panel、relation 内重复 panel、未知引用或集合差异统一报
 `REPORT_COVERAGE_MISMATCH`。未列入上表的 form 报 `REPORT_UNSUPPORTED_BLOCK`，不做猜测性降级。
+
+`report.registry` 列出报告内合法的 claim、metric、source、card、panel、relation ID。JSON schema 负责字段结构和
+`identity` / `content.form` 枚举；`validate_report(report)` 负责 schema 不能表达的 block ID 唯一性和内部引用完整性，
+生成器返回前必须通过该校验。转换前复用 `Ledger.check()` 校验实际依赖的 claims、metrics、sources、cards、evidence、
+claim_evidence 六张表，结构错误、重复 ID 和悬空引用都转成带 code 的 `ReportError`，不向调用方泄漏 KeyError。
 
 ## thinkcell（`tools/bridge/to_thinkcell.py`，用于 out-chart）
 

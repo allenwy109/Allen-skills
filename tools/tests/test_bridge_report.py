@@ -27,6 +27,7 @@ class ReportContractTest(unittest.TestCase):
         return cm.exception
 
     def test_build_preserves_panels_relations_anchor_and_coverage(self):
+        self.ledger.patch("cards", "card-0001", {"source_refs": [{"source_id": "M001", "locator": "附录 A"}]})
         report, coverage = self.build()
         self.assertEqual(report["version"], "1.0.0")
         self.assertEqual(report["metadata"]["title"], "星河数据科技经营概览")
@@ -36,6 +37,14 @@ class ReportContractTest(unittest.TestCase):
         self.assertTrue(blocks[0]["content"]["anchor"])
         self.assertEqual(blocks[0]["panel_refs"], ["bars"])
         self.assertEqual(blocks[0]["relation_refs"], ["bars-note"])
+        self.assertEqual(blocks[0]["content"]["role"], "primary")
+        self.assertEqual(blocks[0]["content"]["alternative"], "并排数字卡")
+        self.assertEqual(blocks[0]["content"]["tradeoff"], "柱形更适合比较绝对规模")
+        self.assertEqual(blocks[0]["content"]["capacity"], {"items": 2})
+        self.assertEqual(blocks[0]["content"]["semantic_type"], "comparison")
+        self.assertEqual(blocks[0]["content"]["visual"], "两年收入柱形")
+        self.assertEqual(blocks[0]["content"]["slot"], "main")
+        self.assertEqual(blocks[0]["content"]["span"], 2)
         self.assertEqual(blocks[2]["kind"], "metric")
         self.assertEqual(blocks[3]["kind"], "table")
         self.assertEqual(report["sections"][0]["relations"][0]["panel_refs"], ["bars", "note"])
@@ -46,6 +55,8 @@ class ReportContractTest(unittest.TestCase):
         self.assertEqual(coverage["input"]["metrics"], ["m-0001", "m-0002", "m-0003", "m-0007"])
         self.assertEqual(coverage["input"]["sources"], ["M001"])
         self.assertEqual(coverage["input"]["answer_claims"], ["cl-0001"])
+        self.assertEqual(blocks[0]["source_bindings"], [{"source_id": "M001", "locators": ["p12"]}])
+        self.assertEqual(report["references"][0]["locators"], ["p12", "p30", "附录 A"])
 
     def test_report_matches_schema_and_schema_self_checks(self):
         schema = schema_check.load("report.schema.json")
@@ -78,6 +89,40 @@ class ReportContractTest(unittest.TestCase):
                     T.build(task, F.report_slides(), F.report_sidecar())
                 self.assertEqual(cm.exception.code, "REPORT_COVERAGE_MISMATCH")
                 self.assertIn(f"{table} 重复 id", str(cm.exception))
+
+    def test_duplicate_evidence_id_fails(self):
+        duplicate = self.ledger.read("evidence")[0]
+        with self.ledger.path("evidence").open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(duplicate, ensure_ascii=False) + "\n")
+        error = self.error(self.slides)
+        self.assertEqual(error.code, "REPORT_COVERAGE_MISMATCH")
+        self.assertIn("evidence 重复 id", str(error))
+
+    def test_duplicate_claim_evidence_id_fails(self):
+        duplicate = self.ledger.read("claim_evidence")[0]
+        with self.ledger.path("claim_evidence").open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(duplicate, ensure_ascii=False) + "\n")
+        error = self.error(self.slides)
+        self.assertEqual(error.code, "REPORT_COVERAGE_MISMATCH")
+        self.assertIn("claim_evidence 重复 id", str(error))
+
+    def test_dangling_claim_evidence_fails(self):
+        links = self.ledger.read("claim_evidence")
+        links[0]["evidence_id"] = "ev-9999"
+        self.ledger.path("claim_evidence").write_text(
+            "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in links), encoding="utf-8")
+        error = self.error(self.slides)
+        self.assertEqual(error.code, "REPORT_COVERAGE_MISMATCH")
+        self.assertIn("不存在的 evidence:ev-9999", str(error))
+
+    def test_malformed_claim_is_report_error_not_key_error(self):
+        claims = self.ledger.read("claims")
+        del claims[0]["kind"]
+        self.ledger.path("claims").write_text(
+            "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in claims), encoding="utf-8")
+        error = self.error(self.slides)
+        self.assertEqual(error.code, "REPORT_COVERAGE_MISMATCH")
+        self.assertIn("kind：必填", str(error))
 
     def test_unknown_and_orphan_panel_references_fail(self):
         slides = copy.deepcopy(self.slides)
@@ -138,6 +183,33 @@ class ReportContractTest(unittest.TestCase):
             json.dumps(first, ensure_ascii=False, sort_keys=True),
             json.dumps(second, ensure_ascii=False, sort_keys=True),
         )
+
+    def test_validate_report_rejects_duplicate_and_unknown_internal_refs(self):
+        report, _ = self.build()
+        cases = []
+        bad = copy.deepcopy(report)
+        bad["sections"][1]["blocks"][0]["id"] = bad["sections"][0]["blocks"][0]["id"]
+        cases.append((bad, "重复 block id"))
+        for field, value, message in (
+                ("claim_refs", "cl-9999", "未知 claim"),
+                ("metric_refs", "m-9999", "未知 metric"),
+                ("source_ids", "M999", "未知 source"),
+                ("panel_refs", "ghost", "未知 panel"),
+                ("relation_refs", "ghost-rel", "未知 relation")):
+            bad = copy.deepcopy(report)
+            bad["sections"][0]["blocks"][0][field].append(value)
+            cases.append((bad, message))
+        for bad, message in cases:
+            with self.subTest(message=message), self.assertRaises(T.ReportError) as cm:
+                T.validate_report(bad)
+            self.assertEqual(cm.exception.code, "REPORT_COVERAGE_MISMATCH")
+            self.assertIn(message, str(cm.exception))
+
+    def test_error_string_contains_code(self):
+        slides = copy.deepcopy(self.slides)
+        slides["slides"][1]["panels"][0]["form"] = "canvas.magic"
+        error = self.error(slides)
+        self.assertTrue(str(error).startswith("REPORT_UNSUPPORTED_BLOCK: "))
 
 
 if __name__ == "__main__":
