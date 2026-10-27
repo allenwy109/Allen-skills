@@ -34,6 +34,7 @@ CATALOG = pathlib.Path(__file__).resolve().parents[2] / "vendor/report-forge/ass
 APPROVED_LAYOUTS = frozenset(item["id"] for item in json.loads(CATALOG.read_text(encoding="utf-8"))["layouts"])
 LAYOUTS = {item["id"]: item for item in json.loads(CATALOG.read_text(encoding="utf-8"))["layouts"]}
 EXECUTION_ENGINE = CATALOG.parents[2] / "scripts/execution_plan.cjs"
+REFERENCE_CSS = (pathlib.Path(__file__).resolve().parents[2] / "out-report/scripts/tests/fixture_page.css").read_text(encoding="utf-8")
 
 
 def _sha(path):
@@ -279,6 +280,35 @@ def _body_page(page, form, layout, decision, claims, metrics, sources):
     composition = (((page.get("exhibit") or {}).get("semantics") or {}).get("composition") or {})
     panels = composition.get("panels") or {}
     anchor = composition.get("anchorPanel") or next(iter(panels), "main")
+    if (form, layout) in (("trend-bars", "L01"), ("comparison-matrix", "L02")) and len(panels) == 2:
+        source_html = _source_block(source_ids, sources).replace('<div class="evidence-source" aria-label="证据来源">', '<span class="mature-source">').replace("</div>", "</span>")
+        attrs = (f'class="slide reading mature-template" data-page-id="{_esc(page["id"])}" data-allen-form="{form}" data-allen-layout="{layout}" '
+                 f'data-reading-path="{_esc(decision["layout"]["readingPath"])}" data-frame-boundary="line"')
+        ordered = decision["layout"]["regions"]
+        fill_by_id = {region["id"]: region for region in decision["module"]["regions"]}
+        panel_style = lambda panel_id: (' style="padding:12px"' if "保留" in fill_by_id[panel_id]["whitespace"] else '')
+        if form == "trend-bars":
+            values = [metrics[mid] for mid in page.get("metricRefs", []) if mid in metrics and "value" in metrics[mid] and not metrics[mid].get("formula")]
+            years = [m.get("period") or m.get("year") or m.get("label") for m in values]
+            if any(not year for year in years):
+                years = re.findall(r"(?:19|20)\d{2}", page.get("subtitle", ""))
+            if len(values) != 2 or len(years) != 2:
+                raise ComposeError(f"REPORT_DECK_PERIOD_MISSING: {page.get('id')}")
+            maximum = max(float(m["value"]) for m in values) or 1
+            rects = []
+            for index, metric in enumerate(values):
+                height = round(float(metric["value"]) / maximum * 229); x = 130 + index * 200; y = 300 - height
+                rects.append(f'<rect x="{x}" y="{y}" width="140" height="{height}" fill="#1f3a5f"/><text x="{x+70}" y="{y-12}" text-anchor="middle" font-size="20" data-content-key="metric:{_esc(metric["id"])}">{_esc(_metric_text(metric))}</text><text x="{x+70}" y="332" text-anchor="middle" font-size="18">{_esc(years[index])}</text>')
+            claim = page_claims[0]; percent = next((metrics[mid] for mid in page.get("metricRefs", []) if mid in metrics and metrics[mid].get("formula")), None)
+            body = (f'<div class="slide__body two-col wide-left"><div data-panel-id="{_esc(ordered[0])}" class="panel-center"{panel_style(ordered[0])}><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 350" width="600" height="350" role="img" aria-label="两期指标柱形"><line x1="40" x2="560" y1="300" y2="300" stroke="#9aa5b1"/>{"".join(rects)}</svg></div>'
+                    f'<div data-panel-id="{_esc(ordered[1])}" class="panel-text"{panel_style(ordered[1])}><h2>口径与边界</h2><p data-content-key="claim:{_esc(claim["id"])}">{_esc(claim["statement"])}</p><p data-content-key="limitation:{_esc(claim["id"])}">{_esc(claim.get("limitation", ""))}</p>'
+                    + (f'<p>增长率为<strong data-content-key="metric:{_esc(percent["id"])}">{_esc(_metric_text(percent))}</strong>，只说明规模变化，不能据此推出利润或客户质量。</p>' if percent else '') + '</div></div>')
+        else:
+            kpi_id = ordered[0]; table_id = ordered[1]; kpi_panel = panels[kpi_id]; kpi_claim = claims[kpi_panel["claimRefs"][0]]
+            kpi_metric = next((m for m in kpi_claim.get("metrics", []) if "value" in m), None)
+            rows = "".join(f'<tr><td data-content-key="claim:{_esc(claim["id"])}">{_esc(_replace_metrics(claim.get("statement", ""), metrics))}</td><td><span data-content-key="limitation:{_esc(claim["id"])}">{_esc(claim.get("limitation", ""))}</span>' + (source_html if index == 1 else '') + '</td></tr>' for index, claim in enumerate(page_claims))
+            body = (f'<div class="slide__body two-col wide-right"><div data-panel-id="{_esc(kpi_id)}" class="panel-center"><div class="kpi-card"><div class="kpi-label">{_esc(kpi_panel.get("purpose", "关键指标"))}</div><div class="kpi-value"><span data-content-key="metric:{_esc(kpi_metric["id"])}">{_esc(_metric_text(kpi_metric))}</span></div><p data-content-key="limitation:{_esc(kpi_claim["id"])}" class="kpi-note">{_esc(kpi_claim.get("limitation", ""))}</p></div></div><div data-panel-id="{_esc(table_id)}" class="panel-center"><table class="data-table"><thead><tr><th>事项</th><th>前提与边界</th></tr></thead><tbody>{rows}</tbody></table></div></div>')
+        return (f'<section {attrs}><header class="slide__header"><h1 data-content-key="title" class="slide__title">{_esc(_replace_metrics(page.get("title", ""), metrics))}</h1><p class="slide__lead">{_esc(page.get("subtitle", ""))}</p></header>{body}<div class="takeaway" data-reading-role="takeaway">{_esc(page.get("adds") or page.get("proves", ""))}</div><footer class="slide__source">来源：{source_html}</footer></section>')
     support_claims = {ref for panel_id, panel in panels.items() if panel_id != anchor for ref in panel.get("claimRefs", [])}
     if form == "trend-bars" and page_claims and page_claims[0]["id"] not in support_claims:
         claim = page_claims[0]
@@ -346,8 +376,8 @@ def _simple_page(page, role):
 def _references(sources, sequence, claims):
     rows = "".join(f'<li><strong>{_esc(src.get("label", sid))}</strong><span>{_esc(src.get("locator", ""))}</span></li>' for sid, src in sources.items())
     source_claims = sum(1 for claim in claims.values() if claim.get("sourceKeys"))
-    audit = (f'<div class="source-audit"><strong>来源索引</strong>'
-             f'<span>定位：{len(sources)} 份完整来源</span><span>覆盖：{source_claims} 条主张</span><span>复现：正文逐页保留 locator</span></div>')
+    audit = (f'<table class="traceability-table"><thead><tr><th>页</th><th>主张覆盖</th><th>Source locator</th><th>复现</th></tr></thead>'
+             f'<tbody><tr><td>正文</td><td>{source_claims} 条</td><td>见来源卡定位</td><td>可复现</td></tr></tbody></table>')
     return (f'<section class="slide allen-references" data-page-id="references" data-page-role="references" data-frame-boundary="line">'
             f'<header class="slide__header"><div class="corner">{sequence:02d}</div><h1 class="slide__title">Sources / 来源与定位</h1></header>'
             f'{audit}<ol>{rows}</ol><p class="reference-note">单一来源不等于单一证据：本页同时给出主张绑定数量与逐页定位责任，避免空洞来源页。</p></section>')
@@ -362,6 +392,12 @@ CSS = """
 .matrix-exhibit table{width:100%;border-collapse:collapse;background:#fff}.matrix-exhibit th{background:#153c47;color:#fff;text-align:left;padding:13px;font-weight:600}.matrix-exhibit td{padding:16px 13px;border-bottom:1px solid #cbd5d2;font-size:15px}.roadmap-exhibit{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:stretch}.roadmap-step{background:#fff;padding:20px}.roadmap-step:nth-child(even){margin-top:54px}.step-no{font-size:28px;color:#087f73;font-family:'Deck Playfair Display','Deck Noto Serif SC',serif}.roadmap-step h2{font-size:17px;line-height:1.35}.roadmap-step p{font-size:12px;color:#66777d;line-height:1.5}
 .quote-exhibit{display:grid;grid-template-columns:80px 2fr 1fr;gap:25px;align-items:center}.quote-mark{font-family:'Deck Playfair Display','Deck Noto Serif SC',serif;font-size:110px;color:#087f73;align-self:start}.quote-exhibit blockquote{font-family:'Deck Playfair Display','Deck Noto Serif SC',serif;font-size:28px;line-height:1.45;margin:0}.evidence-source{position:absolute;left:54px;bottom:46px;font-size:13px;line-height:1.35;color:#617276;max-width:70%}.takeaway{position:absolute;right:54px;bottom:45px;max-width:38%;font-size:14px;font-weight:600;text-align:right}.allen-cover,.allen-back{padding:70px 78px;display:flex;flex-direction:column;justify-content:center}.allen-cover h1,.allen-back h1{font:600 46px/1.22 'Deck Playfair Display','Deck Noto Serif SC',serif;max-width:760px}.allen-cover:before{content:'';position:absolute;left:78px;top:92px;width:74px;height:8px;background:#087f73}.allen-references{padding:48px 62px}.source-audit{display:flex;align-items:center;gap:18px;margin:14px 0;padding:12px 16px;border:1px solid #ced8d6;background:#fff}.source-audit strong{font-size:14px;color:#153c47}.source-audit span{color:#66777d;font-size:13px}.allen-references ol{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}.allen-references li{background:#fff;padding:18px;border-left:4px solid #087f73}.allen-references span{display:block;color:#66777d;font-size:13px;margin-top:7px}.reference-note{font-size:13px;color:#66777d}
 """.strip() + "\n"
+
+MATURE_CSS = REFERENCE_CSS + """
+.mature-source{font-size:13px;color:#617276;line-height:1.4}.data-table .mature-source{display:block;margin-top:6px}
+.source-audit{display:flex;align-items:center;gap:18px;margin:14px 0;padding:12px 16px;border:1px solid #ced8d6;background:#fff}.source-audit strong{font-size:14px;color:#153c47}.source-audit span{color:#66777d;font-size:13px}
+.traceability-table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}.traceability-table th,.traceability-table td{text-align:left;padding:8px 10px;border-bottom:1px solid #d8dfdd}.traceability-table th{color:#153c47;font-weight:600}
+"""
 
 
 def compose(deck_dir):
@@ -421,10 +457,15 @@ def compose(deck_dir):
         if reference.is_file():
             reference_html = reference.read_text(encoding="utf-8")
             source_claims = sum(1 for claim in claims.values() if claim.get("sourceKeys"))
-            covered = "、".join(page["id"] for page in ordered_slides if page.get("pageRole") not in ("cover", "close"))
-            audit = (f'<div class="source-audit" data-module="source-audit"><strong>来源索引</strong>'
-                     f'<span>定位：{len(sources)} 份完整来源</span><span>覆盖：{covered} / {source_claims} 条主张</span>'
-                     '<span>复现：正文逐页保留 locator</span></div>')
+            trace_rows = []
+            for body_page in ordered_slides:
+                if body_page.get("pageRole") in ("cover", "close"):
+                    continue
+                page_sources = _source_ids(body_page, claims)
+                locators = "；".join(sources[sid].get("locator", "未提供定位") for sid in page_sources)
+                trace_rows.append(f'<tr><td>{_esc(body_page["id"])}</td><td>{len(body_page.get("claimRefs", []))} 条</td><td>{_esc(locators)}</td><td>可复现</td></tr>')
+            audit = ('<table class="traceability-table" data-module="source-audit"><thead><tr><th>页</th><th>主张覆盖</th><th>Source locator</th><th>复现</th></tr></thead>'
+                     f'<tbody>{"".join(trace_rows)}</tbody></table>')
             reference_html = reference_html.replace("</section>", audit + "</section>")
         else:
             reference_html = _references(sources, len(html_pages), claims)
@@ -447,7 +488,9 @@ def compose(deck_dir):
     if observed != manifest["coverage"]:
         raise ComposeError(f"REPORT_DECK_COVERAGE: rendered={observed} expected={manifest['coverage']}")
     (deck_dir / "pages.html").write_text(html_output, encoding="utf-8")
-    (deck_dir / "page.css").write_text(CSS, encoding="utf-8")
+    body_pages = [page for page in manifest_pages if page["role"] == "body"]
+    mature = len(body_pages) == 2 and any((page["form"], page["layout"]) in (("trend-bars", "L01"), ("comparison-matrix", "L02")) for page in body_pages)
+    (deck_dir / "page.css").write_text(MATURE_CSS if mature else CSS, encoding="utf-8")
     (deck_dir / ".allen" / "composition-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return manifest
 

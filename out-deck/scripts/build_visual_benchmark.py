@@ -78,7 +78,7 @@ def render_hashes(html_file, count):
 def inspect_evidence_geometry(html_file):
     playwright = runtime.engine_dir("report-forge", skill_dir=ROOT / "out-deck") / "node_modules" / "playwright"
     page_probe = runtime.engine_dir("report-forge", skill_dir=ROOT / "out-deck") / "scripts" / "page_probe.cjs"
-    script = """const {chromium}=require(process.argv[1]),probe=require(process.argv[2]),{pathToFileURL}=require('url');(async()=>{const b=await chromium.launch({channel:process.env.CHROME_CHANNEL||'chrome',headless:true});const p=await b.newPage({viewport:{width:1400,height:820}});await p.goto(pathToFileURL(process.argv[3]).href,{waitUntil:'networkidle'});await p.evaluate(()=>window.deckReady||document.fonts.ready);const out=[];for(const i of [1,2]){await probe.activate(p,i);out.push(await p.locator('.slide.active').evaluate(s=>{const body=s.querySelector('.slide__body').getBoundingClientRect(),panels=[...s.querySelectorAll('[data-panel-id]')].map(e=>{const r=e.getBoundingClientRect(),cs=getComputedStyle(e),text=[...e.querySelectorAll('p')];return {w:r.width/body.width,h:r.height/body.height,bottom:(body.bottom-r.bottom)/body.height,border:parseFloat(cs.borderTopWidth)||0,bg:cs.backgroundColor,textMin:text.length?Math.min(...text.map(x=>parseFloat(getComputedStyle(x).fontSize))):null,textUse:text.reduce((n,x)=>n+x.getBoundingClientRect().height,0)/r.height}}),k=s.querySelector('.kpi-card'),ks=k?getComputedStyle(k):null;return {panels,periods:[...s.querySelectorAll('.chart-label')].map(e=>e.textContent.trim()),pills:s.querySelectorAll('.metric-strip span').length,source:+getComputedStyle(s.querySelector('.evidence-source')).fontSize.replace('px',''),limitations:[...s.querySelectorAll('.limitation')].map(e=>+getComputedStyle(e).fontSize.replace('px','')),kpi:k?{border:parseFloat(ks.borderTopWidth)||0,bg:ks.backgroundColor}:null}}));}console.log(JSON.stringify(out));await b.close()})().catch(e=>{console.error(e);process.exit(1)})"""
+    script = """const {chromium}=require(process.argv[1]),probe=require(process.argv[2]),{pathToFileURL}=require('url');(async()=>{const b=await chromium.launch({channel:process.env.CHROME_CHANNEL||'chrome',headless:true});const p=await b.newPage({viewport:{width:1400,height:820}});await p.goto(pathToFileURL(process.argv[3]).href,{waitUntil:'networkidle'});await p.evaluate(()=>window.deckReady||document.fonts.ready);const out=[];for(const i of [1,2]){await probe.activate(p,i);out.push(await p.locator('.slide.active').evaluate(s=>{const body=s.querySelector('.slide__body').getBoundingClientRect(),panels=[...s.querySelectorAll('[data-panel-id]')].map(e=>{const r=e.getBoundingClientRect(),cs=getComputedStyle(e),text=[...e.querySelectorAll('p')];return {w:r.width/body.width,h:r.height/body.height,bottom:(body.bottom-r.bottom)/body.height,border:parseFloat(cs.borderTopWidth)||0,bg:cs.backgroundColor,textMin:text.length?Math.min(...text.map(x=>parseFloat(getComputedStyle(x).fontSize))):null,textUse:text.reduce((n,x)=>n+x.getBoundingClientRect().height,0)/r.height}}),k=s.querySelector('.kpi-card'),ks=k?getComputedStyle(k):null,src=s.querySelector('.evidence-source,.mature-source');return {panels,periods:[...s.querySelectorAll('.chart-label,svg text')].map(e=>e.textContent.trim()).filter(x=>/^(19|20)\d{2}$/.test(x)),pills:s.querySelectorAll('.metric-strip span').length,source:src?parseFloat(getComputedStyle(src).fontSize):0,limitations:[...s.querySelectorAll('.limitation,[data-content-key^="limitation:"]')].map(e=>+getComputedStyle(e).fontSize.replace('px','')),kpi:k?{border:parseFloat(ks.borderTopWidth)||0,bg:ks.backgroundColor}:null}}));}console.log(JSON.stringify(out));await b.close()})().catch(e=>{console.error(e);process.exit(1)})"""
     env = dict(os.environ, CHROME_CHANNEL=runtime.chrome_channel())
     result = subprocess.run(["node", "-e", script, str(playwright), str(page_probe), str(html_file)], capture_output=True, text=True, env=env, check=True)
     return json.loads(result.stdout)
@@ -149,21 +149,20 @@ def build(output):
         original_base = candidate_audit.parent
         geometry = inspect_evidence_geometry(pathlib.Path(original_audit["htmlArtifact"]["path"]))
         trend, comparison = geometry
-        if not (0.54 <= trend["panels"][0]["w"] <= 0.61 and 0.39 <= trend["panels"][1]["w"] <= 0.46):
+        if not (0.58 <= trend["panels"][0]["w"] <= 0.62 and 0.38 <= trend["panels"][1]["w"] <= 0.42):
             raise RuntimeError(f"trend evidence geometry failed: {trend}")
         if trend["periods"] != ["2024", "2025"] or trend["pills"] or trend["source"] < 13 or min(trend["limitations"] or [0]) < 13:
             raise RuntimeError(f"trend readability failed: {trend}")
         if any(panel["border"] > 1 for panel in trend["panels"]) or trend["panels"][1]["textMin"] < 14 or trend["panels"][1]["textUse"] < 0.15:
             raise RuntimeError(f"trend editorial panel failed: {trend}")
-        if not (0.30 <= comparison["panels"][0]["w"] <= 0.38 and 0.62 <= comparison["panels"][1]["w"] <= 0.70):
+        if not (0.38 <= comparison["panels"][0]["w"] <= 0.42 and 0.58 <= comparison["panels"][1]["w"] <= 0.62):
             raise RuntimeError(f"comparison evidence geometry failed: {comparison}")
         if comparison["panels"][1]["bottom"] > 0.05 or comparison["pills"] or comparison["source"] < 13:
             raise RuntimeError(f"comparison functional whitespace failed: {comparison}")
-        if comparison["kpi"]["border"] or comparison["kpi"]["bg"] not in ("rgba(0, 0, 0, 0)", "transparent"):
+        if comparison["kpi"]["border"]:
             raise RuntimeError(f"comparison KPI card styling failed: {comparison}")
         layout_file = candidate_work / "obs/layout-plan.json"
         layout_doc = read_json(layout_file)
-        layout_doc["layoutDecisions"][0]["layout"] = "L04"
         layout_doc["layoutDecisions"][0]["reason"] = "benchmark visible layout mutation"
         write_json(layout_file, layout_doc)
         cli("plan", candidate_work.parents[1], "layout-plan", layout_file, "--reviewer", "benchmark mutation reviewer",
@@ -185,11 +184,18 @@ def build(output):
         if changed_pages != [2]:
             raise RuntimeError(f"plan mutation changed unexpected pages: {changed_pages}")
         reference_work, _, reference_audit = prepare("reference")
+        reference_geometry = inspect_evidence_geometry(pathlib.Path(read_json(reference_audit)["htmlArtifact"]["path"]))
+        for candidate_page, reference_page in zip(geometry, reference_geometry):
+            for candidate_panel, reference_panel in zip(candidate_page["panels"], reference_page["panels"]):
+                if abs(candidate_panel["w"] - reference_panel["w"]) > 0.02 or abs(candidate_panel["h"] - reference_panel["h"]) > 0.05:
+                    raise RuntimeError(f"candidate geometry diverges from locked reference: {candidate_page} / {reference_page}")
+        if geometry[1]["kpi"] != reference_geometry[1]["kpi"]:
+            raise RuntimeError("candidate KPI styling diverges from locked reference")
         digest = sha(candidate_work / "deck-blueprint.json")
         if digest != sha(reference_work / "deck-blueprint.json"):
             raise RuntimeError("benchmark variants did not receive the same blueprint")
         reset_output(output)
-        labels = ["Nimbus", "Cedar"]
+        labels = ["Aurora", "Slate"]
         mapping = {labels[0]: "candidate", labels[1]: "reference"} if int(digest[0], 16) % 2 == 0 else {labels[0]: "reference", labels[1]: "candidate"}
         variants = {}
         for label, identity in mapping.items():
@@ -223,12 +229,12 @@ def build(output):
             "referenceProvenance": author, "compositionContract": candidate,
             "reviewerSanitization": {"pages": len(candidate["pages"]), "pixelIdentical": True},
             "planMutation": {"changedPages": changed_pages, "unchangedPages": [1, 3, 4, 5]},
-            "evidenceGeometry": geometry}})
+            "evidenceGeometry": geometry, "referenceGeometry": reference_geometry}})
         return packet, mapping_file
 
 
 def main():
-    parser = argparse.ArgumentParser(); parser.add_argument("--output", default=str(ROOT / "out-deck/build/visual-benchmark-v4")); args = parser.parse_args()
+    parser = argparse.ArgumentParser(); parser.add_argument("--output", default=str(ROOT / "out-deck/build/visual-benchmark-v5")); args = parser.parse_args()
     packet, mapping = build(pathlib.Path(args.output).resolve())
     print(json.dumps({"packet": str(pathlib.Path(args.output).resolve()), "mapping": str(mapping), "manifest": packet}, ensure_ascii=False, indent=2))
 
