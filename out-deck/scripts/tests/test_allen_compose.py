@@ -196,7 +196,7 @@ class AllenComposeTest(unittest.TestCase):
         text = (self.d / "pages.html").read_text()
         self.assertIn('data-page-role="references"', text)
         self.assertIn("访谈纪要:L10-L20", text)
-        self.assertIn("主张可追溯", text)
+        self.assertIn("复现：正文逐页保留 locator", text)
 
     def test_missing_or_stale_plan_fails_before_writing(self):
         (self.d / "obs" / "layout-plan.json").unlink()
