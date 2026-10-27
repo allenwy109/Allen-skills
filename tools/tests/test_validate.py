@@ -113,6 +113,15 @@ class ValidateTest(unittest.TestCase):
         self.assertIn("out-report 正式阅读报告", storyline_description)
         self.assertIn("用户明确要求的 out-deck 演示稿", storyline_description)
 
+    def test_scene_delivery_steps_execute_the_selected_media_route(self):
+        for relative in ["scene-company/SKILL.md", "scene-topic/SKILL.md", "scene-bp-review/SKILL.md"]:
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            with self.subTest(skill=relative):
+                self.assertIn("`out-report` → `08_deliverables/report/`", text)
+                self.assertIn("`out-deck` → `08_deliverables/deck/`", text)
+                self.assertIn("需要两种媒介时分别执行两条输出链", text)
+                self.assertNotIn("`08_deliverables/report/`（HTML + PDF）和讲者备注", text)
+
     def test_architecture_and_readme_describe_separate_outputs(self):
         for relative in ["ARCHITECTURE.md", "README.md"]:
             text = (ROOT / relative).read_text(encoding="utf-8")

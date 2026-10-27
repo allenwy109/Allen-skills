@@ -63,9 +63,9 @@ L2 起都交正式报告。正式报告、图表、海报只走本系统的 core
 - 用户明确指定媒介时以用户要求为准。同一任务可以同时交付两种媒介，二者不互相替代。
 
 1. **故事线**：`../core-storyline/` 协作模式，从 `06_synthesis.md`、`04_analysis/` 和证据账整理卡片、主线、内容稿和 slides.json。
-2. **正式报告**：`../out-report/`，产出 `08_deliverables/report/`（HTML + PDF）和讲者备注。
+2. **按媒介输出**：`out-report` → `08_deliverables/report/`（A4 HTML + PDF）；`out-deck` → `08_deliverables/deck/`（演示稿 HTML + PDF + 讲者备注）。需要两种媒介时分别执行两条输出链。
 3. **按需**：单张可编辑图表用 `../out-chart/`；一页信息海报用 `../out-poster/`。
 4. L3：研究包由 `research seal --publish` 放进 `08_deliverables/research-package/` 并登记验收。
 5. 成品审查员审完成品，结论写进 `08_deliverables/acceptance.json`；只有它能判定"已完成"。
 
-渲染依赖没装好（`<运行时>/tools/doctor.py` 不通过）时，告诉用户运行 `install.sh --render-deps`，先交 `06_synthesis.md` 和故事线稿件，并在回复里写明正式报告尚未生成。
+渲染依赖没装好（`<运行时>/tools/doctor.py` 不通过）时，告诉用户运行 `install.sh --render-deps`，先交 `06_synthesis.md` 和故事线稿件，并在回复里写明所选正式交付物尚未生成。
