@@ -137,7 +137,7 @@ function identityLegend(block, context) {
       line: 'solid', fill: 'outline', marker: 'circle', text: identity,
     };
     return `<span class="identity-key" data-identity="${escapeHtml(identity)}" data-line="${escapeHtml(encoding.line)}" data-fill="${escapeHtml(encoding.fill)}" data-marker="${escapeHtml(encoding.marker)}">${escapeHtml(encoding.text)}</span>`;
-  }).join('');
+  }).join(' ');
 }
 
 function bindings(block, context) {
