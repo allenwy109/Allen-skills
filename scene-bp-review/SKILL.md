@@ -99,11 +99,15 @@ BP 文件已由 router 交给 `../core-intake/` 接收：逐页全文、页面�
 
 L2 起交正式评审报告。正式报告、图表、海报只走本系统的 core-storyline 和 out-* skill，不直接调用 vendor 下的引擎，也不改用其他报告工具，否则过不了统一验收。开始前告诉用户正式报告耗时较长。
 
+- 默认正式报告：`out-report`，交付适合阅读的 A4 HTML + PDF。
+- 路演或演示稿：`out-deck`，只在用户明确要路演、汇报、投屏、幻灯片或 deck 时使用。
+- 用户明确指定媒介时以用户要求为准。同一任务可以同时交付两种媒介，二者不互相替代。
+
 1. **故事线**：`../core-storyline/` 协作模式，按上面的评审意见格式组织主线（结论 → 评分 → 说法对照 → 风险 → 问题清单），整理成内容稿和 slides.json。用了 core-diligence 时，尽调报告按 core-diligence 第 6 节单独成册或并入附录。
-2. **正式报告**：`../out-report/`，产出 `08_deliverables/report/`（HTML + PDF）。
+2. **按媒介输出**：`out-report` → `08_deliverables/report/`（A4 HTML + PDF）；`out-deck` → `08_deliverables/deck/`（演示稿 HTML + PDF + 讲者备注）。需要两种媒介时分别执行两条输出链。
 3. **支撑文件包**：从 allen-bp-review 进入时，运行 `<运行时>/tools/package_support.py <任务文件夹>`，产出 `08_deliverables/supporting-package.zip`。默认不收录用户原件。
 4. **按需**：单张图表用 `../out-chart/`，一页海报用 `../out-poster/`。
 5. 成品审查员分别审查主报告和支撑文件包，结论写进 `08_deliverables/acceptance.json`；只有它能判定"已完成"。
 6. 创始人自查时，"要创始人回答的问题"改为"优先修改清单"。
 
-渲染依赖没装好（`<运行时>/tools/doctor.py` 不通过）时，告诉用户运行 `install.sh --render-deps`，先交 `06_synthesis.md` 和故事线稿件，并在回复里写明正式报告尚未生成。
+渲染依赖没装好（`<运行时>/tools/doctor.py` 不通过）时，告诉用户运行 `install.sh --render-deps`，先交 `06_synthesis.md` 和故事线稿件，并在回复里写明所选正式交付物尚未生成。

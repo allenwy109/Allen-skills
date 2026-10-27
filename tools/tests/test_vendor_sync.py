@@ -7,6 +7,13 @@ import unittest
 from tools import vendor_sync
 
 
+class VendorConfigTest(unittest.TestCase):
+    def test_report_forge_showcase_is_included(self):
+        root = pathlib.Path(__file__).resolve().parents[2]
+        config = json.loads((root / "vendor" / "vendor.config.json").read_text(encoding="utf-8"))
+        self.assertNotIn("docs/showcase/", config["engines"]["report-forge"]["exclude"])
+
+
 def git(cwd, *args):
     subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True)
 

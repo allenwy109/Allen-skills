@@ -1,6 +1,6 @@
 ---
 name: scene-topic
-description: 话题场景：用户给一个话题、行业、市场或政策，要研究它的现状、趋势和机会，并给出判断（值不值得进、怎么准备、影响是什么）。按顺序调用拆问题、研究、选方法、核实、审查、综合，L2 起经故事线和 out-report 交付正式研究报告，L3 另交封好的研究包。通常由 router 分派进来。
+description: 话题场景：用户给一个话题、行业、市场或政策，要研究它的现状、趋势和机会，并给出判断（值不值得进、怎么准备、影响是什么）。按顺序调用拆问题、研究、选方法、核实、审查、综合，L2 起经故事线交付正式研究报告，L3 另交封好的研究包。通常由 router 分派进来。
 ---
 
 # 话题场景
@@ -58,10 +58,14 @@ description: 话题场景：用户给一个话题、行业、市场或政策，�
 
 L2 起都交正式报告。正式报告、图表、海报只走本系统的 core-storyline 和 out-* skill，不直接调用 vendor 下的引擎，也不改用其他报告工具，否则过不了统一验收。开始前告诉用户正式报告耗时较长。
 
+- 默认正式报告：`out-report`，交付适合阅读的 A4 HTML + PDF。
+- 路演或演示稿：`out-deck`，只在用户明确要路演、汇报、投屏、幻灯片或 deck 时使用。
+- 用户明确指定媒介时以用户要求为准。同一任务可以同时交付两种媒介，二者不互相替代。
+
 1. **故事线**：`../core-storyline/` 协作模式，从 `06_synthesis.md`、`04_analysis/` 和证据账整理卡片、主线、内容稿和 slides.json。
-2. **正式报告**：`../out-report/`，产出 `08_deliverables/report/`（HTML + PDF）和讲者备注。
+2. **按媒介输出**：`out-report` → `08_deliverables/report/`（A4 HTML + PDF）；`out-deck` → `08_deliverables/deck/`（演示稿 HTML + PDF + 讲者备注）。需要两种媒介时分别执行两条输出链。
 3. **按需**：单张可编辑图表用 `../out-chart/`；一页信息海报用 `../out-poster/`。
 4. L3：研究包由 `research seal --publish` 放进 `08_deliverables/research-package/` 并登记验收。
 5. 成品审查员审完成品，结论写进 `08_deliverables/acceptance.json`；只有它能判定"已完成"。
 
-渲染依赖没装好（`<运行时>/tools/doctor.py` 不通过）时，告诉用户运行 `install.sh --render-deps`，先交 `06_synthesis.md` 和故事线稿件，并在回复里写明正式报告尚未生成。
+渲染依赖没装好（`<运行时>/tools/doctor.py` 不通过）时，告诉用户运行 `install.sh --render-deps`，先交 `06_synthesis.md` 和故事线稿件，并在回复里写明所选正式交付物尚未生成。

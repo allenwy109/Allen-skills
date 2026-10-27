@@ -249,7 +249,7 @@ def write_split(task):
                             "evidence_units": [{"role": p["role"], "purpose": p["purpose"]} for p in panels]},
                 "visual_intent": {"relationship": panels[0]["relationship"], "form": panels[0]["form"], "layout": "custom",
                                   "reading_path": "标题 → 主展品 → 辅助说明", "layout_reason": "主展品在左，辅助说明在右"},
-                "panels": panels, "relations": [{"id": "pair", "kind": relation, "panel_refs": [panels[0]["id"], panels[1]["id"]],
+                "panels": panels, "relations": [{"id": f"pair-{n}", "kind": relation, "panel_refs": [panels[0]["id"], panels[1]["id"]],
                                                  "reason": "辅助说明限定主展品能支持的结论范围"}], "block_ids": blocks}
 
     def panel(pid, role, slot, purpose, claims, form, rel, reason, **kw):

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0",
+  "status": "approved",
+  "candidateDigest": "59742bde7d67fc1ecbe5c96684a4d9212ecc5c813500d3d1befc69ac04cb2fe7",
+  "approvedBy": "user",
+  "approvedAt": "2026-10-27T15:17:48+10:30",
+  "approvalReason": "确认 A4 新基准",
+  "baselineManifest": {
+    "path": "out-report/golden/visual-baseline.json",
+    "sha256": "00620041cac19c57ea32d7a767cefafa07d70c67500bbef7b0e78bbe70ee8fa5"
+  },
+  "currentReviewSummary": {
+    "manifestSha256": "de993387fbe6a42b18200bb4d4e9323afdf21fd8eb1434ca5a872658910dc0ba",
+    "pageCount": 16,
+    "reportHtmlSha256": "bfb3e0965adfdf2ef332ac92a13a4a556baa174369df9152dcc681118217840d",
+    "reportPdfSha256": "5a77f05185510e4a1b946ac3f30bf0a30d7a6410e8a0589ed21f710002a13f9f",
+    "pagePngSha256": [
+      "e2204f0d517e6ca0624abf4214dd1c9d26bd6ad0b02e03bbb17e744edfca084c",
+      "f127d9ceb8c8993625470cae090aef73bb6db97e842f006f494bf24d72935242",
+      "14fae46cb6aea6a1b7c49b53873f09715df76aa9aee7874319646f4de86ed799",
+      "a9c0ec8f96df7f9c300833e37653503fb65413c0591faef961fb5cd4607094a2",
+      "b291edb5cd18105d985da68ea08e2942f0b0be297aeef98a709d9ac19f892c53",
+      "b76f0a2bff38e1801ee76658dcb382aca661c1a96bc7f075a84f78240bf4e29c",
+      "1e3337f2648a1a9f9c923329319758f21d0ffed8f2769b25fd54f2440b1413bf",
+      "f3284b67ed4139360459f8db67f3843dca394614fe6458027cbc1facfde44b4b",
+      "d4b3159f433ce5bfbd3f873e88c4d4b004bb471a16f3d7954206cebc9707bca8",
+      "d471c4440accac9c0ddbf348735dddd65574b318f1dc3b1f51b7457879ac1627",
+      "551e939da18d9a2dce68324cc54cdf325d19ddbb2efc1e16bbc4821c8922b192",
+      "0593094ece760c263c5a41fcca24260f2ee446cc53907d6443aed6ecdf091642",
+      "0b2045b85b017e2411025e06728851f2d27ef37520fe73cec95129a107360651",
+      "e9d719afdd7fa3e13a9b6b7aefc0f39060610fc517eedf60ad1d438ce60f0cb1",
+      "f27b3ac22738defcc00b691d2bda55c6e006d0f512e1f41c7080b8a371021e1b",
+      "fd1f17c4c67412e88bfcb5c0452f745c45fb2c99daabafb857a40fd89dd2ebef"
+    ],
+    "contactSheetSha256": {
+      "whole-book": "9591b3a788726f21b628bdb02a00195d9c3447c733a857d88c05683dc024d212",
+      "chapter-1": "7027728d1165c0bcad502e0d7bd1c0031312bd7e2cc05b454ef1b024c567cfb3",
+      "chapter-2": "62834a170e574295f3508d9f7038b7cf2ea896b19f661197e1453d2c4b73c5f5",
+      "chapter-3": "bd51a2b59261d44a5444e9015fbbd914a08cf8b455741c778e256d88657ba534",
+      "chapter-4": "314fefafd0912365bed7ec529a3aeb0cbb1c0a8b89887ad5e7b4ed97b663c467"
+    }
+  },
+  "scores": {
+    "visual_focus": 5,
+    "evidence_geometry": 5,
+    "density": 4,
+    "typography": 5,
+    "chart_clarity": 5,
+    "book_rhythm": 5,
+    "source_integration": 5,
+    "finish": 4
+  }
+}

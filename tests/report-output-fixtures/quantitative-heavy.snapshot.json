@@ -1,0 +1,279 @@
+{
+  "assertions": {
+    "claim_phrase": "样本节点的算力利用率与成交量同步上升",
+    "domain": "算力市场定量",
+    "metric_unit": "%",
+    "question": "价格、利用率与需求变化如何影响预算配置？",
+    "source_title": "算力节点周度监测数据"
+  },
+  "ledger_patches": {
+    "cards": {
+      "card-0001": {
+        "content": "样本节点的算力利用率与成交量同步上升",
+        "topic": "算力市场定量"
+      },
+      "card-0002": {
+        "content": "未来一季价格仍受供给释放节奏影响",
+        "topic": "算力市场定量"
+      },
+      "card-0003": {
+        "content": "按利用率阈值分阶段配置采购预算",
+        "topic": "算力市场定量"
+      }
+    },
+    "claims": {
+      "cl-0001": {
+        "population": "算力市场定量",
+        "statement": "样本节点的算力利用率与成交量同步上升"
+      },
+      "cl-0003": {
+        "population": "算力市场定量",
+        "statement": "未来一季价格仍受供给释放节奏影响"
+      },
+      "cl-0004": {
+        "population": "算力市场定量",
+        "statement": "按利用率阈值分阶段配置采购预算"
+      },
+      "cl-0005": {
+        "population": "算力市场定量",
+        "statement": "样本覆盖不足可能放大短期价格波动"
+      }
+    },
+    "evidence": {
+      "ev-0001": {
+        "excerpt": "样本节点的算力利用率与成交量同步上升"
+      },
+      "ev-0002": {
+        "excerpt": "未来一季价格仍受供给释放节奏影响"
+      }
+    },
+    "metrics": {
+      "m-0001": {
+        "unit": "%",
+        "value": 62
+      },
+      "m-0002": {
+        "unit": "%",
+        "value": 78
+      },
+      "m-0007": {
+        "unit": "%",
+        "value": 85
+      }
+    },
+    "sources": {
+      "M001": {
+        "title": "算力节点周度监测数据",
+        "url": "https://example.com/compute-metrics"
+      }
+    }
+  },
+  "manuscript": "# 算力市场定量追踪\n\n## 执行摘要\n\n样本节点的算力利用率与成交量同步上升〔card-0001｜M001 p12〕。现有材料说明算力市场定量已经出现可观察变化，但样本仍来自固定合成来源，不能直接外推到全部市场或全部客户。未来一季价格仍受供给释放节奏影响〔card-0002｜M001 p30〕，这一判断属于预测，不是已经发生的经营结果。影响结论的关键变量包括需求持续性、供给条件、预算兑现和替代方案。因此建议按利用率阈值分阶段配置采购预算〔card-0003〕，并把验证结果作为是否继续投入的明确关口。主要反证是样本覆盖不足可能放大短期价格波动；如果后续一手行为证据与当前判断相反，应降低优先级或停止推进。本报告只支持进入下一轮验证，不支持无条件扩大投入；决策者还应补充成本、合规、交付和现金影响后再作最终决定。\n\n## 一、核心证据\n\n样本节点的算力利用率与成交量同步上升〔card-0001｜M001 p12〕。\n\n## 二、判断与行动\n\n按利用率阈值分阶段配置采购预算〔card-0003〕。\n\n## 风险与未知\n\n样本覆盖不足可能放大短期价格波动。\n\n## 补齐路径\n\n补充该领域的一手行为证据与反例。\n\n## 方法与局限\n\n只使用固定合成来源，结论仅用于系统验收。\n\n## 分歧与不确定性\n\n不同参与者对趋势持续性仍有分歧。\n\n## 未解问题\n\n需求强度与供给弹性仍需后续数据验证。\n\n## 附录 E 来源清单\n\n| 编号 | 名称 |\n|---|---|\n| M001 | 算力节点周度监测数据 |\n",
+  "sidecar": {
+    "backup_pages": [],
+    "confirmation_points": [
+      {
+        "note": "固定验收场景",
+        "stage": "storyline",
+        "status": "auto_adopted"
+      }
+    ],
+    "speaker_notes": []
+  },
+  "slides": {
+    "deck": {
+      "answer_claim_refs": [
+        "cl-0001"
+      ],
+      "arc": "evidence-to-view",
+      "audience": "经营分析团队",
+      "brief": {
+        "baseline": "2024 年收入",
+        "constraints": "缺少客户留存和利润数据",
+        "period": "2024–2026",
+        "purpose": "diagnosis",
+        "question": "价格、利用率与需求变化如何影响预算配置？",
+        "scope": "星河数据科技合并口径",
+        "success_criteria": "区分已核实的收入变化和待补的增长质量"
+      },
+      "cover": {
+        "closing_text": "谢谢",
+        "date": "2026-10-23",
+        "producer": "Allen 分析系统",
+        "project": "算力市场定量追踪",
+        "subtitle": "虚构样稿，仅用于工具验证",
+        "version": "v1"
+      },
+      "decision": "如何配置预算",
+      "kind": "reading",
+      "language": "zh-CN",
+      "ratio": "16x9",
+      "story_mode": "industry_research",
+      "title": "算力市场定量追踪"
+    },
+    "slides": [
+      {
+        "action_title": "算力市场定量追踪",
+        "page": 1,
+        "page_role": "cover",
+        "story_beat": "context",
+        "type": "cover"
+      },
+      {
+        "action_title": "样本节点的算力利用率与成交量同步上升",
+        "adds": "读者理解算力市场定量的关键判断与下一步",
+        "anchor_panel": "quantitative-bars",
+        "claim_refs": [
+          "cl-0001"
+        ],
+        "density": {
+          "evidence_units": [
+            {
+              "purpose": "两年收入同量尺比较",
+              "role": "primary"
+            },
+            {
+              "purpose": "说明收入口径和推论边界",
+              "role": "support"
+            }
+          ],
+          "profile": "balanced",
+          "space_intent": "主图充分展开，右侧写口径和边界"
+        },
+        "metric_refs": [
+          "m-0001",
+          "m-0002",
+          "m-0003"
+        ],
+        "page": 2,
+        "page_role": "analysis",
+        "panels": [
+          {
+            "alternative": "并排数字卡",
+            "capacity": {
+              "items": 2
+            },
+            "claim_refs": [
+              "cl-0001"
+            ],
+            "form": "svg.custom",
+            "id": "quantitative-bars",
+            "purpose": "用算力市场定量证据回答：价格、利用率与需求变化如何影响预算配置？",
+            "reason": "两期数值共用零基线，柱形比较绝对规模最直接",
+            "relationship": "comparison",
+            "role": "primary",
+            "semantic_type": "comparison",
+            "slot": "main",
+            "span": 2,
+            "tradeoff": "柱形更适合比较绝对规模",
+            "visual": "两年收入柱形"
+          },
+          {
+            "claim_refs": [
+              "cl-0001"
+            ],
+            "form": "svg.custom",
+            "id": "quantitative-note",
+            "purpose": "用算力市场定量证据回答：价格、利用率与需求变化如何影响预算配置？",
+            "reason": "口径和边界是文字判断，用短段落最清楚",
+            "relationship": "comparison",
+            "role": "support",
+            "slot": "aside",
+            "span": 1
+          }
+        ],
+        "proves": "样本节点的算力利用率与成交量同步上升",
+        "relations": [
+          {
+            "id": "quantitative-bars-note",
+            "kind": "boundary",
+            "panel_refs": [
+              "quantitative-bars",
+              "quantitative-note"
+            ],
+            "reason": "组合证据共同限定算力市场定量判断的适用边界"
+          }
+        ],
+        "section": "01 收入",
+        "story_beat": "diagnosis",
+        "subtitle": "单位：万元｜2024–2025 全年｜合并口径",
+        "type": "data_chart",
+        "visual_intent": {
+          "form": "svg.custom",
+          "layout": "custom",
+          "layout_reason": "主图占左侧三分之二，右侧写口径和边界",
+          "reading_path": "标题 → 两年柱形 → 口径与边界",
+          "relationship": "comparison"
+        }
+      },
+      {
+        "action_title": "未来一季价格仍受供给释放节奏影响",
+        "adds": "读者理解算力市场定量的关键判断与下一步",
+        "anchor_panel": "quantitative-kpi",
+        "claim_refs": [
+          "cl-0003"
+        ],
+        "density": {
+          "evidence_units": [
+            {
+              "purpose": "2026 年指引作为规模参考",
+              "role": "context"
+            },
+            {
+              "purpose": "建议与对应的前提条件",
+              "role": "primary"
+            }
+          ],
+          "profile": "balanced",
+          "space_intent": "左侧单个指标，右侧条件表"
+        },
+        "metric_refs": [
+          "m-0007"
+        ],
+        "page": 3,
+        "page_role": "action",
+        "panels": [
+          {
+            "capacity": {
+              "items": 1
+            },
+            "claim_refs": [
+              "cl-0003"
+            ],
+            "form": "html.kpi",
+            "id": "quantitative-kpi",
+            "purpose": "用算力市场定量证据回答：价格、利用率与需求变化如何影响预算配置？",
+            "reason": "单个预测值用指标卡突出，并标明预测身份",
+            "relationship": "kpi",
+            "role": "primary",
+            "slot": "left",
+            "span": 1
+          }
+        ],
+        "proves": "未来一季价格仍受供给释放节奏影响",
+        "relations": [],
+        "section": "02 建议",
+        "story_beat": "action",
+        "subtitle": "建议｜依据：收入变化与管理层指引",
+        "type": "recommendation",
+        "visual_intent": {
+          "form": "html.table",
+          "layout": "custom",
+          "layout_reason": "左侧指标卡给出规模参考，右侧表格写建议和前提",
+          "reading_path": "标题 → 指引 → 建议与待确认事项",
+          "relationship": "decision"
+        }
+      },
+      {
+        "action_title": "谢谢",
+        "page": 4,
+        "page_role": "close",
+        "story_beat": "close",
+        "type": "close"
+      }
+    ]
+  },
+  "slides_md": "# 逐页内容\n\n## P01 ｜ — ｜ 封面\n**行动标题**：算力市场定量追踪\n\n## P02 ｜ 01 收入 ｜ 数据图表\n**行动标题**：样本节点的算力利用率与成交量同步上升\n\n## P03 ｜ 02 建议 ｜ 建议\n**行动标题**：未来一季价格仍受供给释放节奏影响\n\n## P04 ｜ — ｜ 结尾\n**行动标题**：谢谢\n",
+  "story_mode_label": "行业研究",
+  "storyline_md": "# 故事线\n\n故事线模式：行业研究\n\n## 中心论点\n\n样本节点的算力利用率与成交量同步上升。\n\n## 结构树\n\n- 样本节点的算力利用率与成交量同步上升（card-0001，强）\n- 按利用率阈值分阶段配置采购预算（card-0003，中）\n\n## 压力测试\n\n- 反例：样本覆盖不足可能放大短期价格波动。\n"
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0",
+  "revealedAfterScoring": true,
+  "identities": {
+    "Cinder": "candidate",
+    "Willow": "reference"
+  },
+  "derivation": {
+    "method": "deterministic blueprint-digest parity used by the benchmark builder",
+    "blueprintSha256": "4838621e1af9d2251cc8313c8b4cd2676335b27bff35d97d68f94b32d4a73db5",
+    "firstHexParity": "even",
+    "builder": "out-deck/scripts/build_visual_benchmark.py"
+  },
+  "provenance": {
+    "candidate": "Allen evidence-led composer from accepted chart, layout and module-fill plans",
+    "reference": "locked pre-composer fixed-page author",
+    "referenceCommit": "bfef13d",
+    "commonInputSha256": "735bee1e80f372f05db013374a9c74ef4eb443166d187f2aac64c4cce3179438",
+    "commonBlueprintSha256": "4838621e1af9d2251cc8313c8b4cd2676335b27bff35d97d68f94b32d4a73db5"
+  },
+  "bindings": {
+    "deckScorecardSha256": "9f062757945d1ec3ae99c1599268c5061223ee149ba352873ff5f8c790dbba12",
+    "deckArtifactsSha256": "0dddc8a131df6b0b9c4c026f589b1837276a8d6401568201be6bd4f2978b6834"
+  }
+}

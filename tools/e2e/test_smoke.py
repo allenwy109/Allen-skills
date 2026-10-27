@@ -1,6 +1,6 @@
 """端到端冒烟（设计 §11）：一个虚构任务从头走到验收。
 文字要求 + 三份用户文件（PDF、Word、PPT）→ core-intake 接收 → 临时文件夹改名为正式任务 → 证据账 → 分析与综合
-→ core-storyline 故事线包 → out-report 正式报告、out-chart 图表、out-poster 海报 → 成品审查 → acceptance 全部通过。
+→ core-storyline 故事线包 → out-report A4 正式报告、out-chart 图表、out-poster 海报 → 成品审查 → acceptance 全部通过。
 只由 tools/selftest.sh --e2e 运行；依赖缺失直接失败。规划观察、代表页、审查稿、页面 HTML 是合成的，只证明链路和字段走得通。
 内容全部虚构。"""
 import json
@@ -12,9 +12,8 @@ import tempfile
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-for d in ("out-report/scripts/tests", "out-poster/scripts/tests"):
+for d in ("out-poster/scripts/tests",):
     sys.path.insert(0, str(ROOT / d))
-import synthetic  # noqa: E402
 import test_out_poster as POSTER  # noqa: E402
 from tools.acceptance import Acceptance  # noqa: E402
 from tools.lib import office, runtime  # noqa: E402
@@ -100,34 +99,40 @@ class EndToEndSmokeTest(unittest.TestCase):
         led.add("claim_evidence", {"claim_id": "cl-0001", "evidence_id": ev, "relation": "supports", "applicable_scope": "合并口径"})
         run(STORYLINE, "sync", task)
 
-        # out-report
-        d = task / "07_storyline" / "forge-work"
-
-        def refs():
-            return json.loads((d / "execution-plan.json").read_text(encoding="utf-8"))["productionRefs"]
+        # out-report A4：首次视觉差异失败关闭，再登记作者和独立逐页审查。
+        d = task / "07_storyline" / "a4-work"
         run(OUT_REPORT, "init", task)
-        for item, req in (("chart-plan", "chart-diversity"), ("layout-plan", "layout-diversity"), ("module-fill-plan", "module-fill")):
-            run(OUT_REPORT, "plan", task, item, synthetic.planning(d, item, req), "--reviewer", "合成主笔", "--basis", "合成接收")
-        run(OUT_REPORT, "step", task, "ready")
-        run(OUT_REPORT, "step", task, "compile")
-        pages_json = d / refs()["compile"]["files"]["pages"]["record"]
-        gen = ROOT / "core-diligence" / "scripts" / "tests"     # 按 pages.json 的绑定生成正文页（合成）
-        subprocess.run(["node", str(gen / "gen_pages.cjs"), str(ROOT / "vendor" / "report-forge"), str(pages_json), str(d / "body.html")], check=True)
-        parts = [d / "bookend-cover.html", d / "body.html", d / "bookend-references.html", d / "bookend-back.html"]
-        (d / "pages.html").write_text("\n".join(f.read_text(encoding="utf-8") for f in parts), encoding="utf-8")
-        shutil.copy2(gen / "fixture_page.css", d / "page.css")
-        run(OUT_REPORT, "step", task, "assemble")
-        run(OUT_REPORT, "step", task, "smoke")
-        smoke = json.loads((d / ".allen" / "runs.json").read_text(encoding="utf-8"))["smoke"]
-        run(OUT_REPORT, "plan", task, "representatives", synthetic.representatives(d, smoke), "--reviewer", "合成主笔", "--basis", "合成接收")
-        run(OUT_REPORT, "plan", task, "production", synthetic.production(d, d / refs()["assemble"]["files"]["html"]["record"]),
-            "--reviewer", "合成主笔", "--basis", "合成接收")
-        run(OUT_REPORT, "step", task, "acceptance")
-        run(OUT_REPORT, "step", task, "review-pack")
-        synthetic.fill_reviews(d, pages_json)
-        for s in ("aggregate", "snapshot", "package"):
-            run(OUT_REPORT, "step", task, s)
-        run(OUT_REPORT, "finish", task)
+        preview = run(OUT_REPORT, "render", task, ok=False)
+        if preview.returncode != 1 or "REPORT_VISUAL_REGRESSION" not in preview.stdout:
+            raise AssertionError(preview.stdout + preview.stderr)
+        regression = json.loads((d / "visual-regression.json").read_text(encoding="utf-8"))
+        artifacts = json.loads((d / "artifact-manifest.json").read_text(encoding="utf-8"))
+        pagination = json.loads((d / "build/pagination-manifest.json").read_text(encoding="utf-8"))
+        page_ids = [page["id"] for page in pagination["pages"]]
+        author = d / "author-review.json"
+        author.write_text(json.dumps({
+            "type": "author", "reviewer": "合成主笔", "reviewedAt": "2026-10-23T11:30:00+08:00",
+            "decision": "accepted", "reason": "逐页检查合成报告的层级、证据、来源与分页，未发现阻断交付的问题。",
+            "baselineDigest": regression["baselineDigest"], "candidateDigest": regression["candidateDigest"],
+            "differenceDigest": regression["differenceDigest"], "artifactDigest": artifacts["artifactDigest"],
+            "paginationDigest": artifacts["paginationDigest"],
+        }, ensure_ascii=False), encoding="utf-8")
+        run(OUT_REPORT, "review", task, "author", author)
+        independent = d / "independent-review.json"
+        independent.write_text(json.dumps({
+            "type": "independent", "reviewer": "成品审查员（合成）", "at": "2026-10-23T12:00:00+08:00",
+            "conclusion": "逐页复核 HTML 与 PDF 后，报告结构、证据绑定和阅读节奏满足合成验收要求。", "issues": [],
+            "artifactDigest": artifacts["artifactDigest"], "paginationDigest": artifacts["paginationDigest"],
+            "page_ids": page_ids, "media": ["html", "pdf"], "scales": ["100%", "contact-sheet"],
+            "chapter_contact_sheets": [{"chapter": "whole-book", "page_ids": page_ids,
+                                         "observation": "整册缩略图显示章节过渡、信息密度与留白节奏保持一致。"}],
+            "headline_chain": {"status": "reviewed", "observation": "标题链从经营事实推进到验证建议，论证顺序完整。"},
+            "observations": [{"page_id": page_id, "media": ["html", "pdf"], "scale": ["100%", "contact-sheet"],
+                              "observation": f"{page_id} 已在两种媒介和两种尺度检查层级、正文与来源。",
+                              "reason": "未发现裁切、证据遗漏或会改变结论的视觉强调。"} for page_id in page_ids],
+        }, ensure_ascii=False), encoding="utf-8")
+        run(OUT_REPORT, "review", task, "independent", independent)
+        run(OUT_REPORT, "package", task)
 
         # out-chart
         chart = F.ensure_dir(task / "07_storyline" / "charts") / "revenue.json"
@@ -145,7 +150,7 @@ class EndToEndSmokeTest(unittest.TestCase):
 
         cls.before_review = {did: deliverable(task, did)["status"] for did in ("report-main", "chart-revenue", "poster-xinghe")}
         # 成品审查员（合成）
-        for did in cls.before_review:
+        for did in ("chart-revenue", "poster-xinghe"):
             verdict = task / f"verdict-{did}.json"
             verdict.write_text(json.dumps({"type": "independent", "reviewer": "成品审查员（合成）", "at": "2026-10-23T12:00:00+08:00",
                                            "conclusion": "合成结论", "issues": []}, ensure_ascii=False), encoding="utf-8")
@@ -179,14 +184,13 @@ class EndToEndSmokeTest(unittest.TestCase):
     def test_three_kinds_of_deliverables_exist(self):
         out = self.task / "08_deliverables"
         self.assertTrue(list((out / "report").glob("*.pdf")))
-        self.assertTrue((out / "speaker-notes.pdf").is_file())
         for p in ("charts/revenue.pptx", "charts/png/revenue.png", "charts/revenue.html", "poster/xinghe-A2-B7-20261023.png"):
             self.assertTrue((out / p).is_file(), p)
-        for sub in ("forge-work", "poster-work"):
+        for sub in ("a4-work", "poster-work"):
             self.assertFalse((out / sub).exists(), "过程目录不应放进 08_deliverables")
 
     def test_acceptance_needs_review_then_all_pass(self):
-        self.assertEqual(set(self.before_review.values()), {"failed"})
+        self.assertEqual(self.before_review, {"report-main": "passed", "chart-revenue": "failed", "poster-xinghe": "failed"})
         statuses = {e["id"]: e["status"] for e in self.final["deliverables"]}
         self.assertEqual(statuses, {"report-main": "passed", "chart-revenue": "passed", "poster-xinghe": "passed"})
         e = deliverable(self.task, "report-main")

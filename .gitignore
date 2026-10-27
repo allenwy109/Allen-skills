@@ -4,3 +4,6 @@ vendor/*/.font-venv/
 __pycache__/
 .probe-task/
 .probe.json
+.worktrees/
+out-report/golden/build/
+out-deck/build/

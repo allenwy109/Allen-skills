@@ -1,0 +1,50 @@
+:root {
+  --a4-width: 210mm;
+  --a4-height: 297mm;
+  --page-margin-top: 18mm;
+  --page-margin-right: 17mm;
+  --page-margin-bottom: 18mm;
+  --page-margin-left: 20mm;
+  --font-sans: NotoSansSC, Arial, sans-serif;
+  --font-serif: NotoSerifSC, serif;
+  --weight-regular: 400;
+  --weight-semibold: 600;
+  --font-body: 10.75pt;
+  --font-source: 7.5pt;
+  --font-label: 7.7pt;
+  --font-note: 8.5pt;
+  --font-heading-1: 26pt;
+  --font-heading-2: 20pt;
+  --font-heading-3: 12pt;
+  --line-body: 1.58;
+  --line-source: 1.34;
+  --line-heading-1: 1.22;
+  --line-heading-2: 1.35;
+  --line-heading-3: 1.45;
+  --baseline: 2.7mm;
+  --paper: #f7f5ef;
+  --ink: #262d31;
+  --muted: #667176;
+  --rule: #bdc5c3;
+  --tint: #e9eeeb;
+  --accent: #0b6b66;
+  --accent-soft: #d8e7e3;
+  --rule-hairline: .35pt;
+  --rule-standard: .7pt;
+  --source-bottom: 14mm;
+  --source-left: 20mm;
+  --source-right: 34mm;
+  --footer-bottom: 3mm;
+  --footer-right: 25mm;
+}
+
+@page {
+  size: var(--a4-width) var(--a4-height);
+  margin: 0;
+}
+
+@media print {
+  html, body {
+    background: transparent;
+  }
+}

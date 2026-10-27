@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1.0",
+  "rebuild": {
+    "config": "out-deck/benchmarks/semantic-benchmark.json",
+    "builder": "out-deck/scripts/build_visual_benchmark.py",
+    "output": "out-deck/build/visual-benchmark-final"
+  },
+  "anonymousManifest": {
+    "sha256": "c72cb7a932aae1df07d64755ce88c4e8a8552e21eacdc8e253bb583a1bf74f4b",
+    "inputSha256": "735bee1e80f372f05db013374a9c74ef4eb443166d187f2aac64c4cce3179438",
+    "blueprintSha256": "4838621e1af9d2251cc8313c8b4cd2676335b27bff35d97d68f94b32d4a73db5",
+    "pageCount": 5
+  },
+  "variants": {
+    "Cinder": {
+      "qa": {"acceptance": true, "geometry": "PASS", "errors": 0, "htmlPages": 5, "pdfPages": 5},
+      "deckHtmlSha256": "d997d1deb7d6b87f12044b118784cf26553cd5c3f12578983ce3e9a03e562948",
+      "deckPdfSha256": "ac2275ccd34ad34a3f78b05b31aa24d4f0418736e2c82011e69a650d9595c81d",
+      "crossMediaSha256": "0d8046af8e2fdde9d425d9fb178edfcfdad3a1548578cbebf47634f5ae6ab5dd",
+      "contactSheetSha256": "90dd027766595126afea4a7e2a38ae976799d75f26bd912ddb3beef2eff3dcc7",
+      "pagePngSha256": [
+        "059e882a8fd3f1111434dc26a769ccbde1102feacc5e3e37c1d4490870a3284a",
+        "832c93b8ea19b51d9646d631427e47a17df27a346fb3ea2e48744504f88e3b73",
+        "c7a546498708d4f7d1bee443fbe2e574bbcf3dffd8b6a279f27f57dd7cb51d0c",
+        "a643ace6da6d9f13f9f0bbf80814bbc108893337ee58a8067e8c54b0d5607783",
+        "7df93fbddce809368b0b4edfef5afce59a0e16443491e86f4d02f61b6d4fd844"
+      ]
+    },
+    "Willow": {
+      "qa": {"acceptance": true, "geometry": "PASS", "errors": 0, "htmlPages": 5, "pdfPages": 5},
+      "deckHtmlSha256": "c448e66e4276fb08d9318f29b2199b054280f829a182fd0c30d43bb9242009ea",
+      "deckPdfSha256": "d3c3d26b9566dd098388adf6ff0b3ee45648588a6cb6e3f433cd95da23aec369",
+      "crossMediaSha256": "d5c53f3c0a63e9067f4f99b22f723b078002debf141b9dea1b98e577a1df4eff",
+      "contactSheetSha256": "5e02bcb63f8e12930a90a80e8eb9d3036a75d85690cbb50d2194860341276319",
+      "pagePngSha256": [
+        "059e882a8fd3f1111434dc26a769ccbde1102feacc5e3e37c1d4490870a3284a",
+        "a6f2d8c51d1c940384ad20d5090742a906756b9639074e8e3f78475e1b1a0877",
+        "fee3195df0e92bee3c8b30987101136cc2d32eba41b8b018261b9d3d63c7c4f6",
+        "ffe89da06cc39964445830c4433f72d3c9600837061ab416d23900e63bce832e",
+        "7df93fbddce809368b0b4edfef5afce59a0e16443491e86f4d02f61b6d4fd844"
+      ]
+    }
+  }
+}

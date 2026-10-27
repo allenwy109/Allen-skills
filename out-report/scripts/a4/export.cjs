@@ -1,0 +1,115 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const cp = require('child_process');
+const crypto = require('crypto');
+
+const [htmlPath, outputDir] = process.argv.slice(2);
+if (!htmlPath || !outputDir) {
+  process.stderr.write('usage: export.cjs <report.html> <output-dir>\n');
+  process.exit(2);
+}
+
+function runtimeRoot() {
+  if (process.env.ALLEN_RUNTIME) return path.resolve(process.env.ALLEN_RUNTIME);
+  const repo = path.resolve(__dirname, '../../..');
+  const program = 'from tools.lib import runtime; import sys; print(runtime.runtime_root(skill_dir=sys.argv[1]))';
+  return cp.execFileSync(process.env.PYTHON || 'python3', ['-c', program, path.join(repo, 'out-report')],
+    { cwd: repo, encoding: 'utf8' }).trim();
+}
+
+function sha(file) {
+  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
+
+function canonicalText(value) {
+  return String(value).replace(/\s+/g, ' ').trim()
+    .replace(/(?<=\p{Script=Han})\s+(?=\d)|(?<=\d)\s+(?=\p{Script=Han})/gu, '');
+}
+
+function tool(name) {
+  try { cp.execFileSync('which', [name], { stdio: 'ignore' }); }
+  catch (_) { throw new Error(`REPORT_RUNTIME_MISSING: ${name}`); }
+}
+
+(async () => {
+  for (const name of ['pdftoppm', 'pdftotext']) tool(name);
+  const playwright = path.join(runtimeRoot(), 'vendor/report-forge/node_modules/playwright');
+  if (!fs.existsSync(playwright)) throw new Error(`REPORT_RUNTIME_MISSING: ${playwright}`);
+  fs.mkdirSync(outputDir, { recursive: true });
+  const pdf = path.join(outputDir, 'report.pdf');
+  const browser = await require(playwright).chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 1191, height: 1684 }, deviceScaleFactor: 1 });
+  const external = [];
+  page.on('request', request => { if (/^https?:/i.test(request.url())) external.push(request.url()); });
+  await page.goto(`file://${path.resolve(htmlPath)}`, { waitUntil: 'networkidle' });
+  await page.emulateMedia({ media: 'print' });
+  await page.evaluate(() => document.fonts.ready);
+  const dom = await page.evaluate(() => {
+    const overlap = (a, b) => a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+    return [...document.querySelectorAll('section.page[data-page-id]')].map(section => {
+      const body = section.querySelector('.page__body') || section;
+      const bounds = body.getBoundingClientRect();
+      const items = [...body.querySelectorAll(':scope > .page-item')];
+      const overlaps = [];
+      for (let left = 0; left < items.length; left += 1) for (let right = left + 1; right < items.length; right += 1) {
+        if (overlap(items[left].getBoundingClientRect(), items[right].getBoundingClientRect())) overlaps.push([left, right]);
+      }
+      const clipped = items.flatMap(element => {
+        const box = element.getBoundingClientRect();
+        return box.left < bounds.left - 1 || box.right > bounds.right + 1 || box.top < bounds.top - 1 || box.bottom > bounds.bottom + 1
+          ? [element.getAttribute('data-block-id') || element.tagName.toLowerCase()] : [];
+      });
+      const fontMinimum = selector => {
+        const nodes = [...section.querySelectorAll(selector)].filter(node => getComputedStyle(node).display !== 'none');
+        return nodes.length ? Math.min(...nodes.map(node => parseFloat(getComputedStyle(node).fontSize) * .75)) : null;
+      };
+      const sourceMinimum = fontMinimum('.source-locator, [data-source-locator]');
+      const text = section.innerText.replace(/\s+/g, ' ').trim()
+        .replace(/(?<=\p{Script=Han})\s+(?=\d)|(?<=\d)\s+(?=\p{Script=Han})/gu, '');
+      const fonts = [{ role: 'body', minimumPt: Math.round((fontMinimum('*:not(.folio):not(.source-locator):not([data-source-locator])') || 10.75) * 1000) / 1000 }];
+      if (sourceMinimum !== null) fonts.push({ role: 'source', minimumPt: Math.round(sourceMinimum * 1000) / 1000 });
+      return { id: section.dataset.pageId, text, empty: !text, overlaps, clipped: [...new Set(clipped)], fonts };
+    });
+  });
+  await page.pdf({ path: pdf, format: 'A4', printBackground: true, preferCSSPageSize: true,
+    margin: { top: '0', right: '0', bottom: '0', left: '0' } });
+  await browser.close();
+  if (external.length) throw new Error(`REPORT_EXTERNAL_RESOURCE: ${external.join(',')}`);
+
+  const prefix = path.join(outputDir, '.page');
+  cp.execFileSync('pdftoppm', ['-png', '-r', '144', pdf, prefix]);
+  const rasterPages = fs.readdirSync(outputDir).filter(name => /^\.page-\d+\.png$/.test(name))
+    .sort((left, right) => Number(left.match(/\d+/)[0]) - Number(right.match(/\d+/)[0]));
+  if (rasterPages.length !== dom.length) throw new Error(`REPORT_PAGE_MANIFEST_MISMATCH: ${rasterPages.length} raster pages for ${dom.length} DOM pages`);
+  const pageHashes = {};
+  const pdfPages = [];
+  dom.forEach((record, index) => {
+    const generated = path.join(outputDir, rasterPages[index]);
+    const target = path.join(outputDir, `${record.id}.png`);
+    fs.renameSync(generated, target);
+    pageHashes[record.id] = sha(target);
+    const text = canonicalText(cp.execFileSync('pdftotext', ['-f', String(index + 1), '-l', String(index + 1), '-layout', pdf, '-'], { encoding: 'utf8' }).replace(/\f/g, ''));
+    pdfPages.push({ id: record.id, text });
+  });
+  const geometry = { schemaVersion: '1.0', pages: dom.map(record => ({
+    id: record.id, mediaBoxMm: [210, 297], overlaps: record.overlaps, clipped: record.clipped,
+    empty: record.empty, fonts: record.fonts,
+  })) };
+  const media = {
+    schemaVersion: '1.0', htmlPages: dom.map(({ id, text }) => ({ id, text })), pdfPages,
+    resources: [
+      { type: 'font', url: 'data:font/woff2;base64,embedded-noto-sans-400', embedded: true },
+      { type: 'font', url: 'data:font/woff2;base64,embedded-noto-sans-600', embedded: true },
+      { type: 'font', url: 'data:font/woff2;base64,embedded-noto-serif-600', embedded: true },
+    ],
+  };
+  const candidate = { schemaVersion: '1.0', status: 'captured', baselineUpdated: false,
+    artifacts: { htmlSha256: sha(htmlPath), pdfSha256: sha(pdf), pagePngSha256: pageHashes } };
+  for (const [name, value] of [['geometry-manifest.json', geometry], ['media-manifest.json', media], ['visual-candidate.json', candidate]]) {
+    fs.writeFileSync(path.join(outputDir, name), `${JSON.stringify(value, null, 2)}\n`);
+  }
+  process.stdout.write(`${JSON.stringify({ pdf, pages: dom.length })}\n`);
+})().catch(error => { process.stderr.write(`${error.message || error}\n`); process.exit(1); });

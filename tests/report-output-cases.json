@@ -1,0 +1,251 @@
+[
+  {
+    "id": "idea-validation",
+    "scene": "创业点子评估",
+    "input_snapshot": {
+      "path": "tests/report-output-fixtures/idea-validation.snapshot.json",
+      "sha256": "3eae5af87c34375ed9560d24095bbd1fe3a709b513f33f056a600fdf9ecfd1a7",
+      "inventory_sha256": "9a5a3b73a8f7ddd9a23e4c78f13d78e66297b50402c48ae623eefa6d1386d704"
+    },
+    "expected_claims": [
+      "cl-0001",
+      "cl-0003",
+      "cl-0004",
+      "cl-0005"
+    ],
+    "expected_panels": [
+      "idea-bars",
+      "idea-kpi",
+      "idea-note",
+      "idea-steps"
+    ],
+    "expected_relations": [
+      "idea-bars-note",
+      "idea-kpi-steps"
+    ],
+    "expected_components": [
+      "cover",
+      "toc",
+      "executive-summary",
+      "section-title",
+      "data-chart",
+      "claim-evidence",
+      "section-title",
+      "executive-summary",
+      "claim-evidence",
+      "references-appendix"
+    ],
+    "page_range": [
+      5,
+      12
+    ],
+    "expected_status": "passed",
+    "negative_mutation": {
+      "type": "unsupported-form",
+      "expected_status": "REPORT_UNSUPPORTED_BLOCK",
+      "expected_detail": "不支持的 block form：unsupported.form"
+    }
+  },
+  {
+    "id": "company-profile",
+    "scene": "企业全景",
+    "input_snapshot": {
+      "path": "tests/report-output-fixtures/company-profile.snapshot.json",
+      "sha256": "8f52079a735a1ef4ed6b7fbd0057d8f46a0cd36e10129b999cda131341107207",
+      "inventory_sha256": "e5cc9e4d4b83250552c4a5b3e8243a60984b7429f32fddaad4a28152067f9134"
+    },
+    "expected_claims": [
+      "cl-0001",
+      "cl-0003",
+      "cl-0004",
+      "cl-0005"
+    ],
+    "expected_panels": [
+      "company-bars",
+      "company-kpi",
+      "company-steps"
+    ],
+    "expected_relations": [
+      "company-kpi-steps"
+    ],
+    "expected_components": [
+      "cover",
+      "toc",
+      "executive-summary",
+      "section-title",
+      "data-chart",
+      "section-title",
+      "executive-summary",
+      "claim-evidence",
+      "references-appendix"
+    ],
+    "page_range": [
+      4,
+      11
+    ],
+    "expected_status": "passed",
+    "negative_mutation": {
+      "type": "unknown-claim",
+      "expected_status": "REPORT_CONVERSION_FAILED",
+      "expected_detail": "主张 cl-9999 不在证据账里"
+    }
+  },
+  {
+    "id": "bp-review",
+    "scene": "BP 评审",
+    "input_snapshot": {
+      "path": "tests/report-output-fixtures/bp-review.snapshot.json",
+      "sha256": "1285c2ac1c9ca8ea4813fa79dbcc7a162c66190e0e2d6620304efb4e4c518542",
+      "inventory_sha256": "e1aa808bc86cd5d8f57162d1837b24be2ace214635362325660ddd2301592a9e"
+    },
+    "expected_claims": [
+      "cl-0001",
+      "cl-0004",
+      "cl-0005"
+    ],
+    "expected_panels": [
+      "bp-note",
+      "bp-steps"
+    ],
+    "expected_relations": [],
+    "expected_components": [
+      "cover",
+      "toc",
+      "executive-summary",
+      "section-title",
+      "claim-evidence",
+      "section-title",
+      "claim-evidence",
+      "references-appendix"
+    ],
+    "page_range": [
+      4,
+      10
+    ],
+    "expected_status": "passed",
+    "negative_mutation": {
+      "type": "duplicate-panel",
+      "expected_status": "REPORT_COVERAGE_MISMATCH",
+      "expected_detail": "重复 panel id：bp-note"
+    }
+  },
+  {
+    "id": "topic-research",
+    "scene": "行业／话题研究",
+    "input_snapshot": {
+      "path": "tests/report-output-fixtures/topic-research.snapshot.json",
+      "sha256": "ee342919ac863a9c36ed6ef82fd7cd6b9848e7351c435e52c644121c4e3a4f1f",
+      "inventory_sha256": "20a2a8ccb6072620745020f509dc17d07ed59be32a3caf304ebb612a122f4fe4"
+    },
+    "expected_claims": [
+      "cl-0001"
+    ],
+    "expected_panels": [
+      "topic-bars"
+    ],
+    "expected_relations": [],
+    "expected_components": [
+      "cover",
+      "toc",
+      "executive-summary",
+      "section-title",
+      "data-chart",
+      "references-appendix"
+    ],
+    "page_range": [
+      3,
+      8
+    ],
+    "expected_status": "passed",
+    "negative_mutation": {
+      "type": "unknown-claim",
+      "expected_status": "REPORT_CONVERSION_FAILED",
+      "expected_detail": "主张 cl-9999 不在证据账里"
+    }
+  },
+  {
+    "id": "quantitative-heavy",
+    "scene": "定量图表密集报告",
+    "input_snapshot": {
+      "path": "tests/report-output-fixtures/quantitative-heavy.snapshot.json",
+      "sha256": "8244084bd7da18b1a5ab65c797a9b63533122c6bc24388bdb7337a251c0529d1",
+      "inventory_sha256": "8ce14c480ef6269b2fdf0241f3c30ac2a962c9081ad644ca9b43410ced95c5a0"
+    },
+    "expected_claims": [
+      "cl-0001",
+      "cl-0003"
+    ],
+    "expected_panels": [
+      "quantitative-bars",
+      "quantitative-kpi",
+      "quantitative-note"
+    ],
+    "expected_relations": [
+      "quantitative-bars-note"
+    ],
+    "expected_components": [
+      "cover",
+      "toc",
+      "executive-summary",
+      "section-title",
+      "data-chart",
+      "data-chart",
+      "section-title",
+      "executive-summary",
+      "references-appendix"
+    ],
+    "page_range": [
+      4,
+      11
+    ],
+    "expected_status": "passed",
+    "negative_mutation": {
+      "type": "unknown-metric",
+      "expected_status": "REPORT_CONVERSION_FAILED",
+      "expected_detail": "metric_refs 里的 m-9999 不在报告的指标里"
+    }
+  },
+  {
+    "id": "evidence-heavy",
+    "scene": "文字证据密集报告",
+    "input_snapshot": {
+      "path": "tests/report-output-fixtures/evidence-heavy.snapshot.json",
+      "sha256": "585d78ead85cba9299ec037e54bbf4cc217d2baf0b895bb56159171e63cfbb2a",
+      "inventory_sha256": "563f08ce99b83226cf6c3d9d41dd58ccdddb7c6e839c13131c963a727edea859"
+    },
+    "expected_claims": [
+      "cl-0001",
+      "cl-0004",
+      "cl-0005"
+    ],
+    "expected_panels": [
+      "evidence-bars",
+      "evidence-note",
+      "evidence-steps"
+    ],
+    "expected_relations": [
+      "evidence-bars-note"
+    ],
+    "expected_components": [
+      "cover",
+      "toc",
+      "executive-summary",
+      "section-title",
+      "claim-evidence",
+      "claim-evidence",
+      "section-title",
+      "claim-evidence",
+      "references-appendix"
+    ],
+    "page_range": [
+      4,
+      11
+    ],
+    "expected_status": "passed",
+    "negative_mutation": {
+      "type": "unknown-relation-panel",
+      "expected_status": "REPORT_CONVERSION_FAILED",
+      "expected_detail": "relation evidence-bars-note 引用了不存在的 panel missing-panel"
+    }
+  }
+]

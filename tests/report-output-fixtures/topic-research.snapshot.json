@@ -1,0 +1,198 @@
+{
+  "assertions": {
+    "claim_phrase": "端侧推理需求增长推动软硬件协同机会",
+    "domain": "边缘 AI 行业",
+    "metric_unit": "个项目",
+    "question": "边缘 AI 市场是否形成可进入的结构性机会？",
+    "source_title": "边缘 AI 行业访谈"
+  },
+  "ledger_patches": {
+    "cards": {
+      "card-0001": {
+        "content": "端侧推理需求增长推动软硬件协同机会",
+        "topic": "边缘 AI 行业"
+      },
+      "card-0002": {
+        "content": "未来一年行业仍处于多方案并行阶段",
+        "topic": "边缘 AI 行业"
+      },
+      "card-0003": {
+        "content": "优先跟踪有明确部署预算的垂直行业",
+        "topic": "边缘 AI 行业"
+      }
+    },
+    "claims": {
+      "cl-0001": {
+        "population": "边缘 AI 行业",
+        "statement": "端侧推理需求增长推动软硬件协同机会"
+      },
+      "cl-0003": {
+        "population": "边缘 AI 行业",
+        "statement": "未来一年行业仍处于多方案并行阶段"
+      },
+      "cl-0004": {
+        "population": "边缘 AI 行业",
+        "statement": "优先跟踪有明确部署预算的垂直行业"
+      },
+      "cl-0005": {
+        "population": "边缘 AI 行业",
+        "statement": "芯片供给与模型效率可能改变价值分配"
+      }
+    },
+    "evidence": {
+      "ev-0001": {
+        "excerpt": "端侧推理需求增长推动软硬件协同机会"
+      },
+      "ev-0002": {
+        "excerpt": "未来一年行业仍处于多方案并行阶段"
+      }
+    },
+    "metrics": {
+      "m-0001": {
+        "unit": "个项目",
+        "value": 22
+      },
+      "m-0002": {
+        "unit": "个项目",
+        "value": 37
+      },
+      "m-0007": {
+        "unit": "个项目",
+        "value": 55
+      }
+    },
+    "sources": {
+      "M001": {
+        "title": "边缘 AI 行业访谈",
+        "url": "https://example.com/edge-ai"
+      }
+    }
+  },
+  "manuscript": "# 边缘 AI 行业研究\n\n## 执行摘要\n\n端侧推理需求增长推动软硬件协同机会〔card-0001｜M001 p12〕。现有材料说明边缘 AI 行业已经出现可观察变化，但样本仍来自固定合成来源，不能直接外推到全部市场或全部客户。未来一年行业仍处于多方案并行阶段〔card-0002｜M001 p30〕，这一判断属于预测，不是已经发生的经营结果。影响结论的关键变量包括需求持续性、供给条件、预算兑现和替代方案。因此建议优先跟踪有明确部署预算的垂直行业〔card-0003〕，并把验证结果作为是否继续投入的明确关口。主要反证是芯片供给与模型效率可能改变价值分配；如果后续一手行为证据与当前判断相反，应降低优先级或停止推进。本报告只支持进入下一轮验证，不支持无条件扩大投入；决策者还应补充成本、合规、交付和现金影响后再作最终决定。\n\n## 一、核心证据\n\n端侧推理需求增长推动软硬件协同机会〔card-0001｜M001 p12〕。\n\n## 二、判断与行动\n\n优先跟踪有明确部署预算的垂直行业〔card-0003〕。\n\n## 风险与未知\n\n芯片供给与模型效率可能改变价值分配。\n\n## 补齐路径\n\n补充该领域的一手行为证据与反例。\n\n## 方法与局限\n\n只使用固定合成来源，结论仅用于系统验收。\n\n## 分歧与不确定性\n\n不同参与者对趋势持续性仍有分歧。\n\n## 未解问题\n\n需求强度与供给弹性仍需后续数据验证。\n\n## 附录 E 来源清单\n\n| 编号 | 名称 |\n|---|---|\n| M001 | 边缘 AI 行业访谈 |\n",
+  "sidecar": {
+    "backup_pages": [],
+    "confirmation_points": [
+      {
+        "note": "固定验收场景",
+        "stage": "storyline",
+        "status": "auto_adopted"
+      }
+    ],
+    "speaker_notes": []
+  },
+  "slides": {
+    "deck": {
+      "answer_claim_refs": [
+        "cl-0001"
+      ],
+      "arc": "evidence-to-view",
+      "audience": "战略负责人",
+      "brief": {
+        "baseline": "2024 年收入",
+        "constraints": "缺少客户留存和利润数据",
+        "period": "2024–2026",
+        "purpose": "diagnosis",
+        "question": "边缘 AI 市场是否形成可进入的结构性机会？",
+        "scope": "星河数据科技合并口径",
+        "success_criteria": "区分已核实的收入变化和待补的增长质量"
+      },
+      "cover": {
+        "closing_text": "谢谢",
+        "date": "2026-10-23",
+        "producer": "Allen 分析系统",
+        "project": "边缘 AI 行业研究",
+        "subtitle": "虚构样稿，仅用于工具验证",
+        "version": "v1"
+      },
+      "decision": "是否配置研究资源",
+      "kind": "reading",
+      "language": "zh-CN",
+      "ratio": "16x9",
+      "story_mode": "industry_research",
+      "title": "边缘 AI 行业研究"
+    },
+    "slides": [
+      {
+        "action_title": "边缘 AI 行业研究",
+        "page": 1,
+        "page_role": "cover",
+        "story_beat": "context",
+        "type": "cover"
+      },
+      {
+        "action_title": "端侧推理需求增长推动软硬件协同机会",
+        "adds": "读者理解边缘 AI 行业的关键判断与下一步",
+        "anchor_panel": "topic-bars",
+        "claim_refs": [
+          "cl-0001"
+        ],
+        "density": {
+          "evidence_units": [
+            {
+              "purpose": "两年收入同量尺比较",
+              "role": "primary"
+            },
+            {
+              "purpose": "说明收入口径和推论边界",
+              "role": "support"
+            }
+          ],
+          "profile": "balanced",
+          "space_intent": "主图充分展开，右侧写口径和边界"
+        },
+        "metric_refs": [
+          "m-0001",
+          "m-0002",
+          "m-0003"
+        ],
+        "page": 2,
+        "page_role": "analysis",
+        "panels": [
+          {
+            "alternative": "并排数字卡",
+            "capacity": {
+              "items": 2
+            },
+            "claim_refs": [
+              "cl-0001"
+            ],
+            "form": "svg.custom",
+            "id": "topic-bars",
+            "purpose": "用边缘 AI 行业证据回答：边缘 AI 市场是否形成可进入的结构性机会？",
+            "reason": "两期数值共用零基线，柱形比较绝对规模最直接",
+            "relationship": "comparison",
+            "role": "primary",
+            "semantic_type": "comparison",
+            "slot": "main",
+            "span": 2,
+            "tradeoff": "柱形更适合比较绝对规模",
+            "visual": "两年收入柱形"
+          }
+        ],
+        "proves": "端侧推理需求增长推动软硬件协同机会",
+        "relations": [],
+        "section": "01 收入",
+        "story_beat": "diagnosis",
+        "subtitle": "单位：万元｜2024–2025 全年｜合并口径",
+        "type": "recommendation",
+        "visual_intent": {
+          "form": "svg.custom",
+          "layout": "custom",
+          "layout_reason": "主图占左侧三分之二，右侧写口径和边界",
+          "reading_path": "标题 → 两年柱形 → 口径与边界",
+          "relationship": "comparison"
+        }
+      },
+      {
+        "action_title": "谢谢",
+        "page": 4,
+        "page_role": "close",
+        "story_beat": "close",
+        "type": "close"
+      }
+    ]
+  },
+  "slides_md": "# 逐页内容\n\n## P01 ｜ — ｜ 封面\n**行动标题**：边缘 AI 行业研究\n\n## P02 ｜ 01 收入 ｜ 建议\n**行动标题**：端侧推理需求增长推动软硬件协同机会\n\n## P04 ｜ — ｜ 结尾\n**行动标题**：谢谢\n",
+  "story_mode_label": "行业研究",
+  "storyline_md": "# 故事线\n\n故事线模式：行业研究\n\n## 中心论点\n\n端侧推理需求增长推动软硬件协同机会。\n\n## 结构树\n\n- 端侧推理需求增长推动软硬件协同机会（card-0001，强）\n- 优先跟踪有明确部署预算的垂直行业（card-0003，中）\n\n## 压力测试\n\n- 反例：芯片供给与模型效率可能改变价值分配。\n"
+}

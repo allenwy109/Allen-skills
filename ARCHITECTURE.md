@@ -24,7 +24,7 @@
              │
 方法库      lib-consulting   lib-management   lib-personal（卡片 + 选法表，不带流程）
              │
-输出层      out-report（HTML + PDF）  out-chart（PPTX + PNG + HTML）  out-poster（PNG + HTML）
+输出层      out-report（A4 HTML + PDF）  out-deck（演示稿 HTML + PDF + 讲者备注）  out-chart（PPTX + PNG + HTML）  out-poster（PNG + HTML）
              │
 引擎        vendor/report-forge  vendor/thinkcell-charts  vendor/onepager（Apache-2.0，固定版本，只经 out-* 调用）
 公共        tools/lib（统一证据账、schema、运行时路径）  tools/app_runtime.py  tools/package_support.py  tools/acceptance.py
@@ -59,8 +59,8 @@ work/<日期>-<主题>/
 ├── 04_analysis/         按卡片做的分析
 ├── 05_review-log.md     core-review
 ├── 06_synthesis.md      core-synthesis
-├── 07_storyline/        core-storyline 的稿件、slides.json；引擎过程目录 forge-work/、poster-work/
-└── 08_deliverables/     主报告 report/、supporting-package.zip、按需附属交付物、acceptance.json
+├── 07_storyline/        core-storyline 稿件和 slides.json；A4 与 deck 工作目录、poster-work/
+└── 08_deliverables/     正式报告 report/、按需演示稿 deck/、supporting-package.zip、acceptance.json
 ```
 
 L1 快答不建文件夹，内容直接写在回答里。完整的目录树在 router 第 3 节。
@@ -71,7 +71,7 @@ L1 快答不建文件夹，内容直接写在回答里。完整的目录树在 r
 2. 分析和综合引用主张 `[cl-0003]` 或原文定位 `[M004 p12]`。
 3. 故事线把主张组织成卡片 `card-0012`，稿件里写 `〔card-0012｜M004 p12〕`。
 4. 转换脚本把 slides.json 翻成引擎输入，数字一律写成 `{{metric:m-0001}}` 由引擎绑定；台账外的数字、未核实却以事实呈现的说法会被拦下。
-5. 主报告和支撑文件包分别登记进 `08_deliverables/acceptance.json`；两者的前置检查与成品审查都通过后，应用状态机才允许判定“已完成”。
+5. 默认正式阅读报告由 `out-report` 登记到 `08_deliverables/report/`；用户明确要路演或演示稿时，`out-deck` 另行登记到 `08_deliverables/deck/`。两种媒介可共存，不互相替代。主交付物和支撑文件包的前置检查与成品审查都通过后，应用状态机才允许判定“已完成”。
 
 ## 审查
 
@@ -88,6 +88,7 @@ L1 快答不建文件夹，内容直接写在回答里。完整的目录树在 r
 ## 防止绕过
 
 - 正式报告、图表、海报只能经 out-* 出：vendor 引擎目录里没有 SKILL.md，不会被单独触发；场景只指向 core-storyline 和 out-*。
+- 默认正式报告走 `out-report`；路演或演示稿只在用户明确需要投屏、幻灯片或 deck 时走 `out-deck`。
 - 引擎的生产记录只能经 report.cjs 统一入口写，否则过不了引擎的验收和打包门禁。
 - 只有 acceptance.json 能判定"已完成"，它会重新计算前置检查和成品哈希；成品被改动后状态自动失效。
 - 五个应用入口必须经 app_runtime 逐阶段推进；allen-idea 的 clarify 和 pathing 是应用专用确认门禁，其余证据、报告和验收规则共用；缺少阶段文件、用户确认、主报告或支撑文件包时不能提前结束。

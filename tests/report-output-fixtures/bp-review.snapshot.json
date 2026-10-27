@@ -1,0 +1,242 @@
+{
+  "assertions": {
+    "claim_phrase": "BP 已说明产品方向但商业验证证据不足",
+    "domain": "融资 BP 评审",
+    "metric_unit": "个客户",
+    "question": "云舟科技的融资叙事是否足以进入路演？",
+    "source_title": "云舟科技融资材料"
+  },
+  "ledger_patches": {
+    "cards": {
+      "card-0001": {
+        "content": "BP 已说明产品方向但商业验证证据不足",
+        "topic": "融资 BP 评审"
+      },
+      "card-0002": {
+        "content": "管理层预计融资后扩大试点覆盖",
+        "topic": "融资 BP 评审"
+      },
+      "card-0003": {
+        "content": "补齐付费转化与单位经济后再邀请路演",
+        "topic": "融资 BP 评审"
+      }
+    },
+    "claims": {
+      "cl-0001": {
+        "population": "融资 BP 评审",
+        "statement": "BP 已说明产品方向但商业验证证据不足"
+      },
+      "cl-0003": {
+        "population": "融资 BP 评审",
+        "statement": "管理层预计融资后扩大试点覆盖"
+      },
+      "cl-0004": {
+        "population": "融资 BP 评审",
+        "statement": "补齐付费转化与单位经济后再邀请路演"
+      },
+      "cl-0005": {
+        "population": "融资 BP 评审",
+        "statement": "市场规模口径与客户承诺仍待核实"
+      }
+    },
+    "evidence": {
+      "ev-0001": {
+        "excerpt": "BP 已说明产品方向但商业验证证据不足"
+      },
+      "ev-0002": {
+        "excerpt": "管理层预计融资后扩大试点覆盖"
+      }
+    },
+    "metrics": {
+      "m-0001": {
+        "unit": "个客户",
+        "value": 6
+      },
+      "m-0002": {
+        "unit": "个客户",
+        "value": 11
+      },
+      "m-0007": {
+        "unit": "个客户",
+        "value": 20
+      }
+    },
+    "sources": {
+      "M001": {
+        "title": "云舟科技融资材料",
+        "url": "https://example.com/bp-review"
+      }
+    }
+  },
+  "manuscript": "# 云舟科技 BP 评审\n\n## 执行摘要\n\nBP 已说明产品方向但商业验证证据不足〔card-0001｜M001 p12〕。现有材料说明融资 BP 评审已经出现可观察变化，但样本仍来自固定合成来源，不能直接外推到全部市场或全部客户。管理层预计融资后扩大试点覆盖〔card-0002｜M001 p30〕，这一判断属于预测，不是已经发生的经营结果。影响结论的关键变量包括需求持续性、供给条件、预算兑现和替代方案。因此建议补齐付费转化与单位经济后再邀请路演〔card-0003〕，并把验证结果作为是否继续投入的明确关口。主要反证是市场规模口径与客户承诺仍待核实；如果后续一手行为证据与当前判断相反，应降低优先级或停止推进。本报告只支持进入下一轮验证，不支持无条件扩大投入；决策者还应补充成本、合规、交付和现金影响后再作最终决定。\n\n## 一、核心证据\n\nBP 已说明产品方向但商业验证证据不足〔card-0001｜M001 p12〕。\n\n## 二、判断与行动\n\n补齐付费转化与单位经济后再邀请路演〔card-0003〕。\n\n## 风险与未知\n\n市场规模口径与客户承诺仍待核实。\n\n## 补齐路径\n\n补充该领域的一手行为证据与反例。\n\n## 方法与局限\n\n只使用固定合成来源，结论仅用于系统验收。\n\n## 不批的后果\n\n若不进入下一轮，项目保持观察而不追加投入。\n\n## 附录 E 来源清单\n\n| 编号 | 名称 |\n|---|---|\n| M001 | 云舟科技融资材料 |\n",
+  "sidecar": {
+    "backup_pages": [],
+    "confirmation_points": [
+      {
+        "note": "固定验收场景",
+        "stage": "storyline",
+        "status": "auto_adopted"
+      }
+    ],
+    "speaker_notes": []
+  },
+  "slides": {
+    "deck": {
+      "answer_claim_refs": [
+        "cl-0001"
+      ],
+      "arc": "opportunity-to-choice",
+      "audience": "投资委员会",
+      "brief": {
+        "baseline": "2024 年收入",
+        "constraints": "缺少客户留存和利润数据",
+        "period": "2024–2026",
+        "purpose": "diagnosis",
+        "question": "云舟科技的融资叙事是否足以进入路演？",
+        "scope": "星河数据科技合并口径",
+        "success_criteria": "区分已核实的收入变化和待补的增长质量"
+      },
+      "cover": {
+        "closing_text": "谢谢",
+        "date": "2026-10-23",
+        "producer": "Allen 分析系统",
+        "project": "云舟科技 BP 评审",
+        "subtitle": "虚构样稿，仅用于工具验证",
+        "version": "v1"
+      },
+      "decision": "是否邀请路演",
+      "kind": "reading",
+      "language": "zh-CN",
+      "ratio": "16x9",
+      "story_mode": "request_approval",
+      "title": "云舟科技 BP 评审"
+    },
+    "slides": [
+      {
+        "action_title": "云舟科技 BP 评审",
+        "page": 1,
+        "page_role": "cover",
+        "story_beat": "context",
+        "type": "cover"
+      },
+      {
+        "action_title": "BP 已说明产品方向但商业验证证据不足",
+        "adds": "读者理解融资 BP 评审的关键判断与下一步",
+        "anchor_panel": "bp-note",
+        "claim_refs": [
+          "cl-0001",
+          "cl-0005"
+        ],
+        "density": {
+          "evidence_units": [
+            {
+              "purpose": "两年收入同量尺比较",
+              "role": "primary"
+            },
+            {
+              "purpose": "说明收入口径和推论边界",
+              "role": "support"
+            }
+          ],
+          "profile": "balanced",
+          "space_intent": "主图充分展开，右侧写口径和边界"
+        },
+        "metric_refs": [],
+        "page": 2,
+        "page_role": "analysis",
+        "panels": [
+          {
+            "claim_refs": [
+              "cl-0001",
+              "cl-0005"
+            ],
+            "form": "html.table",
+            "id": "bp-note",
+            "purpose": "用融资 BP 评审证据回答：云舟科技的融资叙事是否足以进入路演？",
+            "reason": "口径和边界是文字判断，用短段落最清楚",
+            "relationship": "text",
+            "role": "primary",
+            "slot": "aside",
+            "span": 1
+          }
+        ],
+        "proves": "BP 已说明产品方向但商业验证证据不足",
+        "relations": [],
+        "section": "01 收入",
+        "story_beat": "diagnosis",
+        "subtitle": "单位：万元｜2024–2025 全年｜合并口径",
+        "type": "data_chart",
+        "visual_intent": {
+          "form": "svg.custom",
+          "layout": "custom",
+          "layout_reason": "主图占左侧三分之二，右侧写口径和边界",
+          "reading_path": "标题 → 两年柱形 → 口径与边界",
+          "relationship": "comparison"
+        }
+      },
+      {
+        "action_title": "管理层预计融资后扩大试点覆盖",
+        "adds": "读者理解融资 BP 评审的关键判断与下一步",
+        "anchor_panel": "bp-steps",
+        "claim_refs": [
+          "cl-0004"
+        ],
+        "density": {
+          "evidence_units": [
+            {
+              "purpose": "2026 年指引作为规模参考",
+              "role": "context"
+            },
+            {
+              "purpose": "建议与对应的前提条件",
+              "role": "primary"
+            }
+          ],
+          "profile": "balanced",
+          "space_intent": "左侧单个指标，右侧条件表"
+        },
+        "metric_refs": [],
+        "page": 3,
+        "page_role": "action",
+        "panels": [
+          {
+            "claim_refs": [
+              "cl-0004"
+            ],
+            "form": "html.table",
+            "id": "bp-steps",
+            "purpose": "用融资 BP 评审证据回答：云舟科技的融资叙事是否足以进入路演？",
+            "reason": "建议与前提需要逐行对应，表格比段落清楚",
+            "relationship": "decision",
+            "role": "primary",
+            "slot": "right",
+            "span": 2
+          }
+        ],
+        "proves": "管理层预计融资后扩大试点覆盖",
+        "relations": [],
+        "section": "02 建议",
+        "story_beat": "action",
+        "subtitle": "建议｜依据：收入变化与管理层指引",
+        "type": "recommendation",
+        "visual_intent": {
+          "form": "html.table",
+          "layout": "custom",
+          "layout_reason": "左侧指标卡给出规模参考，右侧表格写建议和前提",
+          "reading_path": "标题 → 指引 → 建议与待确认事项",
+          "relationship": "decision"
+        }
+      },
+      {
+        "action_title": "谢谢",
+        "page": 4,
+        "page_role": "close",
+        "story_beat": "close",
+        "type": "close"
+      }
+    ]
+  },
+  "slides_md": "# 逐页内容\n\n## P01 ｜ — ｜ 封面\n**行动标题**：云舟科技 BP 评审\n\n## P02 ｜ 01 收入 ｜ 数据图表\n**行动标题**：BP 已说明产品方向但商业验证证据不足\n\n## P03 ｜ 02 建议 ｜ 建议\n**行动标题**：管理层预计融资后扩大试点覆盖\n\n## P04 ｜ — ｜ 结尾\n**行动标题**：谢谢\n",
+  "story_mode_label": "请求批准",
+  "storyline_md": "# 故事线\n\n故事线模式：请求批准\n\n## 中心论点\n\nBP 已说明产品方向但商业验证证据不足。\n\n## 结构树\n\n- BP 已说明产品方向但商业验证证据不足（card-0001，强）\n- 补齐付费转化与单位经济后再邀请路演（card-0003，中）\n\n## 压力测试\n\n- 反例：市场规模口径与客户承诺仍待核实。\n"
+}

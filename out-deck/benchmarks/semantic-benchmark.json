@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "fixture": "tools.tests.fixtures.make_storyline_package",
+  "materializedInputSha256": "735bee1e80f372f05db013374a9c74ef4eb443166d187f2aac64c4cce3179438",
+  "referenceStrategy": "pre-composer out-deck wrapper with locked fixed-pages author",
+  "referenceAuthor": {
+    "html": "out-report/scripts/tests/fixture_body.html",
+    "htmlSha256": "7fd9a8f108c1850e073b351b5edd2a0663f5aea2d844aeda089c4c69fefa9852",
+    "css": "out-report/scripts/tests/fixture_page.css",
+    "cssSha256": "3e405d8f64ff441fd47d580cd3781012d44bdbc92ef2b160040485a07f677a8d",
+    "provenanceCommit": "bfef13d"
+  },
+  "candidateStrategy": "Allen evidence-led composer",
+  "note": "report-forge has no generic page authoring API. The reference is the repository's locked pre-composer out-deck fixed-pages author, whose content bindings match this fixture. Both branches independently run the same real engine lifecycle over byte-identical inputs: accepted plans, compiled task and blueprint, assemble, smoke, and acceptance HTML/PDF geometry QA."
+}

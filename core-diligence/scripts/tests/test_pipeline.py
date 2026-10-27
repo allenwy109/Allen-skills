@@ -114,15 +114,13 @@ class DiligenceReportPipelineTest(unittest.TestCase):
         cls.need = [t for t in ("node",) if not shutil.which(t)] + TF.missing_tools()
         if cls.need:
             return
-        sys.path.insert(0, str(REPO / "out-report" / "scripts" / "tests"))
-        import synthetic as SY
         cls.tmp = tempfile.TemporaryDirectory()
         task = cls.task = (pathlib.Path(cls.tmp.name) / "task").resolve()
         F.make_diligence_task(task)
         B.convert(task)
         F.write_split(task)
         subprocess.run([sys.executable, str(STORYLINE), "sync", str(task)], capture_output=True, text=True, check=True)
-        d = task / "07_storyline" / "forge-work"
+        d = task / "07_storyline" / "a4-work"
 
         def run(*args):
             p = subprocess.run([sys.executable, str(OUT_REPORT), *map(str, args)], capture_output=True, text=True)
@@ -130,29 +128,35 @@ class DiligenceReportPipelineTest(unittest.TestCase):
                 raise AssertionError(f"{args[:3]} 失败：{p.stdout[-1500:]}{p.stderr[-1500:]}")
             return p
 
-        def refs():
-            return json.loads((d / "execution-plan.json").read_text(encoding="utf-8"))["productionRefs"]
         run("init", task)
-        for item, req in (("chart-plan", "chart-diversity"), ("layout-plan", "layout-diversity"), ("module-fill-plan", "module-fill")):
-            run("plan", task, item, SY.planning(d, item, req), "--reviewer", "合成主笔", "--basis", "合成接收")
-        run("step", task, "ready")
-        run("step", task, "compile")
-        pages = d / refs()["compile"]["files"]["pages"]["record"]
-        subprocess.run(["node", str(HERE / "gen_pages.cjs"), str(REPO / "vendor" / "report-forge"), str(pages), str(d / "body.html")], check=True)
-        parts = [d / "bookend-cover.html", d / "body.html", d / "bookend-references.html", d / "bookend-back.html"]
-        (d / "pages.html").write_text("\n".join(f.read_text(encoding="utf-8") for f in parts), encoding="utf-8")
-        shutil.copy2(HERE / "fixture_page.css", d / "page.css")
-        run("step", task, "assemble")
-        run("step", task, "smoke")
-        smoke = json.loads((d / ".allen" / "runs.json").read_text(encoding="utf-8"))["smoke"]
-        run("plan", task, "representatives", SY.representatives(d, smoke, pages=("p02", "p04")), "--reviewer", "合成主笔", "--basis", "合成接收")
-        run("plan", task, "production", SY.production(d, d / refs()["assemble"]["files"]["html"]["record"]), "--reviewer", "合成主笔", "--basis", "合成接收")
-        run("step", task, "acceptance")
-        run("step", task, "review-pack")
-        SY.fill_reviews(d, pages)
-        for step in ("aggregate", "snapshot", "package"):
-            run("step", task, step)
-        cls.finish = subprocess.run([sys.executable, str(OUT_REPORT), "finish", str(task)], capture_output=True, text=True)
+        preview = subprocess.run([sys.executable, str(OUT_REPORT), "render", str(task)], capture_output=True, text=True)
+        if preview.returncode != 1:
+            raise AssertionError(f"render 应因未审视觉差异失败关闭：{preview.stdout}{preview.stderr}")
+        if not (d / "visual-regression.json").is_file():
+            raise AssertionError(f"render 未生成视觉回归证据，不是 needs-reapproval 失败：{preview.stdout}{preview.stderr}")
+        regression = json.loads((d / "visual-regression.json").read_text(encoding="utf-8"))
+        artifacts = json.loads((d / "artifact-manifest.json").read_text(encoding="utf-8"))
+        pages = [page["id"] for page in json.loads((d / "build/pagination-manifest.json").read_text(encoding="utf-8"))["pages"]]
+        author = d / "author-review.json"
+        author.write_text(json.dumps({"type": "author", "reviewer": "合成主笔", "reviewedAt": "2026-10-21T09:00:00+08:00",
+                                      "decision": "accepted", "reason": "合成夹具已逐页复核标题、证据、限制、来源和整册阅读节奏。",
+                                      "baselineDigest": regression["baselineDigest"], "candidateDigest": regression["candidateDigest"],
+                                      "differenceDigest": regression["differenceDigest"], "artifactDigest": artifacts["artifactDigest"],
+                                      "paginationDigest": artifacts["paginationDigest"]}, ensure_ascii=False), encoding="utf-8")
+        run("review", task, "author", author)
+        independent = d / "independent-review.json"
+        independent.write_text(json.dumps({"type": "independent", "reviewer": "成品审查员（合成）", "at": "2026-10-21T10:00:00+08:00",
+                                           "conclusion": "合成夹具的整册证据、层级和阅读顺序已经逐页复核。", "issues": [],
+                                           "artifactDigest": artifacts["artifactDigest"], "paginationDigest": artifacts["paginationDigest"],
+                                           "page_ids": pages, "media": ["html", "pdf"], "scales": ["100%", "thumbnail"],
+                                           "chapter_contact_sheets": [{"chapter": "whole-book", "page_ids": pages,
+                                                                       "observation": "全册缩略图的章节节奏、留白和证据密度已经按顺序检查。"}],
+                                           "headline_chain": {"status": "reviewed", "observation": "标题链从公司身份、经营表现逐步收束到风险与补齐动作。"},
+                                           "observations": [{"page_id": page, "media": ["html", "pdf"], "scale": ["100%", "thumbnail"],
+                                                             "observation": f"{page} 的标题、证据、限制和来源已在两种媒介逐项查看。",
+                                                             "reason": "页面信息完整，未发现裁切、遗漏或误导性视觉强调。"} for page in pages]}, ensure_ascii=False), encoding="utf-8")
+        run("review", task, "independent", independent)
+        cls.finish = subprocess.run([sys.executable, str(OUT_REPORT), "package", str(task)], capture_output=True, text=True)
 
     @classmethod
     def tearDownClass(cls):

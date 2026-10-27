@@ -91,6 +91,50 @@ class ValidateTest(unittest.TestCase):
             self.assertIn("allen-idea/assets/app.json：id 必须等于 allen-idea", p.stdout)
             self.assertIn("allen-idea/assets/app.json：scene 指向不存在的 skill missing", p.stdout)
 
+    def test_formal_reports_default_to_out_report_and_decks_are_explicit(self):
+        routed_skills = [
+            "router/SKILL.md",
+            "core-storyline/SKILL.md",
+            "scene-idea/SKILL.md",
+            "scene-company/SKILL.md",
+            "scene-topic/SKILL.md",
+            "scene-bp-review/SKILL.md",
+        ]
+        for relative in routed_skills:
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            with self.subTest(skill=relative):
+                self.assertIn("默认正式报告：`out-report`", text)
+                self.assertIn("路演或演示稿：`out-deck`", text)
+                self.assertIn("同一任务可以同时交付两种媒介，二者不互相替代", text)
+                self.assertNotIn("pages.html", text)
+                self.assertNotIn("forge-work", text)
+
+        storyline_description = (ROOT / "core-storyline/SKILL.md").read_text(encoding="utf-8").split("---", 2)[1]
+        self.assertIn("out-report 正式阅读报告", storyline_description)
+        self.assertIn("用户明确要求的 out-deck 演示稿", storyline_description)
+
+    def test_scene_delivery_steps_execute_the_selected_media_route(self):
+        for relative in ["scene-company/SKILL.md", "scene-topic/SKILL.md", "scene-bp-review/SKILL.md"]:
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            with self.subTest(skill=relative):
+                self.assertIn("`out-report` → `08_deliverables/report/`", text)
+                self.assertIn("`out-deck` → `08_deliverables/deck/`", text)
+                self.assertIn("需要两种媒介时分别执行两条输出链", text)
+                self.assertNotIn("`08_deliverables/report/`（HTML + PDF）和讲者备注", text)
+
+    def test_architecture_and_readme_describe_separate_outputs(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("五个应用固定交付一份主交付物和一份支撑文件包（ZIP）", readme)
+        self.assertIn("主交付物默认是 `out-report` 生成的 A4 正式阅读报告", readme)
+        self.assertIn("用户明确要路演或演示稿时改为 `out-deck`", readme)
+        self.assertIn("只有用户明确同时要求时才交付两种媒介", readme)
+        self.assertNotIn("五个应用固定交付一份主报告", readme)
+
+        architecture = (ROOT / "ARCHITECTURE.md").read_text(encoding="utf-8")
+        self.assertIn("out-report（A4 HTML + PDF）", architecture)
+        self.assertIn("out-deck（演示稿 HTML + PDF + 讲者备注）", architecture)
+        self.assertIn("两种媒介可共存，不互相替代", architecture)
+
 
 if __name__ == "__main__":
     unittest.main()

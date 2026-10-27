@@ -1,0 +1,104 @@
+{
+  "version": "1.0",
+  "status": "approved-design",
+  "source": "out-report/golden",
+  "approved_baseline_digest": "59742bde7d67fc1ecbe5c96684a4d9212ecc5c813500d3d1befc69ac04cb2fe7",
+  "forms": [
+    {
+      "id": "metric-stack", "status": "approved-design", "relationship": "ranked headline measures with short definitions",
+      "priority": "Use for 2–4 decision-critical measures; lead with the measure that changes the decision.", "avoid": "Do not imply a trend or compare unlike units.",
+      "min_plot": "No plot; reserve 32mm width per metric.", "labels": "Always show measure name, value, unit or denominator, and qualification.",
+      "baseline": "Align numerals and units; use tabular figures.", "sort": "Decision priority, not magnitude.",
+      "identity_encodings": {"actual": {"semantic": "fact", "line": "solid", "fill": "solid", "marker": "circle", "text": "Actual"}, "estimate": {"semantic": "estimate", "line": "dashed", "fill": "outline", "marker": "triangle", "text": "Estimate"}, "forecast": {"semantic": "forecast", "line": "dotted", "fill": "hatch", "marker": "diamond", "text": "Forecast"}, "target": {"semantic": "target", "line": "double", "fill": "none", "marker": "target-ring", "text": "Target"}},
+      "value_encodings": "Large numeral, explicit unit, and a small text qualifier; identity remains textual.",
+      "missing_zero_negative": {"missing": "Show — and state unavailable.", "zero": "Show 0 with unit.", "negative": "Use a true minus sign; never color alone."},
+      "unit_and_period": {"unit": "Print a unit or denominator beside every metric.", "period": "Print the as-of date or covered period for every metric.", "scope": "State population, geography, or business scope below the value."},
+      "annotation": {"placement": "Place the qualifier directly below its metric.", "content": "Explain denominator, identity, and material caveat.", "leader": "No leader; proximity binds annotation to value.", "overflow": "Move detail to a note rather than shrinking the value."},
+      "capacity": {"soft": 3, "hard": 4, "unit": "metrics"}, "grayscale": "Hierarchy survives through size, weight, and rules.", "golden_page_refs": ["p03", "p12"]
+    },
+    {
+      "id": "waterfall", "status": "approved-design", "relationship": "additive bridge from opening value through positive and negative drivers to total",
+      "priority": "Use when components reconcile exactly to an outcome.", "avoid": "Do not use for independent categories or unreconciled values.",
+      "min_plot": "At least 95mm wide × 70mm high for five steps.", "labels": "Label every step, value, unit, and opening/total state.",
+      "baseline": "All columns share a zero baseline; intermediate bars start at the previous cumulative value.", "sort": "Causal or accounting sequence; total last.",
+      "identity_encodings": {"actual": {"semantic": "fact", "line": "solid", "fill": "solid", "marker": "circle", "text": "Actual"}, "estimate": {"semantic": "estimate", "line": "dashed", "fill": "outline", "marker": "triangle", "text": "Estimate"}, "forecast": {"semantic": "forecast", "line": "dotted", "fill": "hatch", "marker": "diamond", "text": "Forecast"}, "target": {"semantic": "target", "line": "double", "fill": "none", "marker": "target-ring", "text": "Target"}},
+      "value_encodings": "Solid accent for opening/positive, outlined light fill for deductions, neutral solid total, connectors between cumulative levels.",
+      "missing_zero_negative": {"missing": "Omit the step and disclose the gap.", "zero": "Retain a labelled zero marker when material.", "negative": "Show a descending outlined bar and true minus sign."},
+      "unit_and_period": {"unit": "Use one declared unit for every step and the reconciliation table.", "period": "Opening, drivers, and total must share one period.", "scope": "State entity and whether the bridge is per-unit or aggregate."},
+      "annotation": {"placement": "Place values at bar ends and explanation outside the plot.", "content": "Name exceptional drivers and disclose reconciliation limits.", "leader": "Use a thin solid leader only when a label is displaced.", "overflow": "Move driver commentary to the adjacent table note."},
+      "capacity": {"soft": 5, "hard": 7, "unit": "steps"}, "grayscale": "Fill, outline, connectors, and signed labels distinguish roles.", "golden_page_refs": ["p06"]
+    },
+    {
+      "id": "comparison-table", "status": "approved-design", "relationship": "alternatives compared on shared criteria",
+      "priority": "Use when readers must choose among discrete options.", "avoid": "Do not mix criteria or hide the basis of a preferred column.",
+      "min_plot": "At least 155mm wide for one label column and three options.", "labels": "State each criterion, option, unit, and scoring scale.",
+      "baseline": "Align values within rows and repeat units in headers.", "sort": "Criteria by decision importance; options in a declared order.",
+      "identity_encodings": {"actual": {"semantic": "fact", "line": "solid", "fill": "solid", "marker": "circle", "text": "Actual"}, "estimate": {"semantic": "estimate", "line": "dashed", "fill": "outline", "marker": "triangle", "text": "Estimate"}, "forecast": {"semantic": "forecast", "line": "dotted", "fill": "hatch", "marker": "diamond", "text": "Forecast"}, "target": {"semantic": "target", "line": "double", "fill": "none", "marker": "target-ring", "text": "Target"}},
+      "value_encodings": "Text and numerals in cells; preferred option gets a restrained tint plus explicit wording.",
+      "missing_zero_negative": {"missing": "Show — with not assessed.", "zero": "Show 0 rather than blank.", "negative": "Use signed values and explanatory labels."},
+      "unit_and_period": {"unit": "Declare units in each criterion row or its header.", "period": "Use the same as-of date or forecast horizon across options.", "scope": "State which option boundary and cost components are included."},
+      "annotation": {"placement": "Attach notes to the affected criterion or option heading.", "content": "Explain scoring basis, preference, and exceptions.", "leader": "No leader inside cells; use note markers with matching text.", "overflow": "Move long rationale below the matrix without changing column widths."},
+      "capacity": {"soft": 3, "hard": 4, "unit": "options"}, "grayscale": "Preferred option remains legible through labels and weight, not tint alone.", "golden_page_refs": ["p07"]
+    },
+    {
+      "id": "heatmap", "status": "approved-design", "relationship": "outcome across two categorical or ordinal variables",
+      "priority": "Use for interaction, sensitivity, or threshold scanning.", "avoid": "Do not use continuous-looking color without printed values.",
+      "min_plot": "At least 110mm square for a 3×3 matrix.", "labels": "Name both axes, every level, each cell value, unit, and legend meaning.",
+      "baseline": "Not applicable; maintain equal cell dimensions.", "sort": "Both axes low-to-high or in a declared business order.",
+      "identity_encodings": {"actual": {"semantic": "fact", "line": "solid", "fill": "solid", "marker": "circle", "text": "Actual"}, "estimate": {"semantic": "estimate", "line": "dashed", "fill": "outline", "marker": "triangle", "text": "Estimate"}, "forecast": {"semantic": "forecast", "line": "dotted", "fill": "hatch", "marker": "diamond", "text": "Forecast"}, "target": {"semantic": "target", "line": "double", "fill": "none", "marker": "target-ring", "text": "Target"}},
+      "value_encodings": "Sequential tint plus printed signed value in every cell.",
+      "missing_zero_negative": {"missing": "Hatch or label N/A; never assign a color-bin value.", "zero": "Print 0 and place it in the defined neutral bin.", "negative": "Print a true minus sign; color depth must not be the only sign cue."},
+      "unit_and_period": {"unit": "Declare one outcome unit for all cells.", "period": "State the modeled or observed period in the subtitle.", "scope": "Name fixed assumptions and the population represented by both axes."},
+      "annotation": {"placement": "Place threshold notes beside the matrix and values inside cells.", "content": "Explain break-even cells, fixed assumptions, and identity.", "leader": "Use a solid leader from a threshold note to one cell only.", "overflow": "Move scenario detail to a note; never remove cell values."},
+      "capacity": {"soft": 9, "hard": 16, "unit": "cells"}, "grayscale": "Printed values and ordered lightness preserve interpretation.", "golden_page_refs": ["p09"]
+    },
+    {
+      "id": "risk-matrix", "status": "approved-design", "relationship": "items positioned by likelihood and impact with explicit response priority",
+      "priority": "Use for triage, not statistical precision.", "avoid": "Do not imply measured probability from qualitative placement.",
+      "min_plot": "At least 135mm wide × 105mm high.", "labels": "Label axes, item names, ordinal likelihood/impact, and response priority.",
+      "baseline": "Axes start at the declared lowest ordinal level.", "sort": "Assign priority separately; place by likelihood and impact.",
+      "identity_encodings": {"actual": {"semantic": "fact", "line": "solid", "fill": "solid", "marker": "circle", "text": "Actual"}, "estimate": {"semantic": "estimate", "line": "dashed", "fill": "outline", "marker": "triangle", "text": "Estimate"}, "forecast": {"semantic": "forecast", "line": "dotted", "fill": "hatch", "marker": "diamond", "text": "Forecast"}, "target": {"semantic": "target", "line": "double", "fill": "none", "marker": "target-ring", "text": "Target"}},
+      "value_encodings": "Position carries likelihood/impact; numbered labels and border styles carry priority.",
+      "missing_zero_negative": {"missing": "List as unassessed outside the matrix.", "zero": "Use lowest labelled ordinal only when zero is defined.", "negative": "Not applicable; represent beneficial items in another form."},
+      "unit_and_period": {"unit": "Declare likelihood and impact scales, even when ordinal.", "period": "State the assessment date and risk horizon.", "scope": "State the business, geography, and scenario covered."},
+      "annotation": {"placement": "Keep item labels inside the plot and method notes below it.", "content": "State priority, likelihood, impact, and qualitative basis.", "leader": "Use a solid leader only to resolve overlapping labels.", "overflow": "Move lower-priority risks to a companion register above the hard limit."},
+      "capacity": {"soft": 5, "hard": 8, "unit": "risks"}, "grayscale": "Numbers, text labels, and border styles remain distinct without color.", "golden_page_refs": ["p13"]
+    },
+    {
+      "id": "timeline", "status": "approved-design", "relationship": "ordered stages with actions and gated release conditions",
+      "priority": "Use when timing and stop/go governance matter together.", "avoid": "Do not present dates without accountable outputs and gates.",
+      "min_plot": "At least 150mm wide × 28mm high per stage.", "labels": "Show stage number, date range, action, output, and gate.",
+      "baseline": "Use a single chronological direction and aligned stage starts.", "sort": "Chronological only.",
+      "identity_encodings": {"actual": {"semantic": "fact", "line": "solid", "fill": "solid", "marker": "circle", "text": "Actual"}, "estimate": {"semantic": "estimate", "line": "dashed", "fill": "outline", "marker": "triangle", "text": "Estimate"}, "forecast": {"semantic": "forecast", "line": "dotted", "fill": "hatch", "marker": "diamond", "text": "Forecast"}, "target": {"semantic": "target", "line": "double", "fill": "none", "marker": "target-ring", "text": "Target"}},
+      "value_encodings": "Stage number and position encode sequence; a ruled gate block encodes release criteria.",
+      "missing_zero_negative": {"missing": "Mark date or owner TBD explicitly.", "zero": "Show zero-duration gates as checkpoints.", "negative": "Not applicable; show slippage as signed text."},
+      "unit_and_period": {"unit": "Use one time unit across stage ranges and durations.", "period": "Print the overall start/end horizon and each stage range.", "scope": "State workstream, owner boundary, and release destination."},
+      "annotation": {"placement": "Place gates at the end of their stage row.", "content": "State measurable output, threshold, owner, and stop action.", "leader": "No leader; row alignment binds gate to stage.", "overflow": "Continue after a stage boundary and repeat the overall horizon."},
+      "capacity": {"soft": 3, "hard": 5, "unit": "stages"}, "grayscale": "Sequence, headings, and left rules survive monochrome output.", "golden_page_refs": ["p14"]
+    },
+    {
+      "id": "evidence-quote", "status": "approved-design", "relationship": "primary-source statement paired with observation, interpretation, decision, and limitation",
+      "priority": "Use only when exact voice materially changes the decision.", "avoid": "Do not use anonymous decoration or treat one quote as representative evidence.",
+      "min_plot": "At least 62mm for the quote and 90mm for the analytical aside.", "labels": "Attribute speaker/source and label observation, interpretation, decision, and limitation.",
+      "baseline": "Align quote and aside at the first content line.", "sort": "Evidence first, then analytical consequence.",
+      "identity_encodings": {"actual": {"semantic": "fact", "line": "solid", "fill": "solid", "marker": "circle", "text": "Actual"}, "estimate": {"semantic": "estimate", "line": "dashed", "fill": "outline", "marker": "triangle", "text": "Estimate"}, "forecast": {"semantic": "forecast", "line": "dotted", "fill": "hatch", "marker": "diamond", "text": "Forecast"}, "target": {"semantic": "target", "line": "double", "fill": "none", "marker": "target-ring", "text": "Target"}},
+      "value_encodings": "Typographic quotation and source footer; identity and limitations remain explicit text.",
+      "missing_zero_negative": {"missing": "Do not publish without attribution or a stated reason for anonymity.", "zero": "Render numeric zero verbatim in the quote.", "negative": "Preserve the speaker's wording and clarify analytical meaning."},
+      "unit_and_period": {"unit": "Preserve units exactly inside the quote and define them in the aside.", "period": "Give interview date or evidence period in the attribution.", "scope": "State speaker role, sample context, and representativeness limit."},
+      "annotation": {"placement": "Place attribution below the quote and analysis in the adjacent aside.", "content": "Separate observation, interpretation, decision, and limitation.", "leader": "No leader; typographic grouping binds note to quote.", "overflow": "Trim with an explicit ellipsis or continue as prose; never shrink attribution."},
+      "capacity": {"soft": 1, "hard": 1, "unit": "quotes"}, "grayscale": "Serif quote, rule, and labelled aside preserve hierarchy.", "golden_page_refs": ["p08"]
+    },
+    {
+      "id": "dense-table", "status": "approved-design", "relationship": "auditable register of repeated records and status fields",
+      "priority": "Use when exact row-level evidence matters more than visual trend.", "avoid": "Do not shrink below the approved dense-table type or change columns across continuation pages.",
+      "min_plot": "Full content width; minimum 7.8pt type and 1.28 line height.", "labels": "Repeat column headers; label continuation range and define status symbols.",
+      "baseline": "Align numeric columns right and text columns left/top.", "sort": "Stable identifier or declared review priority.",
+      "identity_encodings": {"actual": {"semantic": "fact", "line": "solid", "fill": "solid", "marker": "circle", "text": "Actual"}, "estimate": {"semantic": "estimate", "line": "dashed", "fill": "outline", "marker": "triangle", "text": "Estimate"}, "forecast": {"semantic": "forecast", "line": "dotted", "fill": "hatch", "marker": "diamond", "text": "Forecast"}, "target": {"semantic": "target", "line": "double", "fill": "none", "marker": "target-ring", "text": "Target"}},
+      "value_encodings": "Rows and rules carry records; status combines symbol, text, and line style.",
+      "missing_zero_negative": {"missing": "Show — with missing or pending status.", "zero": "Show 0 explicitly.", "negative": "Use a true minus sign and right alignment."},
+      "unit_and_period": {"unit": "Declare units in numeric headers and do not mix units within a column.", "period": "State register as-of date and repeat it on continuation pages.", "scope": "Define included records and exclusions in the table note."},
+      "annotation": {"placement": "Use compact notes below the table and markers in affected cells.", "content": "Define status symbols, exceptions, and evidence limitations.", "leader": "No graphical leader; note markers map cells to notes.", "overflow": "Continue rows on a new page with repeated headers and note context."},
+      "capacity": {"soft": 7, "hard": 8, "unit": "rows per page"}, "grayscale": "Double, dashed, and single status rules plus text remain distinguishable.", "golden_page_refs": ["p11", "p12"]
+    }
+  ]
+}

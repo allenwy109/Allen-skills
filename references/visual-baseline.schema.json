@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "approval": {
+      "enum": [
+        "unapproved",
+        "approved"
+      ],
+      "type": "string"
+    },
+    "artifacts": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "size": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "license": {
+      "const": "Apache-2.0",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "captured"
+      ],
+      "type": "string"
+    },
+    "upstream_commit": {
+      "const": "ee1f980c8dd7c53408e1a05a084229e6ec03c660",
+      "type": "string"
+    },
+    "upstream_repo": {
+      "const": "https://github.com/ZeroxZhang/zerox-skills.git",
+      "type": "string"
+    },
+    "version": {
+      "const": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version",
+    "upstream_repo",
+    "upstream_commit",
+    "license",
+    "status",
+    "approval",
+    "artifacts"
+  ],
+  "title": "Upstream report-forge visual baseline",
+  "type": "object"
+}
