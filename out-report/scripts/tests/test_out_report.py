@@ -243,6 +243,36 @@ class A4OutReportContractTest(unittest.TestCase):
             self.assertEqual(1, result.returncode)
             self.assertIn("REPORT_CITATION_MISMATCH", result.stderr)
 
+    def test_renderer_rejects_source_binding_without_declared_source_id(self):
+        if missing():
+            self.skipTest("missing renderer tools")
+        with tempfile.TemporaryDirectory() as temporary:
+            task = make_task(temporary)
+            self.assertEqual(0, run("init", task).returncode)
+            document_path = task / "07_storyline/a4-work/render-document.json"
+            document = json.loads(document_path.read_text(encoding="utf-8"))
+            body = next(component for component in document["components"] if component["payload"].get("blocks"))
+            body["payload"]["blocks"][0]["source_ids"] = []
+            document_path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+            result = run("render", task)
+            self.assertEqual(1, result.returncode)
+            self.assertIn("REPORT_CITATION_MISMATCH", result.stderr)
+
+    def test_renderer_rejects_source_id_without_binding(self):
+        if missing():
+            self.skipTest("missing renderer tools")
+        with tempfile.TemporaryDirectory() as temporary:
+            task = make_task(temporary)
+            self.assertEqual(0, run("init", task).returncode)
+            document_path = task / "07_storyline/a4-work/render-document.json"
+            document = json.loads(document_path.read_text(encoding="utf-8"))
+            body = next(component for component in document["components"] if component["payload"].get("blocks"))
+            body["payload"]["blocks"][0]["source_bindings"] = []
+            document_path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+            result = run("render", task)
+            self.assertEqual(1, result.returncode)
+            self.assertIn("REPORT_CITATION_MISMATCH", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

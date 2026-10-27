@@ -80,6 +80,12 @@ function citationContext(document) {
   for (const component of document.components) {
     if (component.kind === 'references-appendix') continue;
     for (const block of (component.payload.blocks || [])) {
+      const declared = new Set(block.source_ids || []);
+      const bound = new Set((block.source_bindings || []).map(binding => binding.source_id));
+      const mismatch = [...declared].some(sourceId => !bound.has(sourceId)) || [...bound].some(sourceId => !declared.has(sourceId));
+      if (mismatch) {
+        throw reportError('REPORT_CITATION_MISMATCH', `block ${block.id || '<unknown>'} source_ids and source_bindings differ`);
+      }
       for (const sourceId of (block.source_ids || [])) {
         if (!seen.has(sourceId)) {
           seen.add(sourceId);
