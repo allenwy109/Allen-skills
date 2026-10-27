@@ -102,6 +102,91 @@ class A4ComponentTest(unittest.TestCase):
                 self.assertIn('data-source-id="src-1"', html)
                 self.assertIn('data-source-locator="p. 4"', html)
 
+    def test_executive_summary_renders_answer_and_qualified_claims(self):
+        payload = {
+            "id": "summary", "title": "执行摘要", "layout_id": "overview-detail", "blocks": [],
+            "answers": ["只批准低成本验证"],
+            "summary_items": [{
+                "text": "目标客户付费意愿仍未证实", "identity": "judgment", "confidence": "low",
+                "qualification": "尚无访谈、订单或愿付价格",
+            }],
+        }
+        rendered = run_node("component.renderComponent('executive-summary', payload, {})", payload)
+        self.assertTrue(rendered["ok"], rendered)
+        self.assertIn("只批准低成本验证", rendered["value"])
+        self.assertIn("目标客户付费意愿仍未证实", rendered["value"])
+        self.assertIn("judgment · low", rendered["value"])
+        self.assertIn("尚无访谈、订单或愿付价格", rendered["value"])
+
+    def test_semantic_blocks_render_real_claim_pain_and_competition_content(self):
+        claim_block = block("text")
+        claim_block["content"]["claims"] = [{
+            "id": "cl-1", "statement": "目标客户需求频率仍未证实", "identity": "judgment",
+            "confidence": "low", "scope": "东南亚滩头市场", "limitation": "没有采购样本",
+            "support": [
+                {"excerpt": "存在短时容量压力", "source_id": "src-1", "locator": "p1"},
+                {"excerpt": "第二条支持", "source_id": "src-2", "locator": "p2"},
+                {"excerpt": "第三条支持不应铺满正文", "source_id": "src-3", "locator": "p3"},
+            ],
+            "counter": [{"excerpt": "按需 API 已可替代", "source_id": "src-2"}],
+        }]
+        rendered = run_node("component.renderBlock(payload.block, {})", {"block": claim_block})
+        self.assertTrue(rendered["ok"], rendered)
+        self.assertIn("目标客户需求频率仍未证实", rendered["value"])
+        self.assertIn("存在短时容量压力", rendered["value"])
+        self.assertIn("按需 API 已可替代", rendered["value"])
+        self.assertIn("没有采购样本", rendered["value"])
+        self.assertIn("另 2 条见来源附录", rendered["value"])
+        self.assertNotIn("第二条支持", rendered["value"])
+        self.assertNotIn("第三条支持不应铺满正文", rendered["value"])
+        self.assertNotIn('class="block-purpose"', rendered["value"])
+
+        pain_block = block("table")
+        pain_block["content"]["semantic_type"] = "pain-demand"
+        pain_block["content"]["pain_groups"] = [{
+            "segment": "AI 应用创业公司", "trigger": "流量突增", "workaround": "排队或包卡",
+            "consequence": "闲置或延期", "purchase_signal": "带价格试点", "evidence_strength": "medium",
+            "counter": "成熟 API 可能已足够", "validation_gap": "没有采购样本",
+        }]
+        rendered = run_node("component.renderBlock(payload.block, {})", {"block": pain_block})
+        self.assertTrue(rendered["ok"], rendered)
+        for text in ("AI 应用创业公司", "流量突增", "排队或包卡", "闲置或延期", "带价格试点", "成熟 API 可能已足够", "没有采购样本"):
+            self.assertIn(text, rendered["value"])
+        self.assertNotIn("Relationship", rendered["value"])
+
+        comparison_block = block("table")
+        comparison_block["content"]["semantic_type"] = "competition"
+        comparison_block["content"]["comparison"] = {
+            "criteria": ["总拥有成本", "可靠性"],
+            "alternatives": [{"name": "专业 GPU 云", "layer": "direct", "values": {"总拥有成本": "公开价可比", "可靠性": "待同口径核实"}}],
+        }
+        rendered = run_node("component.renderBlock(payload.block, {})", {"block": comparison_block})
+        self.assertTrue(rendered["ok"], rendered)
+        for text in ("专业 GPU 云", "direct", "总拥有成本", "公开价可比", "可靠性", "待同口径核实"):
+            self.assertIn(text, rendered["value"])
+        self.assertNotIn("Relationship", rendered["value"])
+
+    def test_body_sources_render_compact_linked_markers_without_reference_strip(self):
+        item = block("text")
+        item["source_ids"] = ["M002", "M010", "M002"]
+        item["source_bindings"] = [
+            {"source_id": "M002", "locators": ["p. 4"]},
+            {"source_id": "M010", "locators": ["§2"]},
+        ]
+        context = {"citationRegistry": [
+            {"source_id": "M002", "number": 1, "appendix_anchor": "source-M002"},
+            {"source_id": "M010", "number": 2, "appendix_anchor": "source-M010"},
+        ]}
+        result = run_node("component.renderBlock(payload.block, payload.context)", {"block": item, "context": context})
+        self.assertTrue(result["ok"], result)
+        html = result["value"]
+        self.assertIn('<sup class="citation-markers" aria-label="Sources">', html)
+        self.assertIn('class="citation-marker" href="#source-M002">[1]</a>', html)
+        self.assertIn('class="citation-marker" href="#source-M010">[2]</a>', html)
+        self.assertEqual(1, html.count('class="citation-marker" href="#source-M002"'))
+        self.assertNotIn("https://", html)
+        self.assertNotIn("source-strip", html)
+
     def test_twelve_semantic_components_are_frozen_and_render(self):
         result = run_node("component.APPROVED_COMPONENT_KINDS")
         self.assertTrue(result["ok"])

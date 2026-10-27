@@ -52,6 +52,10 @@ BP 文件已由 router 交给 `../core-intake/` 接收：逐页全文、页面�
 
 具体以 core-method-select 的结果为准。
 
+L2/L3 中需求和竞争通常都是重要判断，按 `../core-evidence/references/decision-research-contracts.md` 建 `03_evidence/decision-research.json`，把 BP 主张与外部核实都引用到证据账。core-review 审查后、进入综合前运行 `python3 <运行时>/tools/research_quality.py check <任务文件夹>`；失败不得把 TAM、发行方材料或直接竞品名单升级成需求与竞争结论。
+
+固定门禁顺序：core-review → research_quality check → core-synthesis。L1 不创建合同、不运行该检查。
+
 ## 评审意见的格式
 
 在 core-synthesis 的汇报格式基础上调整为（各节按重要性排序，不设条数上限；完整论证进正文，过程细节进附录）：

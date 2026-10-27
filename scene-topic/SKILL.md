@@ -44,6 +44,10 @@ description: 话题场景：用户给一个话题、行业、市场或政策，�
 - **不确定在哪里**：哪些信息会改变判断，什么时候能知道。
 - 有重大不确定性时，用情景规划给出两到三种情景，而不是一个预测。
 
+L2/L3 中需求或竞争对进入、投资或政策应对判断重要时，按 `../core-evidence/references/decision-research-contracts.md` 建 `03_evidence/decision-research.json`。core-review 审查后、进入综合前运行 `python3 <运行时>/tools/research_quality.py check <任务文件夹>`；失败时补证据、缩窄主张或降级结论。
+
+固定门禁顺序：core-review → research_quality check → core-synthesis。L1 不创建合同、不运行该检查。
+
 ## 深度
 
 | 级别 | 差别 |

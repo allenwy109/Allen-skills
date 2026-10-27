@@ -12,6 +12,8 @@ description: 检索与事实核实：联网查证关键信息，判断它是否�
 - 输入：`01_issue-tree.md` 的关键事实清单、`02_method-plan.md` 里“交给 core-evidence 查”的条目、分析中新出现的事实。单独使用时，输入是用户给的文章、BP 或一组说法。
 - 输出：任务文件夹里的 `03_evidence/` 统一证据账（来源、证据、主张及其关联；怎么写见第 8 节和 `assets/evidence-ledger-template.md`）。正文引用主张写 `[cl-0003]`，直接引原文写 `[M004 p12]`（来源 ID + 定位）。
 
+L2/L3 中需求、竞争或定价会改变结论时，另建 `03_evidence/decision-research.json`，只引用证据账 claim ID。判断口径读 `references/decision-research-contracts.md`；结构和机械规则以 schema 与 validator 为准。
+
 ## 1. 给每条关键信息打两个标签
 
 - **它是什么**：主张的 `kind`——事实 `fact`、数据 `data`、估算 `estimate`（写明算法）、预测 `forecast`、假设 `assumption`、判断 `judgment`、建议 `recommendation`、第三方观点 `third_party_view`。
@@ -74,6 +76,8 @@ core-synthesis 开始之前，逐条检查证据账里 `affects_conclusion=true`
 “用户材料主张”指全部支持证据都来自 `origin=user` 来源的主张。用户材料本身就是权威出处时（例如用户自己的内部经营数据），由用户确认后改为 `verified`，并在复核表记一条 `user_confirmation`；成品中标“用户提供”。BP 等第三方材料里的说法不适用这一条。
 
 运行 `python3 <运行时>/tools/lib/ledger.py <任务文件夹> check`：它会拦下有冲突却没登记、已推翻却没有反证、关键主张却标为不影响结论等情况。
+
+若存在 `03_evidence/decision-research.json`，综合前还必须运行 `python3 <运行时>/tools/research_quality.py check <任务文件夹>`；失败时补证据、缩窄主张或降级结论，不得绕过。
 
 ## 7. 什么时候交给 core-research
 

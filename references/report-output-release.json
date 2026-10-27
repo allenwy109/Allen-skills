@@ -3,19 +3,26 @@
   "schema": "references/report-output-release.schema.json",
   "status": "approved",
   "releasedAt": "2026-10-27T15:28:08+10:30",
-  "implementationHead": "39bec98c99159e952106c6f7980c4666a269f9c7",
+  "implementationHead": "e8d1b35",
   "provenance": {
     "upstreamRepository": "https://github.com/ZeroxZhang/zerox-skills.git",
     "upstreamCommit": "ee1f980c8dd7c53408e1a05a084229e6ec03c660",
     "composerReferenceCommit": "bfef13d",
-    "finalBenchmarkIntegrityCommit": "0e6d9d9",
-    "a4ApprovalCommit": "39bec98"
+    "finalBenchmarkIntegrityCommit": "e8d1b35",
+    "a4ApprovalCommit": "e8d1b35"
   },
   "capabilities": {
     "matrix": "references/upstream-capability-matrix.json",
     "requiredCount": 26,
-    "allowedStatuses": ["parity", "superseded"],
-    "forbiddenStatuses": ["missing", "untested", "present-not-used"],
+    "allowedStatuses": [
+      "parity",
+      "superseded"
+    ],
+    "forbiddenStatuses": [
+      "missing",
+      "untested",
+      "present-not-used"
+    ],
     "strictCheck": "passed"
   },
   "evidence": {
@@ -33,7 +40,7 @@
     },
     "a4Evidence": {
       "path": "references/release-evidence/a4-evidence.json",
-      "sha256": "4e8943c0e1f39bead34faf5f39924e5221a4b772b2b2c588b45ea2c2991651ff"
+      "sha256": "d10338afa0781326177147cb822b6478128b452cb8f8174f773debe2a1c63aeb"
     },
     "scenarioTests": {
       "path": "references/release-evidence/scenario-tests.json",
@@ -42,14 +49,14 @@
   },
   "a4": {
     "status": "approved",
-    "candidateDigest": "59742bde7d67fc1ecbe5c96684a4d9212ecc5c813500d3d1befc69ac04cb2fe7",
+    "candidateDigest": "f2f2c00c81b58e7043932e1b6fc85ad90df6ebff3e454a5c2f370b823baaf841",
     "approvedBy": "user",
-    "approvedAt": "2026-10-27T15:17:48+10:30",
-    "approvalReason": "确认 A4 新基准",
+    "approvedAt": "2026-10-27T17:30:00+10:30",
+    "approvalReason": "Task 4：正文来源带改为 appendix-linked citation markers；逐页与 contact sheet 已检查",
     "baselineManifest": "out-report/golden/visual-baseline.json",
-    "baselineManifestSha256": "00620041cac19c57ea32d7a767cefafa07d70c67500bbef7b0e78bbe70ee8fa5",
+    "baselineManifestSha256": "e0118cd29a3849a85b4baeb82b7d531d698b331f9136eb85de2535d0fc651538",
     "reviewManifest": "references/release-evidence/a4-evidence.json",
-    "reviewManifestSha256": "4e8943c0e1f39bead34faf5f39924e5221a4b772b2b2c588b45ea2c2991651ff",
+    "reviewManifestSha256": "d10338afa0781326177147cb822b6478128b452cb8f8174f773debe2a1c63aeb",
     "pageCount": 16,
     "contactSheetCount": 5,
     "scores": {
@@ -97,8 +104,18 @@
       "source_integration": 4,
       "finish": 4
     },
-    "winningDimensions": ["evidence_geometry", "book_rhythm", "source_integration"],
-    "tiedDimensions": ["visual_focus", "density", "typography", "chart_clarity", "finish"],
+    "winningDimensions": [
+      "evidence_geometry",
+      "book_rhythm",
+      "source_integration"
+    ],
+    "tiedDimensions": [
+      "visual_focus",
+      "density",
+      "typography",
+      "chart_clarity",
+      "finish"
+    ],
     "losingDimensions": [],
     "noWorse": true,
     "blockers": [],
@@ -111,7 +128,7 @@
       "referenceErrors": 0,
       "htmlPages": 5,
       "pdfPages": 5,
-      "crossMediaTextSimilarity": 1.0
+      "crossMediaTextSimilarity": 1
     },
     "reviewer": {
       "mode": "fresh-read-only-anonymous",

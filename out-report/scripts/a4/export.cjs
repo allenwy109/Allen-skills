@@ -2,6 +2,7 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const cp = require('child_process');
 const crypto = require('crypto');
@@ -25,8 +26,11 @@ function sha(file) {
 }
 
 function canonicalText(value) {
-  return String(value).replace(/\s+/g, ' ').trim()
-    .replace(/(?<=\p{Script=Han})\s+(?=\d)|(?<=\d)\s+(?=\p{Script=Han})/gu, '');
+  return String(value).normalize('NFKC').replaceAll('戶', '户').replaceAll('⻓', '长').replaceAll('⻅', '见')
+    .replaceAll('⻚', '页').replaceAll('⻆', '角').replaceAll('⻔', '门').replaceAll('⻛', '风').replaceAll('⻬', '齐')
+    .replace(/‒/g, '–').replace(/[，,]/g, ',').replace(/[；;]/g, ';').replace(/[：:]/g, ':').replace(/[｜|]/g, '|').replace(/\s+/g, ' ').trim()
+    .replace(/(?<=\p{Script=Han})\s+(?=[\p{Script=Han}\d])|(?<=\d)\s+(?=\p{Script=Han})/gu, '')
+    .replace(/-\s+(?=[A-Za-z0-9])/g, '-');
 }
 
 function tool(name) {
@@ -34,13 +38,33 @@ function tool(name) {
   catch (_) { throw new Error(`REPORT_RUNTIME_MISSING: ${name}`); }
 }
 
+function hasTool(name) {
+  try { cp.execFileSync('which', [name], { stdio: 'ignore' }); return true; }
+  catch (_) { return false; }
+}
+
+function pdfBackend() {
+  const requested = process.env.ALLEN_PDF_BACKEND;
+  if (requested && !['chromium', 'pdfkit'].includes(requested)) throw new Error(`REPORT_PDF_BACKEND_INVALID: ${requested}`);
+  if (requested === 'pdfkit' && (process.platform !== 'darwin' || !hasTool('swift'))) {
+    throw new Error('REPORT_RUNTIME_MISSING: pdfkit backend requires macOS and swift');
+  }
+  if (requested) return requested;
+  return process.platform === 'darwin' && hasTool('swift') ? 'pdfkit' : 'chromium';
+}
+
 (async () => {
   for (const name of ['pdftoppm', 'pdftotext']) tool(name);
+  const backend = pdfBackend();
   const playwright = path.join(runtimeRoot(), 'vendor/report-forge/node_modules/playwright');
   if (!fs.existsSync(playwright)) throw new Error(`REPORT_RUNTIME_MISSING: ${playwright}`);
   fs.mkdirSync(outputDir, { recursive: true });
   const pdf = path.join(outputDir, 'report.pdf');
-  const browser = await require(playwright).chromium.launch({ headless: true });
+  let temporary = null;
+  let browser = null;
+  try {
+  temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'allen-report-pages-'));
+  browser = await require(playwright).chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1191, height: 1684 }, deviceScaleFactor: 1 });
   const external = [];
   page.on('request', request => { if (/^https?:/i.test(request.url())) external.push(request.url()); });
@@ -67,16 +91,74 @@ function tool(name) {
         return nodes.length ? Math.min(...nodes.map(node => parseFloat(getComputedStyle(node).fontSize) * .75)) : null;
       };
       const sourceMinimum = fontMinimum('.source-locator, [data-source-locator]');
+      const citationMinimum = fontMinimum('.citation-marker, .citation-markers');
       const text = section.innerText.replace(/\s+/g, ' ').trim()
         .replace(/(?<=\p{Script=Han})\s+(?=\d)|(?<=\d)\s+(?=\p{Script=Han})/gu, '');
-      const fonts = [{ role: 'body', minimumPt: Math.round((fontMinimum('*:not(.folio):not(.source-locator):not([data-source-locator])') || 10.75) * 1000) / 1000 }];
+      const fonts = [{ role: 'body', minimumPt: Math.round((fontMinimum('*:not(.folio):not(.source-locator):not([data-source-locator]):not(.citation-marker):not(.citation-markers)') || 10.75) * 1000) / 1000 }];
       if (sourceMinimum !== null) fonts.push({ role: 'source', minimumPt: Math.round(sourceMinimum * 1000) / 1000 });
-      return { id: section.dataset.pageId, text, empty: !text, overlaps, clipped: [...new Set(clipped)], fonts };
+      if (citationMinimum !== null) fonts.push({ role: 'citation', minimumPt: Math.round(citationMinimum * 1000) / 1000 });
+      const visible = section.cloneNode(true);
+      const originals = [...section.querySelectorAll('*')];
+      const clones = [...visible.querySelectorAll('*')];
+      const hiddenIndexes = originals.flatMap((node, index) => {
+        const style = getComputedStyle(node);
+        const hidden = node.hidden || node.getAttribute('aria-hidden') === 'true' ||
+          style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' ||
+          (style.display !== 'contents' && node.getClientRects().length === 0);
+        return hidden ? [index] : [];
+      });
+      hiddenIndexes.reverse().forEach(index => clones[index].remove());
+      const role = visible.querySelector('[data-component-kind="references-appendix"]') ? 'references' : 'body';
+      const appendixDestinations = role === 'references'
+        ? [...visible.querySelectorAll('[data-source-record][id], .ref[id]')].map(node => node.id)
+        : [];
+      return {
+        id: section.dataset.pageId, role, text,
+        visibleHtml: visible.innerHTML, empty: !text, overlaps, clipped: [...new Set(clipped)], fonts,
+        appendixDestinations,
+      };
     });
   });
-  await page.pdf({ path: pdf, format: 'A4', printBackground: true, preferCSSPageSize: true,
-    margin: { top: '0', right: '0', bottom: '0', left: '0' } });
-  await browser.close();
+  const links = await page.evaluate(() => {
+    const sections = [...document.querySelectorAll('section.page[data-page-id]')];
+    const pageIndex = new Map(sections.map((section, index) => [section, index]));
+    return [...document.querySelectorAll('a[href^="#"]')].flatMap(anchor => {
+      const source = anchor.closest('section.page[data-page-id]');
+      const target = document.getElementById(decodeURIComponent(anchor.getAttribute('href').slice(1)));
+      const targetSection = target && target.closest('section.page[data-page-id]');
+      if (!source || !targetSection) return [];
+      const pageBox = source.getBoundingClientRect();
+      const box = anchor.getBoundingClientRect();
+      return [{ sourcePage: pageIndex.get(source), targetPage: pageIndex.get(targetSection),
+        x: box.left - pageBox.left, y: box.top - pageBox.top, width: box.width, height: box.height,
+        pageWidth: pageBox.width, pageHeight: pageBox.height }];
+    });
+  });
+  if (backend === 'chromium') {
+    await page.addStyleTag({ content: '.page{height:296mm!important;break-after:auto!important;page-break-after:auto!important;break-before:page!important;page-break-before:always!important}.page:first-of-type{break-before:auto!important;page-break-before:auto!important}' });
+    await page.pdf({ path: pdf, format: 'A4', printBackground: true, preferCSSPageSize: true,
+      margin: { top: '0', right: '0', bottom: '0', left: '0' } });
+  } else {
+    await page.evaluate(() => {
+      window.__reportPages = [...document.querySelectorAll('section.page[data-page-id]')].map(section => {
+        const clone = section.cloneNode(true);
+        clone.querySelectorAll('a[href^="#"]').forEach(anchor => anchor.removeAttribute('href'));
+        return clone;
+      });
+    });
+    await page.addStyleTag({ content: '.page{height:296mm!important;break-after:auto!important;page-break-after:auto!important;break-inside:auto!important;page-break-inside:auto!important}' });
+    const pageParts = [];
+    for (let index = 0; index < dom.length; index += 1) {
+      await page.evaluate(index => document.body.replaceChildren(window.__reportPages[index].cloneNode(true)), index);
+      const part = path.join(temporary, `page-${String(index + 1).padStart(4, '0')}.pdf`);
+      await page.pdf({ path: part, format: 'A4', printBackground: true, preferCSSPageSize: true,
+        margin: { top: '0', right: '0', bottom: '0', left: '0' } });
+      pageParts.push(part);
+    }
+    const linkManifest = path.join(temporary, 'internal-links.json');
+    fs.writeFileSync(linkManifest, `${JSON.stringify(links)}\n`);
+    cp.execFileSync('swift', [path.join(__dirname, 'link_pdf.swift'), linkManifest, pdf, ...pageParts]);
+  }
   if (external.length) throw new Error(`REPORT_EXTERNAL_RESOURCE: ${external.join(',')}`);
 
   const prefix = path.join(outputDir, '.page');
@@ -99,7 +181,8 @@ function tool(name) {
     empty: record.empty, fonts: record.fonts,
   })) };
   const media = {
-    schemaVersion: '1.0', htmlPages: dom.map(({ id, text }) => ({ id, text })), pdfPages,
+    schemaVersion: '1.0', htmlPages: dom.map(({ id, role, text, visibleHtml }) => ({ id, role, text, visibleHtml })), pdfPages,
+    appendixDestinations: dom.flatMap(record => record.appendixDestinations),
     resources: [
       { type: 'font', url: 'data:font/woff2;base64,embedded-noto-sans-400', embedded: true },
       { type: 'font', url: 'data:font/woff2;base64,embedded-noto-sans-600', embedded: true },
@@ -111,5 +194,9 @@ function tool(name) {
   for (const [name, value] of [['geometry-manifest.json', geometry], ['media-manifest.json', media], ['visual-candidate.json', candidate]]) {
     fs.writeFileSync(path.join(outputDir, name), `${JSON.stringify(value, null, 2)}\n`);
   }
-  process.stdout.write(`${JSON.stringify({ pdf, pages: dom.length })}\n`);
+  process.stdout.write(`${JSON.stringify({ pdf, pages: dom.length, backend })}\n`);
+  } finally {
+    try { if (browser) await browser.close(); }
+    finally { if (temporary) fs.rmSync(temporary, { recursive: true, force: true }); }
+  }
 })().catch(error => { process.stderr.write(`${error.message || error}\n`); process.exit(1); });

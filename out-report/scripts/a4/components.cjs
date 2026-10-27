@@ -130,6 +130,22 @@ function sourceRefs(block) {
   return declared + bindings;
 }
 
+function citationMarkers(block, context) {
+  if (context && context.renderCitations === false) return '';
+  const registry = new Map(list(context && context.citationRegistry).map(item => [item.source_id, item]));
+  const seen = new Set();
+  const markers = list(block.source_ids).filter(sourceId => {
+    if (seen.has(sourceId)) return false;
+    seen.add(sourceId);
+    return true;
+  }).map(sourceId => {
+    const citation = registry.get(sourceId);
+    if (!citation) return '';
+    return `<a class="citation-marker" href="#${escapeHtml(citation.appendix_anchor)}">[${escapeHtml(citation.number)}]</a>`;
+  }).join(' ');
+  return markers ? `<sup class="citation-markers" aria-label="Sources">${markers}</sup>` : '';
+}
+
 function identityLegend(block, context) {
   const encodings = context && context.identityEncodings ? context.identityEncodings : DEFAULT_IDENTITY_ENCODINGS;
   return list(block.identity).map(identity => {
@@ -163,12 +179,13 @@ function commonBody(block) {
 }
 
 function chartBody(block) {
+  if (list((block.content || {}).claims).length) return claimBody(block);
   const label = escapeHtml((block.content || {}).visual || (block.content || {}).title || 'Chart');
   return `<figure class="block-figure"><svg aria-hidden="true" viewBox="0 0 120 48" focusable="false"><line x1="8" y1="40" x2="112" y2="40"></line><rect x="18" y="22" width="20" height="18"></rect><rect x="50" y="12" width="20" height="28"></rect><rect x="82" y="6" width="20" height="34"></rect></svg><figcaption>${label}</figcaption></figure>`;
 }
 
 function textBody(block) {
-  return `<div class="text-body">${commonBody(block)}</div>`;
+  return `<div class="text-body">${claimBody(block)}</div>`;
 }
 
 function metricBody(block) {
@@ -178,7 +195,34 @@ function metricBody(block) {
 
 function tableBody(block) {
   const content = block.content || {};
+  if (content.semantic_type === 'pain-demand' && list(content.pain_groups).length) return painBody(content.pain_groups);
+  if (content.semantic_type === 'competition' && content.comparison) return comparisonBody(content.comparison);
+  if (list(content.claims).length) return claimBody(block);
   return `<table class="table-body"><thead><tr><th scope="col">Relationship</th><th scope="col">Evidence</th></tr></thead><tbody><tr><th scope="row">${escapeHtml(content.relationship)}</th><td>${escapeHtml(content.purpose)}</td></tr></tbody></table>`;
+}
+
+function evidenceList(items, emptyText) {
+  const values = list(items);
+  const rows = values.slice(0, 1).map(item => `<li>${escapeHtml(item.excerpt)} <span class="evidence-locator">${escapeHtml(item.source_id)} · ${escapeHtml(item.locator)}</span></li>`).join('');
+  const remainder = values.length > 1 ? `<li class="evidence-more">另 ${values.length - 1} 条见来源附录</li>` : '';
+  return rows + remainder || `<li class="evidence-empty">${escapeHtml(emptyText)}</li>`;
+}
+
+function claimBody(block) {
+  const claims = list((block.content || {}).claims);
+  if (!claims.length) return commonBody(block);
+  return `<div class="claim-details">${claims.map(claim => `<section class="claim-detail"><p class="claim-statement">${escapeHtml(claim.statement)}</p><dl class="claim-meta"><div><dt>身份 / 置信度</dt><dd>${escapeHtml(claim.identity)} · ${escapeHtml(claim.confidence)}</dd></div><div><dt>适用范围</dt><dd>${escapeHtml(claim.scope)}</dd></div></dl><div class="claim-evidence-pair"><div><h4>${claim.support_label === 'indirect_lead' ? '间接线索（不直接证明主张）' : '支持'}</h4><ul>${evidenceList(claim.support, '尚无支持证据')}</ul></div><div><h4>反证 / 反向检索</h4><ul>${evidenceList(claim.counter, '未取得结构化反证；这是验证缺口，不是反证结果')}</ul></div></div><p class="claim-limitation"><strong>边界：</strong>${escapeHtml(claim.limitation)}</p></section>`).join('')}</div>`;
+}
+
+function painBody(groups) {
+  return `<div class="pain-groups">${list(groups).map(group => `<article class="pain-group"><h4>${escapeHtml(group.segment)}</h4><dl><div><dt>触发</dt><dd>${escapeHtml(group.trigger)}</dd></div><div><dt>当前替代</dt><dd>${escapeHtml(group.workaround)}</dd></div><div><dt>后果</dt><dd>${escapeHtml(group.consequence)}</dd></div><div><dt>购买信号</dt><dd>${escapeHtml(group.purchase_signal)}</dd></div><div><dt>证据强度</dt><dd>${escapeHtml(group.evidence_strength)}</dd></div><div><dt>反证 / 边界</dt><dd>${escapeHtml(group.counter)}</dd></div><div><dt>验证缺口</dt><dd>${escapeHtml(group.validation_gap)}</dd></div></dl></article>`).join('')}</div>`;
+}
+
+function comparisonBody(comparison) {
+  const criteria = list(comparison.criteria);
+  const headers = criteria.map(criterion => `<th scope="col">${escapeHtml(criterion)}</th>`).join('');
+  const rows = list(comparison.alternatives).map(alternative => `<tr><th scope="row"><span class="competition-layer">${escapeHtml(alternative.layer)}</span>${escapeHtml(alternative.name)}</th>${criteria.map(criterion => `<td>${escapeHtml((alternative.values || {})[criterion] || '未提供')}</td>`).join('')}</tr>`).join('');
+  return `<table class="table-body competition-matrix"><thead><tr><th scope="col">层级 / 选项</th>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 const BLOCK_RENDERERS = Object.freeze({ chart: chartBody, text: textBody, metric: metricBody, table: tableBody });
@@ -220,7 +264,8 @@ const COMPONENT_PREDICATES = Object.freeze({
   },
   observable_behavior(payload) {
     return Array.isArray(payload.pain_groups) && payload.pain_groups.length > 0 && payload.pain_groups.every(group =>
-      group && present(group.pain) && present(group.observable_behavior)
+      group && ((present(group.pain) && present(group.observable_behavior)) ||
+        (present(group.segment) && present(group.trigger) && present(group.purchase_signal) && present(group.validation_gap)))
     );
   },
   series_or_driver_nonempty(payload) {
@@ -265,7 +310,17 @@ function renderBlock(block, context = {}) {
   }
   const content = block.content || {};
   const anchor = content.anchor ? ' data-anchor="true"' : '';
-  return `<article class="report-block report-block--${escapeHtml(block.kind)}" data-block-id="${escapeHtml(block.id)}" data-block-kind="${escapeHtml(block.kind)}" data-form="${escapeHtml(content.form)}" data-role="${escapeHtml(content.role)}" aria-labelledby="${escapeHtml(block.id)}-title"${anchor}>${blockHeader(block)}${BLOCK_RENDERERS[block.kind](block)}${bindings(block, context)}</article>`;
+  return `<article class="report-block report-block--${escapeHtml(block.kind)}" data-block-id="${escapeHtml(block.id)}" data-block-kind="${escapeHtml(block.kind)}" data-form="${escapeHtml(content.form)}" data-role="${escapeHtml(content.role)}" aria-labelledby="${escapeHtml(block.id)}-title"${anchor}>${blockHeader(block)}${BLOCK_RENDERERS[block.kind](block)}${citationMarkers(block, context)}${bindings(block, context)}</article>`;
+}
+
+function executiveSummaryBody(payload) {
+  const answer = `<p class="executive-answer">${escapeHtml(payload.answers[0])}</p>`;
+  const items = list(payload.summary_items).map(item =>
+    `<li class="summary-item"><strong>${escapeHtml(item.text)}</strong>` +
+    `<span class="summary-meta">${escapeHtml(item.identity || 'claim')} · ${escapeHtml(item.confidence || 'unspecified')}</span>` +
+    `<p>${escapeHtml(item.qualification)}</p></li>`
+  ).join('');
+  return `${answer}<ol class="summary-list">${items}</ol>`;
 }
 
 function renderComponent(kind, payload = {}, context = {}) {
@@ -299,7 +354,8 @@ function renderComponent(kind, payload = {}, context = {}) {
   const tag = kind === 'toc' ? 'nav' : kind === 'references-appendix' ? 'aside' : 'section';
   const landmarkLabel = kind === 'toc' ? ' aria-label="Table of contents"' : kind === 'references-appendix' ? ' aria-label="References and appendix"' : '';
   const headingTag = kind === 'cover' ? 'h1' : 'h2';
-  return `<${tag} class="report-component report-component--${escapeHtml(kind)}" data-component-kind="${escapeHtml(kind)}" data-component-id="${escapeHtml(id)}" data-layout-id="${escapeHtml(layoutId)}" data-capacity-count="${capacityCount}" data-capacity-soft="${contract.capacity_dimensions.soft}" data-capacity-hard="${contract.capacity_dimensions.hard}" data-capacity-unit="${escapeHtml(contract.capacity_dimensions.unit)}" data-split-strategy="${escapeHtml(contract.split_strategy)}" aria-labelledby="${escapeHtml(id)}-title"${landmarkLabel}><${headingTag} id="${escapeHtml(id)}-title">${escapeHtml(title)}</${headingTag}>${blocks}</${tag}>`;
+  const componentBody = kind === 'executive-summary' ? executiveSummaryBody(payload) : blocks;
+  return `<${tag} class="report-component report-component--${escapeHtml(kind)}" data-component-kind="${escapeHtml(kind)}" data-component-id="${escapeHtml(id)}" data-layout-id="${escapeHtml(layoutId)}" data-capacity-count="${capacityCount}" data-capacity-soft="${contract.capacity_dimensions.soft}" data-capacity-hard="${contract.capacity_dimensions.hard}" data-capacity-unit="${escapeHtml(contract.capacity_dimensions.unit)}" data-split-strategy="${escapeHtml(contract.split_strategy)}" aria-labelledby="${escapeHtml(id)}-title"${landmarkLabel}><${headingTag} id="${escapeHtml(id)}-title">${escapeHtml(title)}</${headingTag}>${componentBody}</${tag}>`;
 }
 
 module.exports = {

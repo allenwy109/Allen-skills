@@ -81,13 +81,13 @@ class GoldenReportContractTest(unittest.TestCase):
         self.assertIn("批准日期：2026-10-27", visible)
         self.assertIn("current digest: needs-reapproval", visible)
         self.assertEqual(self.baseline["status"], "approved")
-        self.assertEqual(self.baseline["candidateDigest"], "59742bde7d67fc1ecbe5c96684a4d9212ecc5c813500d3d1befc69ac04cb2fe7")
+        self.assertEqual(self.baseline["candidateDigest"], "f2f2c00c81b58e7043932e1b6fc85ad90df6ebff3e454a5c2f370b823baaf841")
 
     def test_approval_record_is_separate_and_records_user_approval(self):
         self.assertEqual(self.baseline["status"], "approved")
         self.assertEqual(self.baseline["approvedBy"], "user")
         self.assertRegex(self.baseline["approvedAt"], r"^2026-10-27T\d{2}:\d{2}:\d{2}\+10:30$")
-        self.assertEqual(self.baseline["changeReason"], "确认 A4 新基准")
+        self.assertEqual(self.baseline["changeReason"], "Task 4：正文来源带改为 appendix-linked citation markers；逐页与 contact sheet 已检查")
         self.assertRegex(self.baseline["candidateDigest"], r"^[0-9a-f]{64}$")
         approval = self.baseline["contentApproval"]
         self.assertEqual(approval["status"], "approved")
@@ -95,8 +95,9 @@ class GoldenReportContractTest(unittest.TestCase):
         self.assertRegex(approval["approvedAt"], r"^2026-10-27T\d{2}:\d{2}:\d{2}\+10:30$")
         self.assertEqual(approval["changeReason"], "用户确认：这个排版结构我认可")
         self.assertRegex(approval["candidateDigest"], r"^[0-9a-f]{64}$")
-        self.assertEqual([event["type"] for event in self.baseline["auditTrail"]], ["approval", "revision", "revision", "approval"])
-        self.assertEqual(self.baseline["auditTrail"][-1]["reason"], "确认 A4 新基准")
+        self.assertEqual([event["type"] for event in self.baseline["auditTrail"]], ["approval", "revision", "revision", "approval", "baseline-update"])
+        self.assertEqual(self.baseline["auditTrail"][-1]["reason"], self.baseline["changeReason"])
+        self.assertEqual(self.baseline["auditTrail"][-1]["observedPages"], ["p02-p14 body markers", "p12 densest", "p15-p16 references", "whole-book contact sheet"])
         self.assertNotIn("artifacts", self.baseline); self.assertNotIn("environment", self.baseline)
 
     def test_source_is_script_free_and_declares_a4_readability(self):
@@ -104,6 +105,17 @@ class GoldenReportContractTest(unittest.TestCase):
         self.assertNotRegex(self.source_css, r'url\(["\']?https?://|@import')
         self.assertRegex(self.source_css, r"@page\s*{[^}]*size:\s*210mm\s+297mm")
         self.assertRegex(self.source_css, r"--font-body:\s*10\.75pt"); self.assertRegex(self.source_css, r"--font-source:\s*7\.5pt")
+
+    def test_body_pages_use_compact_markers_and_full_references_stay_in_appendix(self):
+        sections = re.findall(r'<section\b.*?</section>', self.source_html, re.S)
+        body = "".join(section for section in sections if 'data-page-role="references"' not in section)
+        appendix = "".join(section for section in sections if 'data-page-role="references"' in section)
+        visible_body = re.sub(r'<[^>]+hidden[^>]*>.*?</[^>]+>', '', body, flags=re.S)
+        self.assertNotRegex(visible_body, r'https?://|class="(?:source-strip|source)"|data-reference-band')
+        markers = re.findall(r'class="citation-marker"[^>]*href="#([^"]+)"', body)
+        self.assertTrue(markers)
+        self.assertTrue(all(appendix.count(f'id="{target}"') == 1 for target in markers))
+        self.assertRegex(appendix, r'https?://')
 
 class GoldenRenderIntegrationTest(unittest.TestCase):
     @classmethod

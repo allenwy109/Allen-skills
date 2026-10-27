@@ -114,6 +114,15 @@ def _component_for_block(block, section, index, report, metrics):
     base = {"id": f"{section['id']}-item-{index:02d}", "title": block["content"]["title"], "blocks": [block]}
     source_groups = [{"source_id": binding["source_id"], "locators": binding["locators"]}
                      for binding in block["source_bindings"]]
+    semantic_type = block["content"].get("semantic_type")
+    if semantic_type == "pain-demand" and block["content"].get("pain_groups"):
+        return {"kind": "pain-demand", "payload": {**base, "layout_id": "full-evidence",
+                                                          "pain_groups": block["content"]["pain_groups"]}}
+    if semantic_type == "competition" and block["content"].get("comparison"):
+        comparison = block["content"]["comparison"]
+        return {"kind": "comparison", "payload": {**base, "layout_id": "comparison-columns",
+                                                         "criteria": comparison["criteria"],
+                                                         "alternatives": comparison["alternatives"]}}
     if block["kind"] == "chart":
         return {"kind": "data-chart", "payload": {**base, "layout_id": "full-evidence", "unit": block["content"].get("subtitle") or "见来源口径",
                                                         "period": report["metadata"].get("date") or "报告期", "items": [block["id"]]}}
@@ -126,6 +135,20 @@ def _component_for_block(block, section, index, report, metrics):
 
 def render_document(report, task):
     metrics = {item["id"]: item for item in Ledger(task).read("metrics")}
+    claims = {item["id"]: item for item in Ledger(task).read("claims")}
+    answer_claims = [claims[claim_id] for claim_id in report["executive_summary"]["answer_claim_refs"] if claim_id in claims]
+    summary_items = [{
+        "text": claim["statement"], "identity": claim["kind"], "confidence": claim["confidence"],
+        "qualification": claim.get("limitation") or claim.get("scope") or "以正文证据与限制为准",
+    } for claim in answer_claims[:4]]
+    if len(summary_items) == 1:
+        claim = answer_claims[0]
+        summary_items.append({
+            "text": f"适用范围：{claim.get('population') or claim.get('scope') or '未限定'}",
+            "identity": "qualification", "confidence": claim["confidence"],
+            "qualification": claim.get("limitation") or "需要结合正文边界判断",
+        })
+    answer = answer_claims[0]["statement"] if answer_claims else report["executive_summary"].get("question", "")
     components = [
         {"kind": "cover", "payload": {"id": "cover", "title": report["metadata"]["title"], "layout_id": "overview-detail",
                                          "title_groups": [{"title": report["metadata"]["title"]}], "blocks": []}},
@@ -133,26 +156,20 @@ def render_document(report, task):
                                        "entries": [{"title": section["title"], "destination": f"chapter-{index:02d}"}
                                                    for index, section in enumerate(report["sections"], 1)]}},
         {"kind": "executive-summary", "payload": {"id": "executive-summary", "title": "执行摘要", "layout_id": "overview-detail", "blocks": [],
-                                                     "answers": [report["executive_summary"]["question"]],
-                                                     "summary_items": [{"text": claim, "qualification": "以正文证据与限制为准"}
-                                                                       for claim in report["executive_summary"]["answer_claim_refs"][:4]]}},
+                                                     "answers": [answer] if answer else [],
+                                                     "summary_items": summary_items}},
     ]
     for section_index, section in enumerate(report["sections"], 1):
         chapter_id = f"chapter-{section_index:02d}"
         components.append({"kind": "section-title", "payload": {"id": chapter_id, "title": section["title"], "layout_id": "overview-detail",
                                                                     "chapter_claims": [section["title"]], "blocks": []}})
         components.extend(_component_for_block(block, section, index, report, metrics) for index, block in enumerate(section["blocks"], 1))
-    reference_block = {
-        "id": "references-table", "kind": "table", "claim_refs": [], "metric_refs": [],
-        "source_ids": [item["id"] for item in report["references"]],
-        "source_bindings": [{"source_id": item["id"], "locators": item["locators"]} for item in report["references"]],
-        "panel_refs": [], "relation_refs": [], "identity": ["fact"],
-        "content": {"title": "来源", "purpose": "可审计来源清单", "form": "html.table", "relationship": "documents",
-                    "reason": "保留来源定位", "anchor": False, "role": "evidence", "slot": "main", "span": 1},
-    }
     components.append({"kind": "references-appendix", "payload": {"id": "references", "title": "来源与附录", "layout_id": "continued-table",
-                                                                         "blocks": [reference_block], "references": report["references"]}})
-    return {"title": report["metadata"]["title"], "components": components}
+                                                                         "blocks": [], "references": report["references"]}})
+    document = {"title": report["metadata"]["title"], "components": components}
+    if "citation_registry" in report:
+        document["citation_registry"] = report["citation_registry"]
+    return document
 
 
 def cmd_init(args):

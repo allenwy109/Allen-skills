@@ -2,7 +2,7 @@
 
 const { COMPONENT_CONTRACTS } = require('./components.cjs');
 
-const PAGE = Object.freeze({ widthMm: 210, heightMm: 297, contentWidthMm: 173, contentHeightMm: 261 });
+const PAGE = Object.freeze({ widthMm: 210, heightMm: 297, contentWidthMm: 173, contentHeightMm: 259 });
 
 function reportError(code, detail) {
   const error = new Error(`${code}: ${detail}`);
@@ -25,7 +25,7 @@ function expandComponents(components) {
     const field = contract.capacity_dimensions.field;
     const values = Array.isArray(payload[field]) ? payload[field] : [];
     const mustSplit = values.length > contract.capacity_dimensions.hard;
-    const splittable = new Set(['toc', 'references-appendix']);
+    const splittable = new Set(['toc', 'references-appendix', 'comparison', 'pain-demand']);
     if (mustSplit && !splittable.has(component.kind)) {
       throw reportError('REPORT_COMPONENT_CAPACITY', `${component.kind} cannot split ${values.length} ${contract.capacity_dimensions.unit}`);
     }
@@ -38,6 +38,13 @@ function expandComponents(components) {
       copy.title = index ? `${payload.title}（续）` : payload.title;
       if (index && Array.isArray(payload.blocks)) {
         copy.blocks = payload.blocks.map(block => ({ ...block, id: `${block.id}--continued-${index + 1}` }));
+      }
+      if (Array.isArray(copy.blocks) && component.kind === 'comparison') {
+        copy.blocks = copy.blocks.map(block => ({ ...block, content: { ...block.content,
+          comparison: { ...(block.content && block.content.comparison), alternatives: part.values } } }));
+      }
+      if (Array.isArray(copy.blocks) && component.kind === 'pain-demand') {
+        copy.blocks = copy.blocks.map(block => ({ ...block, content: { ...block.content, pain_groups: part.values } }));
       }
       fragments.push({
         kind: component.kind,
@@ -70,10 +77,6 @@ function paginateMeasured(fragments, contentHeightPx) {
   for (const fragment of fragments) {
     if (fragment.kind === 'section-title') {
       if (page.items.length) flush();
-      if (page.number % 2 === 0) {
-        page.intentionalBlank = true;
-        flush();
-      }
     }
     if (fragment.heightPx > contentHeightPx + 1) {
       throw reportError('REPORT_PAGE_OVERFLOW', `${fragment.originalId} is ${fragment.heightPx}px, page content is ${contentHeightPx}px`);

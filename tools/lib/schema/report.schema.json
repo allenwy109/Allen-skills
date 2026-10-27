@@ -31,6 +31,11 @@
     "panel_ids": {"type": "array", "required": true, "items": {"type": "string"}},
     "relation_ids": {"type": "array", "required": true, "items": {"type": "string"}}
    }},
+   "citation_registry": {"type": "array", "items": {"type": "object", "fields": {
+    "source_id": {"type": "string", "required": true},
+    "number": {"type": "integer", "min": 1, "required": true},
+    "appendix_anchor": {"type": "string", "required": true}
+   }}},
    "sections": {"type": "array", "required": true, "items": {"type": "object", "fields": {
     "id": {"type": "string", "required": true},
     "title": {"type": "string", "required": true},
@@ -62,7 +67,35 @@
       "semantic_type": {"type": "string"},
       "visual": {"type": "string"},
       "slot": {"type": "string", "required": true},
-      "span": {"type": "number", "min": 0, "required": true}
+      "span": {"type": "number", "min": 0, "required": true},
+      "claims": {"type": "array", "items": {"type": "object", "fields": {
+       "id": {"type": "string", "required": true},
+       "statement": {"type": "string", "required": true},
+       "identity": {"type": "string", "enum": "claim_identity", "required": true},
+       "confidence": {"type": "string", "required": true},
+       "scope": {"type": "string", "required": true},
+       "limitation": {"type": "string", "required": true},
+       "support_label": {"type": "string", "required": true},
+       "support": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+        "source_id": {"type": "string", "required": true}, "locator": {"type": "string", "required": true}, "excerpt": {"type": "string", "required": true}
+       }}},
+       "counter": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+        "source_id": {"type": "string", "required": true}, "locator": {"type": "string", "required": true}, "excerpt": {"type": "string", "required": true}
+       }}}
+      }}},
+      "pain_groups": {"type": "array", "items": {"type": "object", "fields": {
+       "segment": {"type": "string", "required": true}, "trigger": {"type": "string", "required": true},
+       "workaround": {"type": "string", "required": true}, "consequence": {"type": "string", "required": true},
+       "purchase_signal": {"type": "string", "required": true}, "evidence_strength": {"type": "string", "required": true},
+       "counter": {"type": "string", "required": true}, "validation_gap": {"type": "string", "required": true}
+      }}},
+      "comparison": {"type": "object", "fields": {
+       "criteria": {"type": "array", "required": true, "items": {"type": "string"}},
+       "alternatives": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+        "name": {"type": "string", "required": true}, "layer": {"type": "string", "required": true},
+        "values": {"type": "map", "required": true, "values": {"type": "string"}}
+       }}}
+      }}
      }}
     }}},
     "relations": {"type": "array", "required": true, "items": {"type": "object", "fields": {
@@ -77,6 +110,12 @@
     "title": {"type": "string", "required": true},
     "url": {"type": "string"},
     "origin": {"type": "string", "required": true},
+    "author": {"type": "string"},
+    "publisher": {"type": "string"},
+    "published": {"type": "date"},
+    "accessed": {"type": "datetime"},
+    "grade": {"type": "string"},
+    "conflict_of_interest": {"type": "string"},
     "locators": {"type": "array", "required": true, "items": {"type": "string"}}
    }}},
    "appendix": {"type": "array", "required": true, "items": {"type": "object", "fields": {

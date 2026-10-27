@@ -7,6 +7,8 @@ description: Use when verified analysis must be delivered as a formal reading re
 
 把 `core-storyline` 的 `slides.json` 和证据账投影为媒介中立的 `report.json`，再由批准的 A4 设计系统自动排版。报告与演示文稿是两条链路：本 skill 不制作 PPT，也不要求作者手写页面 HTML。
 
+关键展品不得退化为占位图或通用“Relationship / Evidence”表。`semantic_type=pain-demand` 的 panel 必须从 `decision-research.json` 显示完整痛点链；`semantic_type=competition` 必须显示替代层与共同购买维度；其余决策性 block 至少显示主张正文、身份、置信度、支持/反证、适用范围和限制。正文只用紧凑引用标记，完整 URL 与来源字段只放来源附录。
+
 入口：
 
 ```bash
@@ -23,6 +25,8 @@ python3 <本 skill>/scripts/out_report.py <命令> <任务文件夹>
 
 故事线或证据变化后运行 `refresh`，再从渲染与审查重新开始。视觉差异只允许人工处置，脚本永不自动更新批准基线。
 
+PDF 导出有两个正式后端：macOS 且可用 Swift 时默认逐页打印并用 PDFKit 重建内部链接；Linux/cloud 或没有 Swift 时使用 Chromium 整册导出，保留原生目录与引用链接。可用 `ALLEN_PDF_BACKEND=chromium|pdfkit` 显式选择；`pdfkit` 仅在 macOS + Swift 上有效。两条路径都必须通过页数、A4 MediaBox、文本、裁切与 PDF 内链 QA。
+
 ## 审查记录
 
 作者记录：
@@ -36,5 +40,7 @@ python3 <本 skill>/scripts/out_report.py <命令> <任务文件夹>
 ## 输出门禁
 
 系统机械检查 A4 MediaBox、溢出、遮挡、裁切、空页、最小字号、内嵌资源、HTML/PDF 页序与文字清单、claim/A 卡/panel/relation/metric/source 覆盖集合和逐页视觉哈希。审查时锁定 HTML、PDF、逐页 PNG、report/render document，以及 coverage、pagination、geometry、media/page-text、visual candidate 这些原始 QA 输入；打包前重新计算，任何篡改都失败。`qa-evidence`、visual-regression 和 QA result 含作者处置，处置本身又绑定 artifact digest，因此不放进同一 digest，避免哈希循环；它们进入正式包后由 acceptance 文件哈希锁定。正式包保留全部审计清单和逐页 PNG。缺测量证据本身就是失败。
+
+完整来源（标题、URL、locator、质量与访问日期）只渲染在 references appendix。正文引用标记由 renderer 根据 `source_ids` 和 `source_bindings` 自动生成并链接到 appendix；作者不得手写 URL、引用编号、`.source-strip` 或其他多行页底来源带。隐藏的 source ID/locator 继续保留用于机器追溯，但不属于读者可见正文。
 
 四个企业应用完成主报告后，仍需运行 `tools/package_support.py <任务>` 生成并验收支撑文件包。

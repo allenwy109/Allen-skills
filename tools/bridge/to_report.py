@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Deterministically convert slides.json and its ledger to a medium-neutral report model."""
+import json
 import pathlib
 import sys
 
@@ -67,6 +68,80 @@ def _source_bindings(claim_ids, links, evidence, explicit=()):
             for source_id, values in sorted(locators.items())]
 
 
+def _claim_details(claim_ids, claims, links, evidence):
+    details = []
+    for claim_id in sorted(claim_ids):
+        claim = claims[claim_id]
+        related = [link for link in links if link["claim_id"] == claim_id]
+        grouped = {}
+        for link in related:
+            item = evidence[link["evidence_id"]]
+            grouped.setdefault(link["relation"], []).append({
+                "source_id": item["source_id"], "locator": item["locator"],
+                "excerpt": item.get("excerpt") or item.get("claim_text") or item.get("interpretation", ""),
+            })
+        scopes = sorted({link.get("applicable_scope", "") for link in related if link.get("applicable_scope")})
+        scope = claim.get("population") or claim.get("scope") or ("；".join(scopes) if scopes else "未限定")
+        details.append({
+            "id": claim_id, "statement": claim["statement"], "identity": claim["kind"],
+            "confidence": claim["confidence"], "scope": scope, "limitation": claim["limitation"],
+            "support_label": "indirect_lead" if claim["kind"] == "recommendation" or claim.get("verification") == "unverified" else "support",
+            "support": grouped.get("supports", []), "counter": grouped.get("contradicts", []),
+        })
+    return details
+
+
+def _decision_research(task):
+    path = pathlib.Path(task) / "03_evidence" / "decision-research.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+
+
+def _semantic_content(panel, panel_claims, claims, decision):
+    semantic = panel.get("semantic_type")
+    result = {}
+    if semantic == "pain-demand":
+        rows = []
+        for pain in decision.get("pain", []):
+            refs = set(pain.get("support_claim_refs", [])) | set(pain.get("counter_claim_refs", []))
+            if not refs.intersection(panel_claims):
+                continue
+            counter = "；".join(claims[ref]["statement"] for ref in pain.get("counter_claim_refs", []) if ref in claims)
+            rows.append({
+                "segment": pain["segment"], "trigger": pain["trigger"], "workaround": pain["workaround"],
+                "consequence": pain["consequence"], "purchase_signal": pain["purchase_signal"],
+                "evidence_strength": pain["confidence"], "counter": counter or "未取得结构化反证",
+                "validation_gap": pain["validation_gap"],
+            })
+        if rows:
+            result["pain_groups"] = rows
+    if semantic == "competition" and decision.get("competition"):
+        competition = decision["competition"]
+        criteria = competition.get("criteria", [])
+        alternatives = []
+        for layer, entries in competition.get("layers", {}).items():
+            for entry in entries:
+                alternatives.append({
+                    "name": entry["name"], "layer": layer,
+                    "values": {criterion: entry.get("values", {}).get(criterion, "待同口径核实") for criterion in criteria},
+                })
+        result["comparison"] = {"criteria": criteria, "alternatives": alternatives}
+    return result
+
+
+def _citation_registry(sections, source_ids):
+    ordered = []
+    seen = set()
+    for section in sections:
+        for block in section["blocks"]:
+            for source_id in block["source_ids"]:
+                if source_id not in seen:
+                    seen.add(source_id)
+                    ordered.append(source_id)
+    ordered.extend(sorted(set(source_ids) - seen))
+    return [{"source_id": source_id, "number": number, "appendix_anchor": f"source-{source_id}"}
+            for number, source_id in enumerate(ordered, 1)]
+
+
 def validate_report(report):
     """Validate report structure plus uniqueness and internal reference integrity."""
     problems = schema_check.check_document(schema_check.load("report.schema.json"), report, "report.json")
@@ -106,6 +181,20 @@ def validate_report(report):
             problems.append(f"relation {relation['id']} 引用了未知 panel：{ref}")
     reference_ids = [reference["id"] for reference in report["references"]]
     _unique(reference_ids, "references source id", problems)
+    if "citation_registry" in report:
+        citation_ids = [item["source_id"] for item in report["citation_registry"]]
+        citation_numbers = [item["number"] for item in report["citation_registry"]]
+        citation_anchors = [item["appendix_anchor"] for item in report["citation_registry"]]
+        _unique(citation_ids, "citation_registry source id", problems)
+        _unique(citation_numbers, "citation_registry number", problems)
+        _unique(citation_anchors, "citation_registry appendix anchor", problems)
+        if set(citation_ids) != set(reference_ids):
+            problems.append("citation_registry 与 references 来源不一致")
+        if citation_numbers != list(range(1, len(citation_numbers) + 1)):
+            problems.append("citation_registry number 必须从 1 连续递增")
+        for item in report["citation_registry"]:
+            if item["appendix_anchor"] != f"source-{item['source_id']}":
+                problems.append(f"citation_registry appendix anchor 与 source 不一致：{item['source_id']}")
     actual = {
         "claim_ids": ({ref for block in blocks for ref in block["claim_refs"]}
                       | set(report["executive_summary"]["answer_claim_refs"])),
@@ -162,6 +251,7 @@ def build(task, slides, sidecar=None):
     if problems:
         raise ReportError("REPORT_COVERAGE_MISMATCH", problems)
     links = link_records
+    decision = _decision_research(task)
     content = sorted((slide for slide in slides["slides"] if slide["page_role"] in CONTENT_ROLES),
                      key=lambda slide: slide["page"])
 
@@ -243,6 +333,7 @@ def build(task, slides, sidecar=None):
             panel_sources = _refs_for_claims(set(panel_claims), links, evidence) | set(panel.get("source_ids", []))
             source_bindings = _source_bindings(set(panel_claims), links, evidence, panel.get("source_ids", []))
             rel_refs = sorted(r["id"] for r in relations if panel["id"] in r["panel_refs"])
+            semantic_content = _semantic_content(panel, set(panel_claims), claims, decision)
             blocks.append({
                 "id": f"p{slide['page']:02d}-{panel['id']}",
                 "kind": FORM_KIND[panel["form"]],
@@ -262,6 +353,8 @@ def build(task, slides, sidecar=None):
                     "tradeoff": panel.get("tradeoff"), "capacity": panel.get("capacity"),
                     "semantic_type": panel.get("semantic_type"), "visual": panel.get("visual"),
                     "slot": panel["slot"], "span": panel["span"],
+                    "claims": _claim_details(panel_claims, claims, links, evidence),
+                    **semantic_content,
                 }.items() if v is not None},
             })
             output_claims.update(panel_claims)
@@ -307,9 +400,13 @@ def build(task, slides, sidecar=None):
                      "metric_ids": list(expected["metrics"]),
                      "source_ids": list(expected["sources"]), "card_ids": list(expected["a_cards"]),
                      "panel_ids": list(expected["panels"]), "relation_ids": list(expected["relations"])},
+        "citation_registry": _citation_registry(sections, source_ids),
         "sections": sections,
         "references": [{k: v for k, v in {"id": sid, "title": sources[sid]["title"], "url": sources[sid].get("final_url") or sources[sid].get("url"),
-                                                "origin": sources[sid]["origin"],
+                                                "origin": sources[sid]["origin"], "author": sources[sid].get("author_org"),
+                                                "publisher": sources[sid].get("publisher"), "published": sources[sid].get("published"),
+                                                "accessed": sources[sid].get("accessed"), "grade": sources[sid].get("grade"),
+                                                "conflict_of_interest": sources[sid].get("conflict_of_interest"),
                                                 "locators": sorted(reference_locators[sid])}.items() if v is not None} for sid in sorted(source_ids)],
         "appendix": [],
     }

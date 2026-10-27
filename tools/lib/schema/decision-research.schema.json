@@ -1,0 +1,70 @@
+{
+  "version": "1.0.0",
+  "comment": "Decision-grade pain, competition, method, and critical-claim contract.",
+  "enums": {
+    "confidence": {"values": ["high", "medium", "low", "unknown"], "labels": {"high": "高", "medium": "中", "low": "低", "unknown": "未知"}},
+    "method_status": {"values": ["ready", "hypothesis", "candidate", "blocked", "not_applicable"], "labels": {"ready": "可用", "hypothesis": "假设", "candidate": "候选结论", "blocked": "受阻", "not_applicable": "不适用"}},
+    "risk_type": {"values": ["none", "prevalence", "willingness_to_pay", "competitive_intensity", "causality", "regulatory_obligation"], "labels": {"none": "非高风险", "prevalence": "普遍性", "willingness_to_pay": "支付意愿", "competitive_intensity": "竞争强度", "causality": "因果", "regulatory_obligation": "监管义务"}}
+  },
+  "root": {
+    "type": "object",
+    "fields": {
+      "version": {"type": "integer", "min": 1, "max": 1, "required": true},
+      "material": {"type": "object", "required": true, "fields": {
+        "pain": {"type": "boolean", "required": true},
+        "competition": {"type": "boolean", "required": true},
+        "pricing": {"type": "boolean", "required": true}
+      }},
+      "pain": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+        "id": {"type": "string", "required": true},
+        "segment": {"type": "string", "required": true},
+        "trigger": {"type": "string", "required": true},
+        "workaround": {"type": "string", "required": true},
+        "consequence": {"type": "string", "required": true},
+        "purchase_signal": {"type": "string", "required": true},
+        "support_claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}},
+        "counter_claim_refs": {"type": "array", "required": true, "items": {"type": "string"}},
+        "adversarial_search_ref": {"type": "string"},
+        "confidence": {"type": "string", "enum": "confidence", "required": true},
+        "validation_gap": {"type": "string", "required": true}
+      }}},
+      "competition": {"type": "object", "required": true, "fields": {
+        "layers": {"type": "object", "required": true, "fields": {
+          "direct": {"type": "array", "min_items": 1, "items": {"type": "object", "fields": {
+            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "values": {"type": "map", "values": {"type": "string"}}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
+          }}},
+          "indirect": {"type": "array", "min_items": 1, "items": {"type": "object", "fields": {
+            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "values": {"type": "map", "values": {"type": "string"}}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
+          }}},
+          "diy": {"type": "array", "min_items": 1, "items": {"type": "object", "fields": {
+            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "values": {"type": "map", "values": {"type": "string"}}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
+          }}},
+          "adjacent": {"type": "array", "min_items": 1, "items": {"type": "object", "fields": {
+            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "values": {"type": "map", "values": {"type": "string"}}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
+          }}},
+          "do_nothing": {"type": "array", "min_items": 1, "items": {"type": "object", "fields": {
+            "name": {"type": "string"}, "not_applicable": {"type": "boolean"}, "rationale": {"type": "string"}, "values": {"type": "map", "values": {"type": "string"}}, "claim_refs": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}}
+          }}}
+        }},
+        "criteria": {"type": "array", "required": true, "items": {"type": "string"}},
+        "claim_refs": {"type": "array", "required": true, "items": {"type": "string"}}
+      }},
+      "methods": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+        "question": {"type": "string", "required": true},
+        "method": {"type": "string", "required": true},
+        "prerequisites": {"type": "array", "required": true, "items": {"type": "string"}},
+        "status": {"type": "string", "enum": "method_status", "required": true},
+        "output": {"type": "string", "required": true},
+        "downgrade_reason": {"type": "string"}
+      }}},
+      "critical_claim_refs": {"type": "array", "required": true, "items": {"type": "string"}},
+      "claim_risk_assessments": {"type": "array", "required": true, "items": {"type": "object", "fields": {
+        "claim_ref": {"type": "string", "required": true},
+        "risk_type": {"type": "string", "enum": "risk_type", "required": true},
+        "narrowed": {"type": "boolean", "required": true},
+        "limited_confidence": {"type": "boolean", "required": true},
+        "issuer_source_ids": {"type": "array", "required": true, "items": {"type": "string"}}
+      }}}
+    }
+  }
+}

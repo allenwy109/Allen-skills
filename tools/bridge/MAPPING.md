@@ -26,8 +26,12 @@
 | `html.kpi` | `metric` | 首批支持的指标块 |
 | `html.table` | `table` | 首批支持的表格块 |
 | panel 的 claim_refs | `claim_refs`、`identity` | identity 是所引用主张的 kind 集合；未知主张拦下 |
+| panel 的 claim_refs + 证据账主张/关系 | `content.claims` | 机械带入 statement、kind、confidence、scope、limitation，以及支持/反证的 evidence excerpt、source_id、locator；正文只显示紧凑证据，完整来源仍只在附录 |
+| `semantic_type=pain-demand` + `decision-research.json.pain` | `content.pain_groups` | 只按 claim_refs 连接；带入 segment、trigger、workaround、consequence、purchase_signal、confidence、counter claim statement 和 validation_gap，不复制或改写真源 |
+| `semantic_type=competition` + `decision-research.json.competition` | `content.comparison` | 按五层替代方案和共同购买 criteria 生成矩阵；可选 `values` 原样带入，缺项明确显示“待同口径核实”，不暗造评分 |
 | 页的 metric_refs 与 panel 主张的 metric_refs 交集 | `metric_refs` | 防止把未在正文声明的指标带入，也防止正文指标在输出消失 |
 | 主张 → claim_evidence → evidence | `source_ids`、`source_bindings`、`references` | binding 按 source_id 排序并带排序去重后的 evidence locator；references 汇总正文 evidence locator 与 A 卡 source_refs locator，保留来源标题和 URL；panel 显式 source_ids 一并保留 |
+| 正文来源与仅附录来源 | `citation_registry` | 正文按 block/source 首次出现编号并去重；仅附录来源按 source_id 排序追加。每项固定包含 `source_id`、连续 `number` 和 `source-<id>` anchor；完整来源字段只在附录显示 |
 | A 级卡片 | `executive_summary.a_card_refs` | A 卡关联的主张必须进入正文，否则覆盖失败 |
 
 coverage 的 `input` 和 `output` 都含排序后的 `claims`、`answer_claims`、`a_cards`、`panels`、`relations`、
