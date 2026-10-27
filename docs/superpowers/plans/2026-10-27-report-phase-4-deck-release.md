@@ -152,4 +152,3 @@ git commit -m "docs: accept report output overhaul"
 - [ ] **Step 5: Follow repository PR policy**
 
 Push the topic branch, open a PR to `dev` if that branch exists; otherwise target the repository's maintained development branch. Re-fetch the target branch before merge, synchronize if it advanced, rerun affected tests, squash-merge, and delete the topic branch. Do not target `main` unless the user explicitly authorizes a production release.
-

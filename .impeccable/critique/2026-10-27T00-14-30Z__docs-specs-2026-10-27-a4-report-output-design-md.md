@@ -2,7 +2,7 @@
 target: Allen-skills A4 report output design vs Zerox consulting-report-forge
 total_score: 32
 max_score: 40
-na_heuristics: 
+na_heuristics:
 p0_count: 0
 p1_count: 0
 target_identity: "file:/Users/markjackson/Repos/Allen-skills/docs/specs/2026-10-27-a4-report-output-design.md"

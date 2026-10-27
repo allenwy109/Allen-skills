@@ -151,4 +151,3 @@ Expected: PASS.
 git add out-report core-review/references/output-standard.md
 git commit -m "feat(out-report): make A4 the default report output"
 ```
-

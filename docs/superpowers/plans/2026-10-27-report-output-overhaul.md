@@ -18,4 +18,3 @@ Execute these plans in order:
 4. [out-deck and release acceptance](2026-10-27-report-phase-4-deck-release.md)
 
 Do not begin phase 2 until the phase-1 capability matrix has no `missing` entries. Do not implement the general A4 renderer until the golden booklet is approved. Do not switch application defaults until all six scenario fixtures pass and an independent reviewer signs the anonymous A/B comparison.
-

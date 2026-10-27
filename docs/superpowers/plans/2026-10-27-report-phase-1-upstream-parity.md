@@ -146,4 +146,3 @@ Expected: PASS.
 git add references/visual-baseline.schema.json references/upstream-visual-baseline.json tools/report_capabilities.py tools/tests/test_report_capabilities.py
 git commit -m "test(report): lock upstream visual baselines"
 ```
-

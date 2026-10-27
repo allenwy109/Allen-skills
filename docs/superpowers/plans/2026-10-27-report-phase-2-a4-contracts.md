@@ -128,4 +128,3 @@ Expected before implementation: FAIL; after implementation: PASS.
 git add out-report/assets out-report/scripts/tests/test_design_catalogs.py
 git commit -m "feat(report): add A4 visual design system"
 ```
-
