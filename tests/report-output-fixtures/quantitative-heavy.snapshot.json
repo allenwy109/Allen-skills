@@ -1,0 +1,209 @@
+{
+  "manuscript_appendix": "\n## 分歧与不确定性\n\n统计口径和预测区间仍存在差异。\n\n## 未解问题\n\n价格与需求的联动关系仍需更多样本验证。\n",
+  "sidecar": {
+    "backup_pages": [],
+    "confirmation_points": [
+      {
+        "note": "固定验收场景",
+        "stage": "storyline",
+        "status": "auto_adopted"
+      }
+    ],
+    "speaker_notes": []
+  },
+  "slides": {
+    "deck": {
+      "answer_claim_refs": [
+        "cl-0001"
+      ],
+      "arc": "evidence-to-view",
+      "audience": "经营分析团队",
+      "brief": {
+        "baseline": "2024 年收入",
+        "constraints": "缺少客户留存和利润数据",
+        "period": "2024–2026",
+        "purpose": "diagnosis",
+        "question": "星河数据科技的收入增长能否支持继续跟进？",
+        "scope": "星河数据科技合并口径",
+        "success_criteria": "区分已核实的收入变化和待补的增长质量"
+      },
+      "cover": {
+        "closing_text": "谢谢",
+        "date": "2026-10-23",
+        "producer": "Allen 分析系统",
+        "project": "算力市场定量追踪",
+        "subtitle": "虚构样稿，仅用于工具验证",
+        "version": "v1"
+      },
+      "decision": "如何配置预算",
+      "kind": "reading",
+      "language": "zh-CN",
+      "ratio": "16x9",
+      "story_mode": "industry_research",
+      "title": "算力市场定量追踪"
+    },
+    "slides": [
+      {
+        "action_title": "算力市场定量追踪",
+        "page": 1,
+        "page_role": "cover",
+        "story_beat": "context",
+        "type": "cover"
+      },
+      {
+        "action_title": "收入两年增长 77.8%，规模仍小",
+        "adds": "读者知道收入增长的幅度和绝对规模",
+        "anchor_panel": "quantitative-bars",
+        "claim_refs": [
+          "cl-0001"
+        ],
+        "density": {
+          "evidence_units": [
+            {
+              "purpose": "两年收入同量尺比较",
+              "role": "primary"
+            },
+            {
+              "purpose": "说明收入口径和推论边界",
+              "role": "support"
+            }
+          ],
+          "profile": "balanced",
+          "space_intent": "主图充分展开，右侧写口径和边界"
+        },
+        "metric_refs": [
+          "m-0001",
+          "m-0002",
+          "m-0003"
+        ],
+        "page": 2,
+        "page_role": "analysis",
+        "panels": [
+          {
+            "alternative": "并排数字卡",
+            "capacity": {
+              "items": 2
+            },
+            "claim_refs": [
+              "cl-0001"
+            ],
+            "form": "svg.custom",
+            "id": "quantitative-bars",
+            "purpose": "两年收入同量尺比较，看出增长幅度",
+            "reason": "两期数值共用零基线，柱形比较绝对规模最直接",
+            "relationship": "comparison",
+            "role": "primary",
+            "semantic_type": "comparison",
+            "slot": "main",
+            "span": 2,
+            "tradeoff": "柱形更适合比较绝对规模",
+            "visual": "两年收入柱形"
+          },
+          {
+            "claim_refs": [
+              "cl-0001"
+            ],
+            "form": "svg.custom",
+            "id": "quantitative-note",
+            "purpose": "说明收入口径和不能推出的结论",
+            "reason": "口径和边界是文字判断，用短段落最清楚",
+            "relationship": "comparison",
+            "role": "support",
+            "slot": "aside",
+            "span": 1
+          }
+        ],
+        "proves": "收入从 1800 万元增至 3200 万元",
+        "relations": [
+          {
+            "id": "quantitative-bars-note",
+            "kind": "boundary",
+            "panel_refs": [
+              "quantitative-bars",
+              "quantitative-note"
+            ],
+            "reason": "右侧文字限定左图能支持的结论范围"
+          }
+        ],
+        "section": "01 收入",
+        "story_beat": "diagnosis",
+        "subtitle": "单位：万元｜2024–2025 全年｜合并口径",
+        "type": "data_chart",
+        "visual_intent": {
+          "form": "svg.custom",
+          "layout": "custom",
+          "layout_reason": "主图占左侧三分之二，右侧写口径和边界",
+          "reading_path": "标题 → 两年柱形 → 口径与边界",
+          "relationship": "comparison"
+        }
+      },
+      {
+        "action_title": "先核实客户留存，再决定是否扩大投入",
+        "adds": "读者知道下一步先补什么数据、再做什么决定",
+        "anchor_panel": "quantitative-kpi",
+        "claim_refs": [
+          "cl-0003"
+        ],
+        "density": {
+          "evidence_units": [
+            {
+              "purpose": "2026 年指引作为规模参考",
+              "role": "context"
+            },
+            {
+              "purpose": "建议与对应的前提条件",
+              "role": "primary"
+            }
+          ],
+          "profile": "balanced",
+          "space_intent": "左侧单个指标，右侧条件表"
+        },
+        "metric_refs": [
+          "m-0007"
+        ],
+        "page": 3,
+        "page_role": "action",
+        "panels": [
+          {
+            "capacity": {
+              "items": 1
+            },
+            "claim_refs": [
+              "cl-0003"
+            ],
+            "form": "html.kpi",
+            "id": "quantitative-kpi",
+            "purpose": "给出 2026 年收入指引的规模参考",
+            "reason": "单个预测值用指标卡突出，并标明预测身份",
+            "relationship": "kpi",
+            "role": "primary",
+            "slot": "left",
+            "span": 1
+          }
+        ],
+        "proves": "增长质量需要留存数据，才能支持扩大投入",
+        "relations": [],
+        "section": "02 建议",
+        "story_beat": "action",
+        "subtitle": "建议｜依据：收入变化与管理层指引",
+        "type": "recommendation",
+        "visual_intent": {
+          "form": "html.table",
+          "layout": "custom",
+          "layout_reason": "左侧指标卡给出规模参考，右侧表格写建议和前提",
+          "reading_path": "标题 → 指引 → 建议与待确认事项",
+          "relationship": "decision"
+        }
+      },
+      {
+        "action_title": "谢谢",
+        "page": 4,
+        "page_role": "close",
+        "story_beat": "close",
+        "type": "close"
+      }
+    ]
+  },
+  "slides_md": "# 逐页内容\n\n## P01 ｜ — ｜ 封面\n**行动标题**：算力市场定量追踪\n\n## P02 ｜ 01 收入 ｜ 数据图表\n**行动标题**：收入两年增长 77.8%，规模仍小\n\n## P03 ｜ 02 建议 ｜ 建议\n**行动标题**：先核实客户留存，再决定是否扩大投入\n\n## P04 ｜ — ｜ 结尾\n**行动标题**：谢谢\n",
+  "story_mode_label": "行业研究"
+}

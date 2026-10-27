@@ -5,12 +5,14 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
 import unittest
 
 from tools.tests import fixtures as F
+from tools.acceptance import Acceptance
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -23,9 +25,8 @@ CASE_FIELDS = {
 }
 
 
-def canonical_digest(value):
-    payload = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
-    return hashlib.sha256(payload).hexdigest()
+def file_digest(path):
+    return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 
 
 def runtime_root():
@@ -58,22 +59,12 @@ def write_json(path, value):
     )
 
 
-def apply_snapshot(slides, snapshot):
-    payload = snapshot["payload"]
-    for field in ("title", "story_mode", "audience", "decision"):
-        slides["deck"][field] = payload[field]
-    slides["deck"]["cover"]["project"] = payload["title"]
-    slides["slides"][0]["action_title"] = payload["title"]
-    variant = payload["variant"]
-    if variant == "decision-table":
-        slides["slides"][1]["panels"][0].update(form="html.table", relationship="decision")
-    elif variant == "chart-heavy":
-        slides["slides"][1]["panels"][1].update(form="svg.custom", relationship="comparison")
-    elif variant == "text-heavy":
-        slides["slides"][1]["panels"][0].update(form="html.text", relationship="text")
-        slides["slides"][2]["panels"][0].update(form="html.text", relationship="text")
-    elif variant != "balanced":
-        raise AssertionError(f"unknown fixed variant: {variant}")
+def snapshot_path(snapshot):
+    path = (ROOT / snapshot["path"]).resolve()
+    fixtures = (ROOT / "tests/report-output-fixtures").resolve()
+    if fixtures not in path.parents:
+        raise AssertionError(f"snapshot escapes fixture directory: {path}")
+    return path
 
 
 def apply_negative(slides, mutation):
@@ -84,8 +75,6 @@ def apply_negative(slides, mutation):
         slides["slides"][1]["claim_refs"].append("cl-9999")
     elif kind == "duplicate-panel":
         slides["slides"][2]["panels"][0]["id"] = slides["slides"][1]["panels"][0]["id"]
-    elif kind == "duplicate-relation":
-        slides["slides"][2]["relations"][0]["id"] = slides["slides"][1]["relations"][0]["id"]
     elif kind == "unknown-metric":
         slides["slides"][1]["metric_refs"].append("m-9999")
     elif kind == "unknown-relation-panel":
@@ -98,12 +87,61 @@ def make_case_task(root, case, negative=False):
     task = pathlib.Path(root) / ("negative" if negative else "positive")
     F.make_storyline_package(task)
     slides_file = task / "07_storyline/slides.json"
-    slides = read_json(slides_file)
-    apply_snapshot(slides, case["input_snapshot"])
+    snapshot = read_json(snapshot_path(case["input_snapshot"]))
+    slides = snapshot["slides"]
     if negative:
         apply_negative(slides, case["negative_mutation"])
     write_json(slides_file, slides)
+    write_json(task / "07_storyline/sidecar.json", snapshot["sidecar"])
+    storyline = task / "07_storyline/03_storyline.md"
+    storyline.write_text(
+        re.sub(r"故事线模式：[^\n]+", f"故事线模式：{snapshot['story_mode_label']}", storyline.read_text(encoding="utf-8")),
+        encoding="utf-8",
+    )
+    (task / "07_storyline/06_slides.md").write_text(snapshot["slides_md"], encoding="utf-8")
+    manuscript = task / "07_storyline/04_manuscript.md"
+    manuscript.write_text(manuscript.read_text(encoding="utf-8") + snapshot["manuscript_appendix"], encoding="utf-8")
+    clean = subprocess.run(
+        [sys.executable, str(F.STORYLINE), "clean", str(task)], capture_output=True, text=True,
+    )
+    if clean.returncode:
+        raise AssertionError(clean.stdout + clean.stderr)
     return task
+
+
+def approve_and_package(task, work):
+    regression = read_json(work / "visual-regression.json")
+    artifacts = read_json(work / "artifact-manifest.json")
+    pagination = read_json(work / "build/pagination-manifest.json")
+    page_ids = [page["id"] for page in pagination["pages"]]
+    author = work / "author-review.json"
+    write_json(author, {
+        "type": "author", "reviewer": "固定场景作者审查员", "reviewedAt": "2026-10-27T14:00:00+10:30",
+        "decision": "accepted", "reason": "逐页检查固定场景的层级、证据、来源与分页，未发现阻断交付的问题。",
+        "baselineDigest": regression["baselineDigest"], "candidateDigest": regression["candidateDigest"],
+        "differenceDigest": regression["differenceDigest"], "artifactDigest": artifacts["artifactDigest"],
+        "paginationDigest": artifacts["paginationDigest"],
+    })
+    result = run_cli("review", task, "author", author)
+    if result.returncode:
+        raise AssertionError(result.stdout + result.stderr)
+    independent = work / "independent-review.json"
+    write_json(independent, {
+        "type": "independent", "reviewer": "固定场景独立审查员", "at": "2026-10-27T14:05:00+10:30",
+        "conclusion": "逐页复核 HTML 与 PDF 后，结构、证据绑定和阅读节奏满足固定场景验收要求。", "issues": [],
+        "artifactDigest": artifacts["artifactDigest"], "paginationDigest": artifacts["paginationDigest"],
+        "page_ids": page_ids, "media": ["html", "pdf"], "scales": ["100%", "contact-sheet"],
+        "chapter_contact_sheets": [{"chapter": "whole-book", "page_ids": page_ids,
+                                     "observation": "整册缩略图显示章节过渡、信息密度与留白节奏保持一致。"}],
+        "headline_chain": {"status": "reviewed", "observation": "标题链从证据推进到判断与行动，论证顺序完整。"},
+        "observations": [{"page_id": page_id, "media": ["html", "pdf"], "scale": ["100%", "contact-sheet"],
+                          "observation": f"{page_id} 已在两种媒介和两种尺度检查层级、正文、图表与来源。",
+                          "reason": "未发现裁切、证据遗漏或会改变结论的视觉强调。"} for page_id in page_ids],
+    })
+    result = run_cli("review", task, "independent", independent)
+    if result.returncode:
+        raise AssertionError(result.stdout + result.stderr)
+    return run_cli("package", task)
 
 
 class ReportOutputScenarioAcceptanceTest(unittest.TestCase):
@@ -114,13 +152,20 @@ class ReportOutputScenarioAcceptanceTest(unittest.TestCase):
     def test_fixture_contract_and_snapshot_hashes_are_locked(self):
         self.assertEqual(6, len(self.cases))
         self.assertEqual(6, len({case["scene"] for case in self.cases}))
+        self.assertGreaterEqual(len({tuple(case["expected_claims"]) for case in self.cases}), 4)
+        self.assertEqual(6, len({tuple(case["expected_panels"]) for case in self.cases}))
+        self.assertGreaterEqual(len({tuple(case["expected_relations"]) for case in self.cases}), 4)
+        self.assertGreaterEqual(len({tuple(case["expected_components"]) for case in self.cases}), 5)
         for case in self.cases:
             with self.subTest(case=case["id"]):
                 self.assertEqual(CASE_FIELDS, set(case))
-                self.assertEqual(case["input_snapshot"]["sha256"], canonical_digest(case["input_snapshot"]["payload"]))
-                self.assertEqual("awaiting-human-visual-review", case["expected_status"])
+                path = snapshot_path(case["input_snapshot"])
+                self.assertTrue(path.is_file())
+                self.assertEqual(case["input_snapshot"]["sha256"], file_digest(path))
+                self.assertEqual("passed", case["expected_status"])
                 self.assertLessEqual(case["page_range"][0], case["page_range"][1])
                 self.assertTrue(case["negative_mutation"]["expected_status"].startswith("REPORT_"))
+                self.assertTrue(case["negative_mutation"]["expected_detail"])
 
     def test_every_case_matches_coverage_components_pages_and_status(self):
         for case in self.cases:
@@ -145,10 +190,13 @@ class ReportOutputScenarioAcceptanceTest(unittest.TestCase):
                 self.assertLessEqual(pagination["pageCount"], case["page_range"][1])
                 qa = read_json(work / "qa-result.json")
                 self.assertEqual({"REPORT_VISUAL_REGRESSION"}, {item["code"] for item in qa["blocking"]})
-                status = "awaiting-human-visual-review" if qa["status"] == "failed" else qa["status"]
-                self.assertEqual(case["expected_status"], status)
                 self.assertTrue((work / "build/report.html").is_file())
                 self.assertTrue((work / "build/report.pdf").is_file())
+                package = approve_and_package(task, work)
+                self.assertEqual(0, package.returncode, package.stdout + package.stderr)
+                entry = next(item for item in Acceptance(task).load()["deliverables"] if item["id"] == "report-main")
+                self.assertEqual(case["expected_status"], entry["status"])
+                self.assertEqual("independent", entry["reviewer"]["type"])
 
             with self.subTest(case=case["id"], path="negative"), tempfile.TemporaryDirectory() as temporary:
                 task = make_case_task(temporary, case, negative=True)
@@ -156,7 +204,18 @@ class ReportOutputScenarioAcceptanceTest(unittest.TestCase):
                 self.assertNotEqual(0, result.returncode, result.stdout + result.stderr)
                 expected = case["negative_mutation"]["expected_status"]
                 self.assertIn(expected, result.stderr)
+                self.assertIn(case["negative_mutation"]["expected_detail"], result.stderr)
                 self.assertFalse((task / "07_storyline/a4-work").exists())
+
+    def test_missing_reviews_fail_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            task = make_case_task(temporary, self.cases[0])
+            self.assertEqual(0, run_cli("init", task).returncode)
+            self.assertEqual(1, run_cli("render", task).returncode)
+            package = run_cli("package", task)
+            self.assertEqual(1, package.returncode)
+            self.assertIn("author-review", package.stderr)
+            self.assertIn("independent-review", package.stderr)
 
 
 if __name__ == "__main__":

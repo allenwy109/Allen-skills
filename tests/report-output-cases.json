@@ -3,90 +3,243 @@
     "id": "idea-validation",
     "scene": "创业点子评估",
     "input_snapshot": {
-      "sha256": "b73a661f8ec4457ab647ffa17013ce972471a2c780422abdfd33059785a6f362",
-      "payload": {"title": "区域算力资源池创业评估", "story_mode": "opportunity", "audience": "创业团队", "decision": "是否进入付费验证", "variant": "balanced"}
+      "path": "tests/report-output-fixtures/idea-validation.snapshot.json",
+      "sha256": "6f30e7fc13fd8734adc139024732ffe4e331a9d5753bd1ab7cd0d09b484f5543"
     },
-    "expected_claims": ["cl-0001", "cl-0003", "cl-0004", "cl-0005"],
-    "expected_panels": ["bars", "kpi", "note", "steps"],
-    "expected_relations": ["bars-note", "kpi-steps"],
-    "expected_components": ["cover", "toc", "executive-summary", "section-title", "data-chart", "claim-evidence", "section-title", "executive-summary", "claim-evidence", "references-appendix"],
-    "page_range": [6, 8],
-    "expected_status": "awaiting-human-visual-review",
-    "negative_mutation": {"type": "unsupported-form", "expected_status": "REPORT_UNSUPPORTED_BLOCK"}
+    "expected_claims": [
+      "cl-0001",
+      "cl-0003",
+      "cl-0004",
+      "cl-0005"
+    ],
+    "expected_panels": [
+      "idea-bars",
+      "idea-kpi",
+      "idea-note",
+      "idea-steps"
+    ],
+    "expected_relations": [
+      "idea-bars-note",
+      "idea-kpi-steps"
+    ],
+    "expected_components": [
+      "cover",
+      "toc",
+      "executive-summary",
+      "section-title",
+      "data-chart",
+      "claim-evidence",
+      "section-title",
+      "executive-summary",
+      "claim-evidence",
+      "references-appendix"
+    ],
+    "page_range": [
+      5,
+      12
+    ],
+    "expected_status": "passed",
+    "negative_mutation": {
+      "type": "unsupported-form",
+      "expected_status": "REPORT_UNSUPPORTED_BLOCK",
+      "expected_detail": "不支持的 block form：unsupported.form"
+    }
   },
   {
     "id": "company-profile",
     "scene": "企业全景",
     "input_snapshot": {
-      "sha256": "14b14e60c98122d2b0759d1145924a956674f75b0be7f6ba832766df119b3b41",
-      "payload": {"title": "星河数据科技企业全景", "story_mode": "company_research", "audience": "投资经理", "decision": "是否继续跟进", "variant": "balanced"}
+      "path": "tests/report-output-fixtures/company-profile.snapshot.json",
+      "sha256": "52678e59e179bb62a72be600c5d0f1bed6167ec0b08f849b8af1935257a8c1e2"
     },
-    "expected_claims": ["cl-0001", "cl-0003", "cl-0004", "cl-0005"],
-    "expected_panels": ["bars", "kpi", "note", "steps"],
-    "expected_relations": ["bars-note", "kpi-steps"],
-    "expected_components": ["cover", "toc", "executive-summary", "section-title", "data-chart", "claim-evidence", "section-title", "executive-summary", "claim-evidence", "references-appendix"],
-    "page_range": [6, 8],
-    "expected_status": "awaiting-human-visual-review",
-    "negative_mutation": {"type": "unknown-claim", "expected_status": "REPORT_CONVERSION_FAILED"}
+    "expected_claims": [
+      "cl-0001",
+      "cl-0003",
+      "cl-0004",
+      "cl-0005"
+    ],
+    "expected_panels": [
+      "company-bars",
+      "company-kpi",
+      "company-steps"
+    ],
+    "expected_relations": [
+      "company-kpi-steps"
+    ],
+    "expected_components": [
+      "cover",
+      "toc",
+      "executive-summary",
+      "section-title",
+      "data-chart",
+      "section-title",
+      "executive-summary",
+      "claim-evidence",
+      "references-appendix"
+    ],
+    "page_range": [
+      4,
+      11
+    ],
+    "expected_status": "passed",
+    "negative_mutation": {
+      "type": "unknown-claim",
+      "expected_status": "REPORT_CONVERSION_FAILED",
+      "expected_detail": "主张 cl-9999 不在证据账里"
+    }
   },
   {
     "id": "bp-review",
     "scene": "BP 评审",
     "input_snapshot": {
-      "sha256": "427644afe9ff3e358dd1f02bc1aea388d7f6d42b314b9096aba3fa3a804a84db",
-      "payload": {"title": "云舟科技 BP 评审", "story_mode": "request_approval", "audience": "投资委员会", "decision": "是否邀请路演", "variant": "decision-table"}
+      "path": "tests/report-output-fixtures/bp-review.snapshot.json",
+      "sha256": "3701906f73c041483fe76c822864e2edc01fb6d6d6c4da6294457857ddef82bd"
     },
-    "expected_claims": ["cl-0001", "cl-0003", "cl-0004", "cl-0005"],
-    "expected_panels": ["bars", "kpi", "note", "steps"],
-    "expected_relations": ["bars-note", "kpi-steps"],
-    "expected_components": ["cover", "toc", "executive-summary", "section-title", "claim-evidence", "claim-evidence", "section-title", "executive-summary", "claim-evidence", "references-appendix"],
-    "page_range": [6, 8],
-    "expected_status": "awaiting-human-visual-review",
-    "negative_mutation": {"type": "duplicate-panel", "expected_status": "REPORT_CONVERSION_FAILED"}
+    "expected_claims": [
+      "cl-0001",
+      "cl-0004",
+      "cl-0005"
+    ],
+    "expected_panels": [
+      "bp-note",
+      "bp-steps"
+    ],
+    "expected_relations": [],
+    "expected_components": [
+      "cover",
+      "toc",
+      "executive-summary",
+      "section-title",
+      "claim-evidence",
+      "section-title",
+      "claim-evidence",
+      "references-appendix"
+    ],
+    "page_range": [
+      4,
+      10
+    ],
+    "expected_status": "passed",
+    "negative_mutation": {
+      "type": "duplicate-panel",
+      "expected_status": "REPORT_COVERAGE_MISMATCH",
+      "expected_detail": "重复 panel id：bp-note"
+    }
   },
   {
     "id": "topic-research",
     "scene": "行业／话题研究",
     "input_snapshot": {
-      "sha256": "d5037c6dd019d6289c5b5aa6644946db263efce0efe4be34b30a3983765bd3c2",
-      "payload": {"title": "边缘 AI 行业研究", "story_mode": "industry_research", "audience": "战略负责人", "decision": "是否配置研究资源", "variant": "balanced"}
+      "path": "tests/report-output-fixtures/topic-research.snapshot.json",
+      "sha256": "0f3b6092098c8bc45607510cf4d2e40f40a63538e8c1fd74a6db0de234be1d23"
     },
-    "expected_claims": ["cl-0001", "cl-0003", "cl-0004", "cl-0005"],
-    "expected_panels": ["bars", "kpi", "note", "steps"],
-    "expected_relations": ["bars-note", "kpi-steps"],
-    "expected_components": ["cover", "toc", "executive-summary", "section-title", "data-chart", "claim-evidence", "section-title", "executive-summary", "claim-evidence", "references-appendix"],
-    "page_range": [6, 8],
-    "expected_status": "awaiting-human-visual-review",
-    "negative_mutation": {"type": "duplicate-relation", "expected_status": "REPORT_COVERAGE_MISMATCH"}
+    "expected_claims": [
+      "cl-0001"
+    ],
+    "expected_panels": [
+      "topic-bars"
+    ],
+    "expected_relations": [],
+    "expected_components": [
+      "cover",
+      "toc",
+      "executive-summary",
+      "section-title",
+      "data-chart",
+      "references-appendix"
+    ],
+    "page_range": [
+      3,
+      8
+    ],
+    "expected_status": "passed",
+    "negative_mutation": {
+      "type": "unknown-claim",
+      "expected_status": "REPORT_CONVERSION_FAILED",
+      "expected_detail": "主张 cl-9999 不在证据账里"
+    }
   },
   {
     "id": "quantitative-heavy",
     "scene": "定量图表密集报告",
     "input_snapshot": {
-      "sha256": "c407bb859ae7deee69408d1c9e1e841a166dbc8393102f5f8ec94d60db5d71d5",
-      "payload": {"title": "算力市场定量追踪", "story_mode": "industry_research", "audience": "经营分析团队", "decision": "如何配置预算", "variant": "chart-heavy"}
+      "path": "tests/report-output-fixtures/quantitative-heavy.snapshot.json",
+      "sha256": "d0f3c0c6cf42d4a5ae67076e7dcf88652dfc050e23e92089b165239ed149c7f7"
     },
-    "expected_claims": ["cl-0001", "cl-0003", "cl-0004", "cl-0005"],
-    "expected_panels": ["bars", "kpi", "note", "steps"],
-    "expected_relations": ["bars-note", "kpi-steps"],
-    "expected_components": ["cover", "toc", "executive-summary", "section-title", "data-chart", "data-chart", "section-title", "executive-summary", "claim-evidence", "references-appendix"],
-    "page_range": [6, 8],
-    "expected_status": "awaiting-human-visual-review",
-    "negative_mutation": {"type": "unknown-metric", "expected_status": "REPORT_CONVERSION_FAILED"}
+    "expected_claims": [
+      "cl-0001",
+      "cl-0003"
+    ],
+    "expected_panels": [
+      "quantitative-bars",
+      "quantitative-kpi",
+      "quantitative-note"
+    ],
+    "expected_relations": [
+      "quantitative-bars-note"
+    ],
+    "expected_components": [
+      "cover",
+      "toc",
+      "executive-summary",
+      "section-title",
+      "data-chart",
+      "data-chart",
+      "section-title",
+      "executive-summary",
+      "references-appendix"
+    ],
+    "page_range": [
+      4,
+      11
+    ],
+    "expected_status": "passed",
+    "negative_mutation": {
+      "type": "unknown-metric",
+      "expected_status": "REPORT_CONVERSION_FAILED",
+      "expected_detail": "metric_refs 里的 m-9999 不在报告的指标里"
+    }
   },
   {
     "id": "evidence-heavy",
     "scene": "文字证据密集报告",
     "input_snapshot": {
-      "sha256": "4caea5b59564eb93c9177e1121a0964bc228709cc2afe2d2f1652cd40760a8b4",
-      "payload": {"title": "客户需求证据研究", "story_mode": "problem_to_solution", "audience": "产品负责人", "decision": "是否进入产品验证", "variant": "text-heavy"}
+      "path": "tests/report-output-fixtures/evidence-heavy.snapshot.json",
+      "sha256": "73434bc69a5c3a5410c58c3a6c4b727d34e1bc38632c5b18c4d57e57886ddc40"
     },
-    "expected_claims": ["cl-0001", "cl-0003", "cl-0004", "cl-0005"],
-    "expected_panels": ["bars", "kpi", "note", "steps"],
-    "expected_relations": ["bars-note", "kpi-steps"],
-    "expected_components": ["cover", "toc", "executive-summary", "section-title", "claim-evidence", "claim-evidence", "section-title", "claim-evidence", "claim-evidence", "references-appendix"],
-    "page_range": [6, 8],
-    "expected_status": "awaiting-human-visual-review",
-    "negative_mutation": {"type": "unknown-relation-panel", "expected_status": "REPORT_CONVERSION_FAILED"}
+    "expected_claims": [
+      "cl-0001",
+      "cl-0004",
+      "cl-0005"
+    ],
+    "expected_panels": [
+      "evidence-bars",
+      "evidence-note",
+      "evidence-steps"
+    ],
+    "expected_relations": [
+      "evidence-bars-note"
+    ],
+    "expected_components": [
+      "cover",
+      "toc",
+      "executive-summary",
+      "section-title",
+      "claim-evidence",
+      "claim-evidence",
+      "section-title",
+      "claim-evidence",
+      "references-appendix"
+    ],
+    "page_range": [
+      4,
+      11
+    ],
+    "expected_status": "passed",
+    "negative_mutation": {
+      "type": "unknown-relation-panel",
+      "expected_status": "REPORT_CONVERSION_FAILED",
+      "expected_detail": "relation evidence-bars-note 引用了不存在的 panel missing-panel"
+    }
   }
 ]

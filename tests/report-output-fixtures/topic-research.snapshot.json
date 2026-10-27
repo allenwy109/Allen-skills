@@ -1,0 +1,128 @@
+{
+  "manuscript_appendix": "\n## 分歧与不确定性\n\n不同参与者对增长持续性仍有分歧。\n\n## 未解问题\n\n需求强度与供给弹性仍需后续数据验证。\n",
+  "sidecar": {
+    "backup_pages": [],
+    "confirmation_points": [
+      {
+        "note": "固定验收场景",
+        "stage": "storyline",
+        "status": "auto_adopted"
+      }
+    ],
+    "speaker_notes": []
+  },
+  "slides": {
+    "deck": {
+      "answer_claim_refs": [
+        "cl-0001"
+      ],
+      "arc": "evidence-to-view",
+      "audience": "战略负责人",
+      "brief": {
+        "baseline": "2024 年收入",
+        "constraints": "缺少客户留存和利润数据",
+        "period": "2024–2026",
+        "purpose": "diagnosis",
+        "question": "星河数据科技的收入增长能否支持继续跟进？",
+        "scope": "星河数据科技合并口径",
+        "success_criteria": "区分已核实的收入变化和待补的增长质量"
+      },
+      "cover": {
+        "closing_text": "谢谢",
+        "date": "2026-10-23",
+        "producer": "Allen 分析系统",
+        "project": "边缘 AI 行业研究",
+        "subtitle": "虚构样稿，仅用于工具验证",
+        "version": "v1"
+      },
+      "decision": "是否配置研究资源",
+      "kind": "reading",
+      "language": "zh-CN",
+      "ratio": "16x9",
+      "story_mode": "industry_research",
+      "title": "边缘 AI 行业研究"
+    },
+    "slides": [
+      {
+        "action_title": "边缘 AI 行业研究",
+        "page": 1,
+        "page_role": "cover",
+        "story_beat": "context",
+        "type": "cover"
+      },
+      {
+        "action_title": "收入两年增长 77.8%，规模仍小",
+        "adds": "读者知道收入增长的幅度和绝对规模",
+        "anchor_panel": "topic-bars",
+        "claim_refs": [
+          "cl-0001"
+        ],
+        "density": {
+          "evidence_units": [
+            {
+              "purpose": "两年收入同量尺比较",
+              "role": "primary"
+            },
+            {
+              "purpose": "说明收入口径和推论边界",
+              "role": "support"
+            }
+          ],
+          "profile": "balanced",
+          "space_intent": "主图充分展开，右侧写口径和边界"
+        },
+        "metric_refs": [
+          "m-0001",
+          "m-0002",
+          "m-0003"
+        ],
+        "page": 2,
+        "page_role": "analysis",
+        "panels": [
+          {
+            "alternative": "并排数字卡",
+            "capacity": {
+              "items": 2
+            },
+            "claim_refs": [
+              "cl-0001"
+            ],
+            "form": "svg.custom",
+            "id": "topic-bars",
+            "purpose": "两年收入同量尺比较，看出增长幅度",
+            "reason": "两期数值共用零基线，柱形比较绝对规模最直接",
+            "relationship": "comparison",
+            "role": "primary",
+            "semantic_type": "comparison",
+            "slot": "main",
+            "span": 2,
+            "tradeoff": "柱形更适合比较绝对规模",
+            "visual": "两年收入柱形"
+          }
+        ],
+        "proves": "收入从 1800 万元增至 3200 万元",
+        "relations": [],
+        "section": "01 收入",
+        "story_beat": "diagnosis",
+        "subtitle": "单位：万元｜2024–2025 全年｜合并口径",
+        "type": "recommendation",
+        "visual_intent": {
+          "form": "svg.custom",
+          "layout": "custom",
+          "layout_reason": "主图占左侧三分之二，右侧写口径和边界",
+          "reading_path": "标题 → 两年柱形 → 口径与边界",
+          "relationship": "comparison"
+        }
+      },
+      {
+        "action_title": "谢谢",
+        "page": 4,
+        "page_role": "close",
+        "story_beat": "close",
+        "type": "close"
+      }
+    ]
+  },
+  "slides_md": "# 逐页内容\n\n## P01 ｜ — ｜ 封面\n**行动标题**：边缘 AI 行业研究\n\n## P02 ｜ 01 收入 ｜ 建议\n**行动标题**：收入两年增长 77.8%，规模仍小\n\n## P04 ｜ — ｜ 结尾\n**行动标题**：谢谢\n",
+  "story_mode_label": "行业研究"
+}

@@ -1,0 +1,172 @@
+{
+  "manuscript_appendix": "\n## 不批的后果\n\n若不进入下一轮，项目保持观察而不追加投入。\n",
+  "sidecar": {
+    "backup_pages": [],
+    "confirmation_points": [
+      {
+        "note": "固定验收场景",
+        "stage": "storyline",
+        "status": "auto_adopted"
+      }
+    ],
+    "speaker_notes": []
+  },
+  "slides": {
+    "deck": {
+      "answer_claim_refs": [
+        "cl-0001"
+      ],
+      "arc": "opportunity-to-choice",
+      "audience": "投资委员会",
+      "brief": {
+        "baseline": "2024 年收入",
+        "constraints": "缺少客户留存和利润数据",
+        "period": "2024–2026",
+        "purpose": "diagnosis",
+        "question": "星河数据科技的收入增长能否支持继续跟进？",
+        "scope": "星河数据科技合并口径",
+        "success_criteria": "区分已核实的收入变化和待补的增长质量"
+      },
+      "cover": {
+        "closing_text": "谢谢",
+        "date": "2026-10-23",
+        "producer": "Allen 分析系统",
+        "project": "云舟科技 BP 评审",
+        "subtitle": "虚构样稿，仅用于工具验证",
+        "version": "v1"
+      },
+      "decision": "是否邀请路演",
+      "kind": "reading",
+      "language": "zh-CN",
+      "ratio": "16x9",
+      "story_mode": "request_approval",
+      "title": "云舟科技 BP 评审"
+    },
+    "slides": [
+      {
+        "action_title": "云舟科技 BP 评审",
+        "page": 1,
+        "page_role": "cover",
+        "story_beat": "context",
+        "type": "cover"
+      },
+      {
+        "action_title": "收入两年增长 77.8%，规模仍小",
+        "adds": "读者知道收入增长的幅度和绝对规模",
+        "anchor_panel": "bp-note",
+        "claim_refs": [
+          "cl-0001",
+          "cl-0005"
+        ],
+        "density": {
+          "evidence_units": [
+            {
+              "purpose": "两年收入同量尺比较",
+              "role": "primary"
+            },
+            {
+              "purpose": "说明收入口径和推论边界",
+              "role": "support"
+            }
+          ],
+          "profile": "balanced",
+          "space_intent": "主图充分展开，右侧写口径和边界"
+        },
+        "metric_refs": [],
+        "page": 2,
+        "page_role": "analysis",
+        "panels": [
+          {
+            "claim_refs": [
+              "cl-0001",
+              "cl-0005"
+            ],
+            "form": "html.table",
+            "id": "bp-note",
+            "purpose": "说明收入口径和不能推出的结论",
+            "reason": "口径和边界是文字判断，用短段落最清楚",
+            "relationship": "text",
+            "role": "primary",
+            "slot": "aside",
+            "span": 1
+          }
+        ],
+        "proves": "收入从 1800 万元增至 3200 万元",
+        "relations": [],
+        "section": "01 收入",
+        "story_beat": "diagnosis",
+        "subtitle": "单位：万元｜2024–2025 全年｜合并口径",
+        "type": "data_chart",
+        "visual_intent": {
+          "form": "svg.custom",
+          "layout": "custom",
+          "layout_reason": "主图占左侧三分之二，右侧写口径和边界",
+          "reading_path": "标题 → 两年柱形 → 口径与边界",
+          "relationship": "comparison"
+        }
+      },
+      {
+        "action_title": "先核实客户留存，再决定是否扩大投入",
+        "adds": "读者知道下一步先补什么数据、再做什么决定",
+        "anchor_panel": "bp-steps",
+        "claim_refs": [
+          "cl-0004"
+        ],
+        "density": {
+          "evidence_units": [
+            {
+              "purpose": "2026 年指引作为规模参考",
+              "role": "context"
+            },
+            {
+              "purpose": "建议与对应的前提条件",
+              "role": "primary"
+            }
+          ],
+          "profile": "balanced",
+          "space_intent": "左侧单个指标，右侧条件表"
+        },
+        "metric_refs": [],
+        "page": 3,
+        "page_role": "action",
+        "panels": [
+          {
+            "claim_refs": [
+              "cl-0004"
+            ],
+            "form": "html.table",
+            "id": "bp-steps",
+            "purpose": "建议和待确认事项逐项对应",
+            "reason": "建议与前提需要逐行对应，表格比段落清楚",
+            "relationship": "decision",
+            "role": "primary",
+            "slot": "right",
+            "span": 2
+          }
+        ],
+        "proves": "增长质量需要留存数据，才能支持扩大投入",
+        "relations": [],
+        "section": "02 建议",
+        "story_beat": "action",
+        "subtitle": "建议｜依据：收入变化与管理层指引",
+        "type": "recommendation",
+        "visual_intent": {
+          "form": "html.table",
+          "layout": "custom",
+          "layout_reason": "左侧指标卡给出规模参考，右侧表格写建议和前提",
+          "reading_path": "标题 → 指引 → 建议与待确认事项",
+          "relationship": "decision"
+        }
+      },
+      {
+        "action_title": "谢谢",
+        "page": 4,
+        "page_role": "close",
+        "story_beat": "close",
+        "type": "close"
+      }
+    ]
+  },
+  "slides_md": "# 逐页内容\n\n## P01 ｜ — ｜ 封面\n**行动标题**：云舟科技 BP 评审\n\n## P02 ｜ 01 收入 ｜ 数据图表\n**行动标题**：收入两年增长 77.8%，规模仍小\n\n## P03 ｜ 02 建议 ｜ 建议\n**行动标题**：先核实客户留存，再决定是否扩大投入\n\n## P04 ｜ — ｜ 结尾\n**行动标题**：谢谢\n",
+  "story_mode_label": "请求批准"
+}
