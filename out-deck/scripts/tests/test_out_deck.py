@@ -2,6 +2,8 @@
 需要 node、Chrome（Playwright）和 LibreOffice。缺依赖时默认跳过；设置 ALLEN_REQUIRE_TOOLS=1 时直接失败。
 规划观察、代表页观察和审查稿由 synthetic.py 合成（写明"合成"），只验证流程；证据账和页面都是虚构夹具。"""
 import json
+import contextlib
+import io
 import os
 import pathlib
 import shutil
@@ -9,6 +11,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest import mock
 
 SCRIPTS = pathlib.Path(__file__).resolve().parents[1]
 HERE = SCRIPTS.parents[1] / "out-report" / "scripts" / "tests"
@@ -61,6 +65,16 @@ class OutDeckCapabilityTest(unittest.TestCase):
         self.assertIn("layout-plan", text)
         self.assertIn("module-fill-plan", text)
 
+    def test_strict_capabilities_reject_live_probe_regression(self):
+        altered = {"layouts": 37, "masters": 5, "themes": ["mckinsey"], "ratios": ["16x9"]}
+        output = io.StringIO()
+        with mock.patch.object(out_deck, "_probe_capabilities", return_value=altered), contextlib.redirect_stdout(output):
+            code = out_deck.cmd_capabilities(SimpleNamespace(strict=True))
+        result = json.loads(output.getvalue())
+        self.assertEqual(code, 1)
+        self.assertEqual(result["status"], "incomplete")
+        self.assertEqual({item["field"] for item in result["mismatches"]}, {"layouts", "masters", "themes", "ratios"})
+
 class OutDeckPipelineTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -106,6 +120,15 @@ class OutDeckPipelineTest(unittest.TestCase):
         step("step", cls.task, "aggregate")
         step("step", cls.task, "snapshot")
         step("step", cls.task, "package")
+        step("step", cls.task, "archive")
+        package_html = d / refs()["package"]["files"]["html"]["record"]
+        delivery = synthetic._write(d, "delivery.json", {
+            "kind": "delivery", "reviewer": synthetic.WHO, "basis": "合成交付记录", "requirementRefs": [],
+            "destination": "合成测试收件箱", "deliveredAt": "2026-10-27T12:00:00+10:30",
+            "files": [{"record": os.path.relpath(package_html, d / "obs"), "sha256": synthetic.sha(package_html)}],
+        })
+        step("plan", cls.task, "delivery", delivery, "--reviewer", "合成主笔", "--basis", "合成交付")
+        cls.final_status = step("step", cls.task, "status")
         cls.finish = step("finish", cls.task)
 
     @classmethod
@@ -128,11 +151,14 @@ class OutDeckPipelineTest(unittest.TestCase):
         self.assertIn("星河数据科技 2025 年年报", (self.d / "bookend-references.html").read_text(encoding="utf-8"))
         self.assertIn('"status": "PASS"', self.ready.stdout)
 
-    def test_complete_lifecycle_surface_is_retained(self):
-        source = (SCRIPTS / "out_deck.py").read_text(encoding="utf-8")
-        for operation in ("ready", "compile", "assemble", "smoke", "iteration", "acceptance", "review-pack",
-                          "aggregate", "snapshot", "package", "archive", "status", "next", "resume"):
-            self.assertIn(f'"{operation}"', source)
+    def test_complete_lifecycle_is_archived_and_delivered(self):
+        plan = json.loads((self.d / "execution-plan.json").read_text(encoding="utf-8"))
+        status = json.loads(self.final_status.stdout)
+        states = {item["id"]: item.get("status") for item in status["items"]}
+        self.assertEqual(states["archive"], "done")
+        self.assertEqual(states["delivery"], "done")
+        archive = plan["productionRefs"]["archive"]["files"]["manifest"]["record"]
+        self.assertTrue((self.d / archive).is_file())
 
     def test_finish_before_package_is_refused(self):
         self.assertEqual(self.early_finish.returncode, 2)
@@ -179,4 +205,3 @@ class OutDeckInitTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -200,6 +200,21 @@ def report_problems(problems):
     return 1
 
 
+def _probe_capabilities():
+    script = (
+        "const fs=require('fs'),p=require('path'),root=process.argv[1];"
+        "const atlas=JSON.parse(fs.readFileSync(p.join(root,'assets/layout-atlas/catalog.json'),'utf8'));"
+        "const themes=require(p.join(root,'assets/deck-themes.js'));"
+        "const grid=require(p.join(root,'assets/deck-grid.js'));"
+        "process.stdout.write(JSON.stringify({layouts:atlas.layouts.length,masters:atlas.masters.length,"
+        "themes:themes.ids,ratios:Object.keys(grid.RATIOS).sort()}));"
+    )
+    inspected = subprocess.run(["node", "-e", script, str(engine())], capture_output=True, text=True)
+    if inspected.returncode:
+        raise StepError(f"检查 report-forge 公共能力失败：{inspected.stderr.strip()[-800:]}")
+    return json.loads(inspected.stdout)
+
+
 def cmd_capabilities(a):
     """Report the locked public deck surface, verified against the vendored engine."""
     root = SKILL_DIR.parent
@@ -213,18 +228,15 @@ def cmd_capabilities(a):
         "independent-review", "execution-plan", "resume-recovery", "packaging", "real-browser-tests",
     }
     missing = sorted(item for item in required if status.get(item) not in RELEASE_READY)
-    script = (
-        "const fs=require('fs'),p=require('path'),root=process.argv[1];"
-        "const atlas=JSON.parse(fs.readFileSync(p.join(root,'assets/layout-atlas/catalog.json'),'utf8'));"
-        "const themes=require(p.join(root,'assets/deck-themes.js'));"
-        "const grid=require(p.join(root,'assets/deck-grid.js'));"
-        "process.stdout.write(JSON.stringify({layouts:atlas.layouts.length,masters:atlas.masters.length,"
-        "themes:themes.ids,ratios:Object.keys(grid.RATIOS).sort()}));"
-    )
-    inspected = subprocess.run(["node", "-e", script, str(engine())], capture_output=True, text=True)
-    if inspected.returncode:
-        raise StepError(f"检查 report-forge 公共能力失败：{inspected.stderr.strip()[-800:]}")
-    public = json.loads(inspected.stdout)
+    public = _probe_capabilities()
+    locked = {"layouts": 38, "masters": 6, "themes": ["mckinsey", "bcg", "accenture"], "ratios": ["16x9", "4x3"]}
+    mismatches = []
+    for field, expected in locked.items():
+        actual = public.get(field)
+        if field in ("themes", "ratios"):
+            actual, expected = sorted(actual or []), sorted(expected)
+        if actual != expected:
+            mismatches.append({"field": field, "expected": expected, "actual": actual})
     result = {
         **public,
         "charts": status.get("form-catalog") in RELEASE_READY,
@@ -233,10 +245,11 @@ def cmd_capabilities(a):
         "officialShowcase": status.get("official-showcase") in RELEASE_READY,
         "independentReview": status.get("independent-review") in RELEASE_READY,
         "missing": missing,
-        "status": "complete" if not missing else "incomplete",
+        "mismatches": mismatches,
+        "status": "complete" if not missing and not mismatches else "incomplete",
     }
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
-    return 1 if a.strict and missing else 0
+    return 1 if a.strict and (missing or mismatches) else 0
 
 
 # ---------- 执行清单项 ----------
@@ -466,4 +479,3 @@ def main(argv=None):
 
 if __name__ == "__main__":
     sys.exit(main())
-
