@@ -25,9 +25,19 @@ errors, warnings = [], []
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from tools import report_capabilities
+try:
+    from tools import report_release
+except ImportError:
+    report_release = None
 
 for e in report_capabilities.check(ROOT):
     errors.append("report capabilities：" + e)
+if (ROOT / "references" / "report-output-release.json").is_file():
+    if report_release is None:
+        errors.append("report release：缺少 tools/report_release.py")
+    else:
+        for e in report_release.check(ROOT):
+            errors.append("report release：" + e)
 
 
 skills = sorted(p.parent for p in ROOT.glob("*/SKILL.md"))

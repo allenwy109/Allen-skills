@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0",
+  "scenarioManifest": {
+    "path": "tests/report-output-cases.json",
+    "sha256": "7338683c34096718e70119d30a14e2de8b4e935958a7597d2ea6a676fee8ae88"
+  },
+  "scenes": [
+    "创业点子评估",
+    "企业全景",
+    "BP 评审",
+    "行业／话题研究",
+    "定量图表密集报告",
+    "文字证据密集报告"
+  ],
+  "positiveCases": 6,
+  "negativeCases": 6,
+  "missingReviewFailureClosed": true,
+  "verification": {
+    "scenarioE2e": {"result": "passed", "tests": 8},
+    "outDeck": {"result": "passed", "tests": 24},
+    "outReport": {"result": "passed", "tests": 72},
+    "fullSelftest": {"result": "passed"},
+    "repositoryValidate": {"result": "passed", "errors": 0, "preExistingHints": 3}
+  }
+}

@@ -5,7 +5,9 @@
     "visual_acceptance": "docs/reviews/report-output-visual-acceptance.md",
     "machine_record": "references/report-output-release.json",
     "a4_approved_digest": "59742bde7d67fc1ecbe5c96684a4d9212ecc5c813500d3d1befc69ac04cb2fe7",
-    "deck_final_packet": "out-deck/build/visual-benchmark-final"
+    "deck_evidence": "references/release-evidence/deck-artifacts.json",
+    "deck_rebuild_config": "out-deck/benchmarks/semantic-benchmark.json",
+    "a4_evidence": "references/release-evidence/a4-evidence.json"
   },
   "capabilities": [
     {

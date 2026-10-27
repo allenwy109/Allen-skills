@@ -1,5 +1,6 @@
 {
   "schemaVersion": "1.0",
+  "schema": "references/report-output-release.schema.json",
   "status": "approved",
   "releasedAt": "2026-10-27T15:28:08+10:30",
   "implementationHead": "39bec98c99159e952106c6f7980c4666a269f9c7",
@@ -17,6 +18,28 @@
     "forbiddenStatuses": ["missing", "untested", "present-not-used"],
     "strictCheck": "passed"
   },
+  "evidence": {
+    "deckScorecard": {
+      "path": "references/release-evidence/deck-scorecard.json",
+      "sha256": "5e581d5f640ed668157ad225416823779a69eb3079947fe775d452fb2c2cf4eb"
+    },
+    "deckReveal": {
+      "path": "references/release-evidence/deck-reveal.json",
+      "sha256": "b106831f1dd34d21e58e225a20cbbf79078cebaab5e7b661015850c40b3645ce"
+    },
+    "deckArtifacts": {
+      "path": "references/release-evidence/deck-artifacts.json",
+      "sha256": "0dddc8a131df6b0b9c4c026f589b1837276a8d6401568201be6bd4f2978b6834"
+    },
+    "a4Evidence": {
+      "path": "references/release-evidence/a4-evidence.json",
+      "sha256": "4e8943c0e1f39bead34faf5f39924e5221a4b772b2b2c588b45ea2c2991651ff"
+    },
+    "scenarioTests": {
+      "path": "references/release-evidence/scenario-tests.json",
+      "sha256": "70a28d5207a1665842a5342af15501cc5c52722142f70ee7ae4050f4f33a8ab7"
+    }
+  },
   "a4": {
     "status": "approved",
     "candidateDigest": "59742bde7d67fc1ecbe5c96684a4d9212ecc5c813500d3d1befc69ac04cb2fe7",
@@ -25,8 +48,8 @@
     "approvalReason": "确认 A4 新基准",
     "baselineManifest": "out-report/golden/visual-baseline.json",
     "baselineManifestSha256": "00620041cac19c57ea32d7a767cefafa07d70c67500bbef7b0e78bbe70ee8fa5",
-    "reviewManifest": "out-report/golden/build/current-review/manifest.json",
-    "reviewManifestSha256": "de993387fbe6a42b18200bb4d4e9323afdf21fd8eb1434ca5a872658910dc0ba",
+    "reviewManifest": "references/release-evidence/a4-evidence.json",
+    "reviewManifestSha256": "4e8943c0e1f39bead34faf5f39924e5221a4b772b2b2c588b45ea2c2991651ff",
     "pageCount": 16,
     "contactSheetCount": 5,
     "scores": {
@@ -42,7 +65,9 @@
   },
   "deck": {
     "status": "approved",
-    "reviewPacket": "out-deck/build/visual-benchmark-final",
+    "reviewPacket": "references/release-evidence/deck-artifacts.json",
+    "rebuildConfig": "out-deck/benchmarks/semantic-benchmark.json",
+    "rebuildConfigSha256": "e8a3ecaa8a3a4dbbb1a9dc05709b8d7e393a167abe2a7040905aed8d54b84e4f",
     "anonymousManifestSha256": "c72cb7a932aae1df07d64755ce88c4e8a8552e21eacdc8e253bb583a1bf74f4b",
     "inputSha256": "735bee1e80f372f05db013374a9c74ef4eb443166d187f2aac64c4cce3179438",
     "blueprintSha256": "4838621e1af9d2251cc8313c8b4cd2676335b27bff35d97d68f94b32d4a73db5",
@@ -106,22 +131,22 @@
         "summary": "0 errors; strict=true"
       },
       {
-        "command": "ALLEN_RUNTIME=/Users/markjackson/Repos/Allen-skills ALLEN_REQUIRE_TOOLS=1 python3 -m unittest discover -s out-deck/scripts/tests -t out-deck/scripts/tests",
+        "command": "ALLEN_RUNTIME=${ALLEN_RUNTIME:?set installed runtime} ALLEN_REQUIRE_TOOLS=1 python3 -m unittest discover -s out-deck/scripts/tests -t out-deck/scripts/tests",
         "result": "passed",
         "summary": "24/24"
       },
       {
-        "command": "ALLEN_RUNTIME=/Users/markjackson/Repos/Allen-skills ALLEN_REQUIRE_TOOLS=1 python3 -m unittest discover -s out-report/scripts/tests -t out-report/scripts/tests",
+        "command": "ALLEN_RUNTIME=${ALLEN_RUNTIME:?set installed runtime} ALLEN_REQUIRE_TOOLS=1 python3 -m unittest discover -s out-report/scripts/tests -t out-report/scripts/tests",
         "result": "passed",
         "summary": "72/72"
       },
       {
-        "command": "ALLEN_RUNTIME=/Users/markjackson/Repos/Allen-skills ./tools/selftest.sh --e2e",
+        "command": "ALLEN_RUNTIME=${ALLEN_RUNTIME:?set installed runtime} ./tools/selftest.sh --e2e",
         "result": "passed",
         "summary": "8/8; six positive, six mutation-negative, and missing-review failure-closed paths"
       },
       {
-        "command": "ALLEN_RUNTIME=/Users/markjackson/Repos/Allen-skills ./tools/selftest.sh",
+        "command": "ALLEN_RUNTIME=${ALLEN_RUNTIME:?set installed runtime} ./tools/selftest.sh",
         "result": "passed",
         "summary": "complete repository, browser, vendor, upgrade, think-cell, and one-pager suites"
       },

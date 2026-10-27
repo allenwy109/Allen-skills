@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1.0",
+  "reviewMode": "anonymous-visual-only",
+  "reviewerContext": {
+    "freshAgent": true,
+    "readOnly": true,
+    "identityAvailable": false,
+    "sourceCodeAvailable": false,
+    "priorPacketsAvailable": false
+  },
+  "mediaConsistency": {
+    "status": "PASS",
+    "htmlPdfPageCount": 5,
+    "geometry": "PASS",
+    "errors": 0,
+    "perPageTextSimilarity": 1.0,
+    "pngAndContactInputsMatched": true
+  },
+  "labels": {
+    "Cinder": {
+      "scores": {
+        "visual_focus": 4,
+        "evidence_geometry": 5,
+        "density": 4,
+        "typography": 4,
+        "chart_clarity": 5,
+        "book_rhythm": 5,
+        "source_integration": 5,
+        "finish": 4
+      },
+      "pageEvidence": {
+        "visual_focus": "P2 chart-boundary-conclusion hierarchy; P3 forecast-decision-action hierarchy; P4 remains restrained.",
+        "evidence_geometry": "P2 direct value labels; P3 forecast, recommendation, assumptions and boundaries align; P4 closes page/claim/locator coverage.",
+        "density": "P2-P3 balance evidence and whitespace; P4 traceability table improves use without crowding.",
+        "typography": "P1/P5 bookends and P2-P4 title, body, number and annotation hierarchy remain readable.",
+        "chart_clarity": "P2 directly labels 2024/2025 and 1800/3200 万元 and states the limit of the 77.8% comparison.",
+        "book_rhythm": "P1 cover, P2 fact, P3 decision, P4 sources and coverage audit, P5 close form a complete progression.",
+        "source_integration": "P2-P3 contain near-page sources; P3 includes a claim locator; P4 binds bibliography, page, claim, locator and reproducibility.",
+        "finish": "All five pages have consistent margins, bookends, color and framing with no clipping or overlap."
+      }
+    },
+    "Willow": {
+      "scores": {
+        "visual_focus": 4,
+        "evidence_geometry": 4,
+        "density": 4,
+        "typography": 4,
+        "chart_clarity": 5,
+        "book_rhythm": 4,
+        "source_integration": 4,
+        "finish": 4
+      },
+      "pageEvidence": {
+        "visual_focus": "P2 chart and boundary and P3 forecast table scan clearly; P4 has a weaker visual landing point.",
+        "evidence_geometry": "P2 and P3 align evidence, but P4 does not close page/claim coverage.",
+        "density": "P2-P3 are balanced; P4 is visibly underfilled.",
+        "typography": "The title, number and body hierarchy is stable across the five pages.",
+        "chart_clarity": "P2 uses the same direct-label two-column chart and boundary statement.",
+        "book_rhythm": "The fact-to-action sequence works, but the thin P4 causes an abrupt drop before the close.",
+        "source_integration": "P2-P3 use source footers and P4 has a formal reference, without page/claim reproducibility coverage.",
+        "finish": "Margins, frames, fonts and colors are consistent, with no clipping or overlap."
+      }
+    }
+  },
+  "verdict": {
+    "passingLabel": "Cinder",
+    "allDimensionsAtLeast": 4,
+    "betterDimensions": ["evidence_geometry", "book_rhythm", "source_integration"],
+    "tiedDimensions": ["visual_focus", "density", "typography", "chart_clarity", "finish"],
+    "blockers": []
+  }
+}
