@@ -7,6 +7,8 @@ const crypto = require('crypto');
 const COVERAGE_SETS = Object.freeze(['claims', 'a_cards', 'panels', 'relations', 'metrics', 'sources']);
 const A4 = Object.freeze([210, 297]);
 const MEDIA_TOLERANCE_MM = 0.2;
+const PAGE_ID = /^page-\d{3,}$/;
+const SHA256 = /^[0-9a-f]{64}$/;
 
 function normalizedText(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
@@ -14,6 +16,16 @@ function normalizedText(value) {
 
 function digest(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value && typeof value === 'object') return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+  return JSON.stringify(value);
+}
+
+function structuredDigest(value) {
+  return digest(canonicalJson(value));
 }
 
 function issue(code, location, detail, evidence = {}) {
@@ -28,11 +40,14 @@ function sameSet(left, right) {
   return JSON.stringify(stableUnique(left)) === JSON.stringify(stableUnique(right));
 }
 
-function validDisposition(value) {
+function validDisposition(value, regression) {
   return value && value.decision === 'accepted' &&
     typeof value.reviewer === 'string' && value.reviewer.trim() &&
     typeof value.reason === 'string' && value.reason.trim() &&
-    typeof value.reviewedAt === 'string' && value.reviewedAt.trim();
+    typeof value.reviewedAt === 'string' && value.reviewedAt.trim() &&
+    value.baselineDigest === regression.baselineDigest &&
+    value.candidateDigest === regression.candidateDigest &&
+    value.differenceDigest === regression.differenceDigest;
 }
 
 function finiteNumber(value) {
@@ -46,18 +61,21 @@ function evidenceErrors(evidence) {
   if (!pagination || typeof pagination !== 'object' || !Array.isArray(pagination.pages) || !Number.isInteger(pagination.pageCount)) {
     invalid('pagination', 'pageCount integer and pages array are required');
   } else {
+    const ids = pagination.pages.map(page => page && page.id);
     pagination.pages.forEach((page, index) => {
       const location = `pagination.pages[${index}]`;
-      if (!page || typeof page !== 'object' || typeof page.id !== 'string' || !page.id || !Number.isInteger(page.number) ||
+      if (!page || typeof page !== 'object' || typeof page.id !== 'string' || !PAGE_ID.test(page.id) || page.number !== index + 1 ||
           typeof page.intentionalBlank !== 'boolean' || !finiteNumber(page.usedHeightPx) || !finiteNumber(page.contentHeightPx)) {
-        invalid(location, 'id, number, intentionalBlank, usedHeightPx, and contentHeightPx have invalid types');
+        invalid(location, 'stable page ID, sequential number, intentionalBlank, usedHeightPx, and contentHeightPx are required');
       }
     });
+    if (new Set(ids).size !== ids.length) invalid('pagination.pages', 'page IDs must be unique');
   }
   const geometry = evidence.geometry;
   if (!geometry || typeof geometry !== 'object' || !Array.isArray(geometry.pages)) {
     invalid('geometry', 'pages array is required');
   } else {
+    const ids = geometry.pages.map(page => page && page.id);
     geometry.pages.forEach((page, index) => {
       const location = `geometry.pages[${index}]`;
       if (!page || typeof page !== 'object' || typeof page.id !== 'string' || !page.id ||
@@ -70,6 +88,7 @@ function evidenceErrors(evidence) {
         });
       }
     });
+    if (new Set(ids).size !== ids.length) invalid('geometry.pages', 'page IDs must be unique');
   }
   const media = evidence.media;
   if (!media || typeof media !== 'object' || !Array.isArray(media.htmlPages) || !Array.isArray(media.pdfPages) || !Array.isArray(media.resources)) {
@@ -81,6 +100,41 @@ function evidenceErrors(evidence) {
     media.resources.forEach((resource, index) => {
       if (!resource || typeof resource.type !== 'string' || typeof resource.url !== 'string' || typeof resource.embedded !== 'boolean') invalid(`media.resources[${index}]`, 'type, url, and embedded are required');
     });
+    for (const name of ['htmlPages', 'pdfPages']) {
+      const ids = media[name].map(page => page && page.id);
+      if (new Set(ids).size !== ids.length) invalid(`media.${name}`, 'page IDs must be unique');
+    }
+  }
+  const coverage = evidence.coverage;
+  if (!coverage || typeof coverage !== 'object') invalid('coverage', 'input and output are required');
+  else for (const side of ['input', 'output']) for (const name of COVERAGE_SETS) {
+    const values = coverage[side] && coverage[side][name];
+    if (!Array.isArray(values) || values.some(value => typeof value !== 'string' || !value.trim())) invalid(`coverage.${side}.${name}`, 'must be an array of non-empty strings');
+    else if (new Set(values).size !== values.length) invalid(`coverage.${side}.${name}`, 'duplicate IDs are forbidden');
+  }
+  const paginationIds = pagination && Array.isArray(pagination.pages) ? pagination.pages.map(page => page && page.id) : [];
+  const regression = evidence.regression;
+  if (!regression || typeof regression !== 'object') invalid('regression', 'complete regression manifest is required');
+  else {
+    if (!['identical', 'different'].includes(regression.status)) invalid('regression.status', 'must be identical or different');
+    if (!SHA256.test(regression.baselineDigest || '') || !SHA256.test(regression.candidateDigest || '') || !SHA256.test(regression.differenceDigest || '')) invalid('regression', 'summary and difference digests must be SHA-256 hex');
+    if (regression.baselineUpdated !== false) invalid('regression.baselineUpdated', 'must be false');
+    for (const name of ['baselinePages', 'candidatePages']) {
+      const pages = regression[name];
+      if (!Array.isArray(pages) || pages.length !== paginationIds.length || pages.some((page, index) => !page || page.id !== paginationIds[index] || !SHA256.test(page.digest || ''))) invalid(`regression.${name}`, 'page IDs/order must match pagination and digests must be SHA-256 hex');
+    }
+    if (!Array.isArray(regression.differences)) invalid('regression.differences', 'must be an array');
+    if (Array.isArray(regression.baselinePages)) {
+      const summary = Object.fromEntries(regression.baselinePages.map(page => [page.id, page.digest]));
+      if (regression.baselineDigest !== structuredDigest(summary)) invalid('regression.baselineDigest', 'does not summarize baselinePages');
+    }
+    if (Array.isArray(regression.candidatePages)) {
+      const summary = Object.fromEntries(regression.candidatePages.map(page => [page.id, page.digest]));
+      if (regression.candidateDigest !== structuredDigest(summary)) invalid('regression.candidateDigest', 'does not summarize candidatePages');
+    }
+    if (Array.isArray(regression.differences) && regression.differenceDigest !== structuredDigest(regression.differences)) invalid('regression.differenceDigest', 'does not summarize differences');
+    if (regression.status === 'identical' && (regression.baselineDigest !== regression.candidateDigest || (regression.differences || []).length)) invalid('regression.status', 'identical status contradicts digests or differences');
+    if (regression.status === 'different' && regression.baselineDigest === regression.candidateDigest && !(regression.differences || []).length) invalid('regression.status', 'different status requires a digest or page difference');
   }
   return errors;
 }
@@ -163,7 +217,7 @@ function evaluate(evidence) {
   }
   const changed = regression.baselineDigest !== regression.candidateDigest || (regression.differences || []).length > 0;
   if (regression.baselineDigest && regression.candidateDigest && changed) {
-    if (validDisposition(regression.disposition)) {
+    if (validDisposition(regression.disposition, regression)) {
       warnings.push(issue('REPORT_VISUAL_DIFFERENCE_ACCEPTED', 'visual-regression', regression.disposition.reason, { disposition: regression.disposition, differences: regression.differences || [] }));
     } else {
       blocking.push(issue('REPORT_VISUAL_REGRESSION', 'visual-regression', 'visual differences require a complete human disposition', { differences: regression.differences || [] }));
