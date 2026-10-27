@@ -1,8 +1,10 @@
 import importlib.util
 import json
 import pathlib
+import re
 import tempfile
 import unittest
+from collections import Counter
 
 SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "build_visual_benchmark.py"
 SPEC = importlib.util.spec_from_file_location("build_visual_benchmark", SCRIPT)
@@ -40,6 +42,14 @@ class VisualBenchmarkTest(unittest.TestCase):
             identities = json.loads(mapping.read_text())
             self.assertEqual(set(identities["identities"].values()), {"candidate", "reference"})
             self.assertIn("releaseEvidence", identities)
+            self.assertEqual(identities["releaseEvidence"]["reviewerSanitization"], {"pages": 5, "pixelIdentical": True})
+            readable = {label: "\n".join(p.read_text(encoding="utf-8") for p in sorted((output / label).rglob("*"))
+                                           if p.is_file() and p.suffix in {".html", ".css", ".json", ".md", ".txt"})
+                        for label in manifest["labels"]}
+            pattern = re.compile(r"(?i)\b(?:allen[-_][\w-]*|data-allen-[\w-]*|candidate|composer|upstream|pre-composer|reference-task|candidate-task)\b")
+            fingerprints = {label: Counter(pattern.findall(text.replace("Allen 分析系统", ""))) for label, text in readable.items()}
+            self.assertEqual(fingerprints["Atlas"], fingerprints["Juniper"])
+            self.assertFalse(any(token.lower().startswith(("allen-", "data-allen-")) for token in fingerprints["Atlas"]))
             mapping.unlink()
 
 
