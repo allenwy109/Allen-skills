@@ -73,73 +73,53 @@ def write_baseline(root, baseline):
                     encoding="utf-8")
 
 
+def visual_baseline_schema():
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Upstream report-forge visual baseline",
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "version", "upstream_repo", "upstream_commit", "license",
+            "status", "approval", "artifacts",
+        ],
+        "properties": {
+            "version": {"const": 1, "type": "integer"},
+            "upstream_repo": {"const": UPSTREAM_REPO, "type": "string"},
+            "upstream_commit": {"const": UPSTREAM_COMMIT, "type": "string"},
+            "license": {"const": "Apache-2.0", "type": "string"},
+            "status": {"enum": ["draft", "captured"], "type": "string"},
+            "approval": {"enum": ["unapproved", "approved"], "type": "string"},
+            "artifacts": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["path", "sha256", "size"],
+                    "properties": {
+                        "path": {"minLength": 1, "type": "string"},
+                        "sha256": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+                        "size": {"minimum": 0, "type": "integer"},
+                    },
+                },
+            },
+        },
+    }
+
+
+def write_baseline_schema(root):
+    path = pathlib.Path(root).resolve() / BASELINE_SCHEMA
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(visual_baseline_schema(), ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
 def _schema_errors(schema):
-    required = {"version", "upstream_repo", "upstream_commit", "license", "status",
-                "approval", "artifacts"}
-    if not isinstance(schema, dict) or schema.get("type") != "object":
-        return ["baseline schema: root must define an object"]
-    schema_required = schema.get("required")
-    if (not isinstance(schema_required, list)
-            or not all(isinstance(field, str) for field in schema_required)
-            or set(schema_required) != required):
-        return ["baseline schema: required fields do not match contract"]
-    properties = schema.get("properties")
-    if not isinstance(properties, dict) or not required.issubset(properties):
-        return ["baseline schema: properties do not match contract"]
-    artifacts_schema = properties.get("artifacts")
-    if not isinstance(artifacts_schema, dict):
-        return ["baseline schema: artifacts must define an object schema"]
-    items = artifacts_schema.get("items")
-    if not isinstance(items, dict):
-        return ["baseline schema: artifact items must define an object schema"]
-    item_required = items.get("required")
-    if (not isinstance(item_required, list)
-            or not all(isinstance(field, str) for field in item_required)
-            or set(item_required) != {"path", "sha256", "size"}):
-        return ["baseline schema: artifact fields do not match contract"]
-    expected_constants = {
-        "version": ("integer", 1),
-        "upstream_repo": ("string", UPSTREAM_REPO),
-        "upstream_commit": ("string", UPSTREAM_COMMIT),
-        "license": ("string", "Apache-2.0"),
-    }
-    for field, (field_type, value) in expected_constants.items():
-        field_schema = properties.get(field)
-        if (not isinstance(field_schema, dict)
-                or field_schema.get("type") != field_type
-                or field_schema.get("const") != value):
-            return [f"baseline schema: {field} does not match contract"]
-    expected_enums = {
-        "status": {"draft", "captured"},
-        "approval": {"unapproved", "approved"},
-    }
-    for field, values in expected_enums.items():
-        field_schema = properties.get(field)
-        enum = field_schema.get("enum") if isinstance(field_schema, dict) else None
-        if (not isinstance(enum, list)
-                or not all(isinstance(value, str) for value in enum)
-                or field_schema.get("type") != "string"
-                or set(enum) != values):
-            return [f"baseline schema: {field} does not match contract"]
-    if schema.get("additionalProperties") is not False or items.get("additionalProperties") is not False:
-        return ["baseline schema: additional properties must be rejected"]
-    if artifacts_schema.get("type") != "array" or artifacts_schema.get("minItems") != 1:
-        return ["baseline schema: artifacts does not match contract"]
-    if items.get("type") != "object":
-        return ["baseline schema: artifact items must be objects"]
-    item_properties = items.get("properties")
-    if not isinstance(item_properties, dict):
-        return ["baseline schema: artifact properties do not match contract"]
-    expected_item_properties = {
-        "path": {"type": "string", "minLength": 1},
-        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-        "size": {"type": "integer", "minimum": 0},
-    }
-    for field, expected_schema in expected_item_properties.items():
-        field_schema = item_properties.get(field)
-        if (not isinstance(field_schema, dict)
-                or any(field_schema.get(key) != value for key, value in expected_schema.items())):
-            return [f"baseline schema: artifact {field} does not match contract"]
+    if schema != visual_baseline_schema():
+        return ["baseline schema: does not match canonical contract"]
     return []
 
 
@@ -345,6 +325,7 @@ def main(argv=None):
             code = 0
         elif args.command == "baseline-generate":
             baseline = generate_baseline(root)
+            write_baseline_schema(root)
             write_baseline(root, baseline)
             result = baseline
             code = 0

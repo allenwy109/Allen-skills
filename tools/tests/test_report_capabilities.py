@@ -302,6 +302,7 @@ class ReportCapabilitiesTests(unittest.TestCase):
 
     def test_repository_baseline_schema_defines_required_contract(self):
         schema = json.loads((ROOT / "references" / "visual-baseline.schema.json").read_text())
+        self.assertEqual(schema, report_capabilities.visual_baseline_schema())
         self.assertEqual(schema["type"], "object")
         self.assertEqual(set(schema["required"]), {
             "version", "upstream_repo", "upstream_commit", "license",
@@ -369,6 +370,16 @@ class ReportCapabilitiesTests(unittest.TestCase):
         del missing_hash_pattern["properties"]["artifacts"]["items"]["properties"]["sha256"]["pattern"]
         missing_item_properties = json.loads(json.dumps(canonical))
         del missing_item_properties["properties"]["artifacts"]["items"]["properties"]
+        evil_root_property = json.loads(json.dumps(canonical))
+        evil_root_property["properties"]["evil"] = {"type": "string"}
+        evil_artifact_property = json.loads(json.dumps(canonical))
+        evil_artifact_property["properties"]["artifacts"]["items"]["properties"]["evil"] = {
+            "type": "string"
+        }
+        impossible_path = json.loads(json.dumps(canonical))
+        impossible_path["properties"]["artifacts"]["items"]["properties"]["path"]["maxLength"] = 0
+        changed_draft = json.loads(json.dumps(canonical))
+        changed_draft["$schema"] = "https://json-schema.org/draft/2019-09/schema"
         malformed_schemas = {
             "numeric required": {
                 "type": "object",
@@ -389,6 +400,10 @@ class ReportCapabilitiesTests(unittest.TestCase):
             "empty status": empty_status,
             "missing hash pattern": missing_hash_pattern,
             "missing item properties": missing_item_properties,
+            "evil root property": evil_root_property,
+            "evil artifact property": evil_artifact_property,
+            "impossible path constraint": impossible_path,
+            "changed schema draft": changed_draft,
         }
         for label, schema in malformed_schemas.items():
             with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
