@@ -137,15 +137,23 @@ class ReportContractTest(unittest.TestCase):
             T._native_exhibit(panel, {})
         self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
 
-    def test_competitor_matrix_rejects_short_and_long_rows(self):
-        base = {"id": "matrix", "semantic_type": "competition", "relationship": "positioning", "form": "html.table", "capacity": {"rows": 1},
-                "exhibit": {"kind": "competitor-matrix", "family": "matrix", "form": "html.table", "columns": ["A", "B"], "rows": [{"label": "X", "values": []}]}}
+    def test_matrix_exhibits_reject_short_and_long_rows(self):
+      for semantic, kind in (("competition", "competitor-matrix"), ("pain-comparison", "pain-comparison")):
+        base = {"id": "matrix", "semantic_type": semantic, "relationship": "positioning", "form": "html.table", "capacity": {"rows": 1},
+                "exhibit": {"kind": kind, "family": "matrix", "form": "html.table", "columns": ["A", "B"], "rows": [{"label": "X", "values": []}]}}
         for values in (["one"], ["one", "two", "three"]):
             panel = copy.deepcopy(base)
             panel["exhibit"]["rows"][0]["values"] = values
             with self.assertRaises(T.ReportError) as cm:
                 T._native_exhibit(panel, {})
             self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
+
+    def test_supplied_capacity_state_cannot_lie(self):
+        panel = {"id": "matrix", "semantic_type": "competition", "relationship": "positioning", "form": "html.table", "capacity": {"rows": 1},
+                 "exhibit": {"kind": "competitor-matrix", "family": "matrix", "form": "html.table", "capacity_state": "soft-exceeded", "columns": ["A"], "rows": [{"label": "X", "values": ["1"]}]}}
+        with self.assertRaises(T.ReportError) as cm:
+            T._native_exhibit(panel, {})
+        self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
 
     def test_report_matches_schema_and_schema_self_checks(self):
         schema = schema_check.load("report.schema.json")

@@ -69,16 +69,19 @@ def _native_exhibit(panel, semantic_content):
     if missing:
         raise ReportError("REPORT_EXHIBIT_MISSING", f"panel {panel.get('id')} 缺少 {','.join(missing)}")
     count = len(exhibit[layout["capacity"]["field"]])
-    if kind == "competitor-matrix" and any(len(row.get("values", [])) != len(exhibit["columns"]) for row in exhibit["rows"]):
-        raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 的 competitor matrix 行宽与 columns 不一致")
+    if layout["family"] == "matrix" and any(len(row.get("values", [])) != len(exhibit["columns"]) for row in exhibit["rows"]):
+        raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 的 matrix 行宽与 columns 不一致")
     if count > layout["capacity"]["hard"]:
         raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 超过 hard capacity")
     forbidden = [field for field in layout["forbidden_content"] if exhibit.get(field)]
     if forbidden:
         raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 含 forbidden content：{','.join(forbidden)}")
+    derived_state = "soft-exceeded" if count > layout["capacity"]["soft"] else "within-soft"
+    if exhibit.get("capacity_state") and exhibit["capacity_state"] != derived_state:
+        raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 的 capacity_state 与实际容量不一致")
     exhibit["selected_layout"] = kind
     exhibit["layout_reason"] = f"{panel.get('relationship')} · {count}/{layout['capacity']['hard']} {layout['capacity']['unit']}"
-    exhibit["capacity_state"] = "soft-exceeded" if count > layout["capacity"]["soft"] else "within-soft"
+    exhibit["capacity_state"] = derived_state
     return exhibit
 
 

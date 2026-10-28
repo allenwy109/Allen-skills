@@ -190,10 +190,27 @@ class A4ComponentTest(unittest.TestCase):
             structures[kind] = re.search(r'data-exhibit-kind="[^"]+"[^>]*data-structure="([^"]+)"', html).group(1)
         self.assertEqual(4, len(set(structures.values())))
 
-    def test_competitor_matrix_requires_exact_row_width(self):
-        for values in (["only-one"], ["one", "two", "three"]):
+    def test_matrix_exhibits_require_exact_row_width(self):
+        for semantic, kind in (("pain-comparison", "pain-comparison"), ("competition", "competitor-matrix")):
+          for values in (["only-one"], ["one", "two", "three"]):
             item = block("table")
-            item["content"].update(semantic_type="competition", exhibit={"kind": "competitor-matrix", "family": "matrix", "form": "html.table", "columns": ["A", "B"], "rows": [{"label": "X", "values": values}]})
+            item["content"].update(semantic_type=semantic, exhibit={"kind": kind, "family": "matrix", "form": "html.table", "columns": ["A", "B"], "rows": [{"label": "X", "values": values}]})
+            result = run_node("component.renderBlock(payload.block, {})", {"block": item})
+            self.assertFalse(result["ok"])
+            self.assertEqual("REPORT_EXHIBIT_MISMATCH", result["code"])
+
+    def test_supplied_capacity_state_must_match_derived_count(self):
+        item = block("table")
+        item["content"].update(semantic_type="competition", exhibit={"kind": "competitor-matrix", "family": "matrix", "form": "html.table", "capacity_state": "soft-exceeded", "columns": ["A"], "rows": [{"label": "X", "values": ["1"]}]})
+        result = run_node("component.renderBlock(payload.block, {})", {"block": item})
+        self.assertFalse(result["ok"])
+        self.assertEqual("REPORT_EXHIBIT_MISMATCH", result["code"])
+
+    def test_decision_tree_rejects_multiple_parents_and_duplicate_edges(self):
+        base = block("chart")
+        base["content"].update(semantic_type="decision-tree", exhibit={"kind": "decision-tree", "family": "decision-tree", "form": "svg.custom", "nodes": [{"id": "root", "label": "R"}, {"id": "a", "label": "A"}, {"id": "b", "label": "B"}, {"id": "join", "label": "J"}], "edges": [{"from": "root", "to": "a", "label": "A"}, {"from": "root", "to": "b", "label": "B"}, {"from": "a", "to": "join", "label": "J1"}, {"from": "b", "to": "join", "label": "J2"}]})
+        for edges in (base["content"]["exhibit"]["edges"], [base["content"]["exhibit"]["edges"][0], base["content"]["exhibit"]["edges"][0]]):
+            item = json.loads(json.dumps(base)); item["content"]["exhibit"]["edges"] = edges
             result = run_node("component.renderBlock(payload.block, {})", {"block": item})
             self.assertFalse(result["ok"])
             self.assertEqual("REPORT_EXHIBIT_MISMATCH", result["code"])

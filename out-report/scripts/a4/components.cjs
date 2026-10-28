@@ -269,6 +269,7 @@ function decisionTreeExhibit(block, exhibit) {
   for (const edge of exhibit.edges) { incoming.set(edge.to, incoming.get(edge.to) + 1); outgoing.get(edge.from).push(edge.to); }
   const roots = ids.filter(id => incoming.get(id) === 0);
   if (roots.length !== 1) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} decision tree requires one root and no cycles`);
+  if (ids.some(id => id !== roots[0] && incoming.get(id) !== 1)) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} decision tree non-root nodes require exactly one incoming edge`);
   const queue = [roots[0]];
   const depth = new Map([[roots[0], 0]]);
   const visited = [];
@@ -336,8 +337,10 @@ function semanticBody(block) {
   }
   const count = content.exhibit[layout.capacity.field].length;
   if (count > layout.capacity.hard) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} exceeds hard capacity`);
-  if (expectedKind === 'competitor-matrix' && content.exhibit.rows.some(row => list(row.values).length !== content.exhibit.columns.length)) {
-    throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} competitor matrix row width does not match columns`);
+  const capacityState = count > layout.capacity.soft ? 'soft-exceeded' : 'within-soft';
+  if (content.exhibit.capacity_state && content.exhibit.capacity_state !== capacityState) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} supplied capacity state is incorrect`);
+  if (layout.family === 'matrix' && content.exhibit.rows.some(row => list(row.values).length !== content.exhibit.columns.length)) {
+    throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} matrix row width does not match columns`);
   }
   return EXHIBIT_RENDERERS[expectedKind](block, content.exhibit);
 }
