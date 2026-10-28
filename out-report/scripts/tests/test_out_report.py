@@ -211,6 +211,7 @@ class A4OutReportPipelineTest(unittest.TestCase):
             "headline_chain": {"status": "reviewed", "observation": "The headline sequence forms a coherent evidence-to-decision argument."},
             "worst_page": {"page_id": "page-004", "finding": "The comparison matrix is the densest page and its hierarchy remains legible in both final media."},
             "decision_review": {"reviewer": "Synthetic decision maker", "role": "decision-maker-reviewer",
+                                "at": "2026-10-27T12:06:00+10:30",
                                 "answers": {key: "The PDF gives a concrete, page-specific answer that supports an executive decision."
                                             for key in ("answer_visibility", "executive_summary", "argument_sufficiency", "actions", "ownership", "continue_stop_thresholds")}},
             "observations": [{"page_id": page["id"], "media": ["html", "pdf"], "scale": ["100%", "contact-sheet"],
@@ -246,9 +247,12 @@ class A4OutReportPipelineTest(unittest.TestCase):
             ("worst page", lambda value: value.pop("worst_page")),
             ("six executive questions", lambda value: value["decision_review"].update(answers={})),
             ("independent reviewer", lambda value: value.update(reviewer="Synthetic author")),
+            ("independent reviewer", lambda value: value.update(reviewer="  Synthetic author  ")),
         ):
             changed = json.loads(json.dumps(valid_independent))
             mutation(changed)
+            changed["decision_review"]["review_digest"] = review_digest(changed["decision_review"])
+            changed["review_digest"] = review_digest(changed)
             independent.write_text(json.dumps(changed), encoding="utf-8")
             rejected = run("review", self.task, "independent", independent)
             self.assertEqual(1, rejected.returncode)

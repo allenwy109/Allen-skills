@@ -26,6 +26,7 @@ def report_reviewer():
         "worst_page": {"page_id": "page-001", "finding": "The only synthetic page is also the weakest page, and remains legible."},
         "decision_review": {
             "reviewer": "test-decision-reviewer", "role": "decision-maker-reviewer",
+            "at": "2026-10-23T10:05:00+00:00",
             "answers": {key: "The synthetic report provides a specific answer for this executive question."
                         for key in ("answer_visibility", "executive_summary", "argument_sufficiency", "actions", "ownership", "continue_stop_thresholds")},
         },

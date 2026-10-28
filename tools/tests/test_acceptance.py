@@ -44,10 +44,15 @@ def report_review(*issues, author="Report author", visual_reviewer="Visual revie
         "decision_review": {
             "reviewer": decision_reviewer,
             "role": "decision-maker-reviewer",
+            "at": "2026-10-23T10:05:00+00:00",
             "answers": {key: "Page-specific answer with enough detail for an executive decision."
                         for key in ("answer_visibility", "executive_summary", "argument_sufficiency", "actions", "ownership", "continue_stop_thresholds")},
         },
     })
+    return stamp_review(value)
+
+
+def stamp_review(value):
     value["decision_review"]["review_digest"] = expected_digest(value["decision_review"])
     value["review_digest"] = expected_digest(value)
     return value
@@ -99,6 +104,9 @@ class StatusRuleTest(unittest.TestCase):
 
     def test_report_rejects_open_major_and_incomplete_final_reviews(self):
         base = dict(kind="report", reviewer=report_review())
+        bad_decision_time = report_review()
+        bad_decision_time["decision_review"]["at"] = "2026-10-23T10:05:00"
+        stamp_review(bad_decision_time)
         cases = {
             "未解决的重要问题": report_review(("major", "第 3 页论据不足", False)),
             "最差页": {**report_review(), "worst_page": None},
@@ -107,6 +115,7 @@ class StatusRuleTest(unittest.TestCase):
             "视觉与决策审查者必须独立": report_review(visual_reviewer="Same reviewer", decision_reviewer="Same reviewer"),
             "报告作者身份不能为空": report_review(author=""),
             "审查摘要与内容不匹配": {**report_review(), "review_digest": "a" * 64},
+            "决策者审查时间": bad_decision_time,
         }
         for message, reviewer in cases.items():
             with self.subTest(message):
@@ -183,6 +192,13 @@ class RecordTest(unittest.TestCase):
         doc = self.acc.check()
         self.assertEqual(doc["deliverables"][0]["status"], "failed")
         self.assertIn("验收后文件被改动", doc["deliverables"][0]["failures"][0])
+
+    def test_legacy_non_report_issue_without_reviewer_still_saves(self):
+        legacy = review(("minor", "legacy wording issue", False))
+        legacy["issues"][0].pop("reviewer")
+        self.rec()
+        saved = self.acc.review("chart-x", legacy)
+        self.assertEqual("passed", saved["status"])
 
     def test_re_record_keeps_review_only_if_files_unchanged(self):
         self.rec()

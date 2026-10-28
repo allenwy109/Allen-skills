@@ -33,7 +33,7 @@ def _bootstrap():
 
 
 _bootstrap()
-from tools.acceptance import Acceptance, review_closure_failures, review_digest  # noqa: E402
+from tools.acceptance import Acceptance, aware_datetime, review_closure_failures, review_digest  # noqa: E402
 from tools import package_support  # noqa: E402
 from tools.bridge import to_forge, to_report  # noqa: E402
 from tools.lib import runtime  # noqa: E402
@@ -427,12 +427,15 @@ def _validate_independent(review, work, artifacts, author_reviewer=None):
         "actions", "ownership", "continue_stop_thresholds",
     }
     answers = decision.get("answers") or {}
+    author_name = str(author_reviewer or "").strip()
+    visual_name = str(review.get("reviewer") or "").strip()
+    decision_name = str(decision.get("reviewer") or "").strip()
     observed_ids = [item.get("page_id") for item in observations] if isinstance(observations, list) else []
     sheet_ids = [page for sheet in sheets for page in sheet.get("page_ids", [])] if isinstance(sheets, list) else []
     required = (
-        review.get("type") == "independent" and isinstance(review.get("reviewer"), str) and review["reviewer"].strip()
+        review.get("type") == "independent" and visual_name
         and review.get("role") == "visual-design-reviewer" and review.get("review_digest") == review_digest(review)
-        and review.get("reviewer") != author_reviewer
+        and visual_name != author_name
         and reviewed_at is not None and reviewed_at.tzinfo is not None and useful_observation(review.get("conclusion"))
         and review.get("artifactDigest") == artifacts["artifactDigest"]
         and review.get("paginationDigest") == artifacts["paginationDigest"]
@@ -443,9 +446,9 @@ def _validate_independent(review, work, artifacts, author_reviewer=None):
         and headline.get("status") == "reviewed" and useful_observation(headline.get("observation"))
         and worst.get("page_id") in page_ids and useful_observation(worst.get("finding"))
         and decision.get("role") == "decision-maker-reviewer" and decision.get("review_digest") == review_digest(decision)
-        and isinstance(decision.get("reviewer"), str) and decision["reviewer"].strip()
-        and decision.get("reviewer") != author_reviewer
-        and decision.get("reviewer") != review.get("reviewer")
+        and decision_name and aware_datetime(decision.get("at"))
+        and decision_name != author_name
+        and decision_name != visual_name
         and set(answers) == executive_questions and all(useful_observation(answers[key]) for key in executive_questions)
         and isinstance(observations, list) and observed_ids == page_ids
         and all(set(item.get("media") or []) == {"html", "pdf"} and "100%" in (item.get("scale") or [])

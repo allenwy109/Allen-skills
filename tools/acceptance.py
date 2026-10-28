@@ -59,6 +59,14 @@ def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def aware_datetime(value):
+    try:
+        parsed = datetime.fromisoformat(str(value or "").replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return parsed.tzinfo is not None and parsed.utcoffset() is not None
+
+
 def compute_status(entry, fixture, task=None):
     """返回 (状态, 失败原因, 条件)。task 不为空时还会核对文件哈希。"""
     failures, conditions = [], []
@@ -150,9 +158,10 @@ def _report_review_failures(reviewer):
     answers = decision.get("answers") or {}
     if (decision.get("role") != "decision-maker-reviewer"
             or decision.get("review_digest") != review_digest(decision)
+            or not aware_datetime(decision.get("at"))
             or set(answers) != EXECUTIVE_QUESTIONS
             or any(not str(answers[key]).strip() for key in EXECUTIVE_QUESTIONS)):
-        failures.append("决策者审查未回答六个高管问题或缺少独立角色身份和审查摘要")
+        failures.append("决策者审查时间无时区、未回答六个高管问题或缺少独立角色身份和审查摘要")
     if not author:
         failures.append("报告作者身份不能为空")
     elif author in {visual, decision_name}:
