@@ -16,7 +16,9 @@
     "language": {"type": "string", "required": true},
     "audience": {"type": "string"},
     "decision": {"type": "string"},
-    "date": {"type": "date"}
+    "date": {"type": "date"},
+    "bibliography_policy": {"type": "string", "required": true},
+    "client_citations": {"type": "string", "required": true}
    }},
    "executive_summary": {"type": "object", "required": true, "fields": {
     "question": {"type": "string", "required": true},

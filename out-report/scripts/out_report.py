@@ -12,6 +12,7 @@ import subprocess
 import sys
 import datetime
 import tempfile
+import zipfile
 
 SKILL_DIR = pathlib.Path(__file__).resolve().parents[1]
 A4_DIR = SKILL_DIR / "scripts" / "a4"
@@ -33,6 +34,7 @@ def _bootstrap():
 
 _bootstrap()
 from tools.acceptance import Acceptance  # noqa: E402
+from tools import package_support  # noqa: E402
 from tools.bridge import to_forge, to_report  # noqa: E402
 from tools.lib import runtime  # noqa: E402
 from tools.lib.ledger import Ledger  # noqa: E402
@@ -49,6 +51,14 @@ def story_dir(task):
 
 def work_dir(task):
     return story_dir(task) / "a4-work"
+
+
+def client_report_dir(task, for_write=True):
+    """Use the new delivery path, while allowing legacy reports to be read in place."""
+    deliverables = pathlib.Path(task).resolve() / "08_deliverables"
+    current = deliverables / "client-report"
+    legacy = deliverables / "report"
+    return current if for_write or current.exists() or not legacy.exists() else legacy
 
 
 def read_json(path):
@@ -164,8 +174,13 @@ def render_document(report, task):
         components.append({"kind": "section-title", "payload": {"id": chapter_id, "title": section["title"], "layout_id": "overview-detail",
                                                                     "chapter_claims": [section["title"]], "blocks": []}})
         components.extend(_component_for_block(block, section, index, report, metrics) for index, block in enumerate(section["blocks"], 1))
-    components.append({"kind": "references-appendix", "payload": {"id": "references", "title": "来源与附录", "layout_id": "continued-table",
-                                                                         "blocks": [], "references": report["references"]}})
+    references = report["references"]
+    if report["metadata"].get("bibliography_policy") != "full":
+        references = [{"id": reference["id"], "title": reference["id"],
+                       "locators": reference.get("locators") or ["Evidence package"]}
+                      for reference in references]
+    components.append({"kind": "references-appendix", "payload": {"id": "references", "title": "来源索引", "layout_id": "continued-table",
+                                                                         "blocks": [], "references": references}})
     document = {"title": report["metadata"]["title"], "components": components}
     if "citation_registry" in report:
         document["citation_registry"] = report["citation_registry"]
@@ -182,7 +197,7 @@ def cmd_init(args):
     slides, sidecar = load_story(task)
     try:
         legacy = to_forge.build(task, slides, sidecar, args.allow)
-        report, coverage = to_report.build(task, slides, sidecar)
+        report, coverage = to_report.build(task, slides, sidecar, bibliography_policy=args.bibliography_policy)
     except (to_forge.BridgeError, to_report.ReportError) as error:
         return report_problem(error)
     work.mkdir(parents=True)
@@ -477,20 +492,16 @@ def cmd_package(args):
         print("REPORT_QA_FAILED: " + "、".join(item["code"] for item in qa["blocking"]), file=sys.stderr)
         return 1
     build = work / "build"
-    out = task / "08_deliverables/report"
-    sources = {
-        "report.html": build / "report.html", "report.pdf": build / "report.pdf",
-        "coverage-manifest.json": work / "coverage-manifest.json",
-        "pagination-manifest.json": build / "pagination-manifest.json",
-        "geometry-manifest.json": build / "geometry-manifest.json",
-        "media-manifest.json": build / "media-manifest.json", "visual-candidate.json": build / "visual-candidate.json",
-        "visual-regression.json": work / "visual-regression.json", "qa-evidence.json": work / "qa-evidence.json",
-        "qa-result.json": work / "qa-result.json", "artifact-manifest.json": work / "artifact-manifest.json",
-        "author-review.json": work / "author-review.json", "independent-review.json": work / "independent-review.json",
-    }
-    for page in sorted(build.glob("page-*.png")):
-        sources[page.name] = page
+    out = client_report_dir(task)
+    sources = {"report.html": build / "report.html", "report.pdf": build / "report.pdf"}
     replace_delivery(out, sources)
+    evidence = None
+    if (task / "app-run.json").is_file():
+        try:
+            evidence = package_support.build(task)
+        except (package_support.PackageError, OSError, ValueError, zipfile.BadZipFile) as error:
+            print(f"EVIDENCE_PACKAGE_FAILED: {error}", file=sys.stderr)
+            return 1
     checks = [
         storyline_check(task), *diligence_checks(task),
         {"name": "coverage", "result": "passed", "detail": "input/output sets equal; duplicates rejected"},
@@ -507,6 +518,8 @@ def cmd_package(args):
         "files": [str((out / name).relative_to(task)) for name in sources], "upstream_checks": checks, "reviewer": acceptance_reviewer,
     })
     print(f"已打包 A4 报告：{out}")
+    if evidence:
+        print(f"已打包证据包：{evidence['output']}")
     print(f"统一验收状态：{entry['status']}")
     return 0 if entry["status"] == "passed" else 1
 
@@ -518,6 +531,7 @@ def main(argv=None):
         item = sub.add_parser(name)
         item.add_argument("task")
         item.add_argument("--allow", action="append", default=[])
+        item.add_argument("--bibliography-policy", choices=("evidence_package", "full"), default="evidence_package")
     item = sub.add_parser("render"); item.add_argument("task")
     item = sub.add_parser("review"); item.add_argument("task"); item.add_argument("kind", choices=("author", "independent")); item.add_argument("review")
     item = sub.add_parser("package"); item.add_argument("task"); item.add_argument("--slug", default="main")

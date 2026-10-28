@@ -222,12 +222,14 @@ class A4OutReportPipelineTest(unittest.TestCase):
         package = self.command("package", self.task)
         self.assertIn("passed", package.stdout)
 
-        out = self.task / "08_deliverables/report"
-        for name in ("report.html", "report.pdf", "coverage-manifest.json", "pagination-manifest.json",
-                     "geometry-manifest.json", "media-manifest.json", "visual-candidate.json", "visual-regression.json",
-                     "qa-evidence.json", "qa-result.json", "artifact-manifest.json"):
+        out = self.task / "08_deliverables/client-report"
+        for name in ("report.html", "report.pdf"):
             self.assertTrue((out / name).is_file(), name)
-        self.assertEqual(len(list(out.glob("page-*.png"))), artifacts["pageCount"])
+        self.assertEqual([], list(out.glob("page-*.png")))
+        client_html = (out / "report.html").read_text(encoding="utf-8")
+        self.assertIn('class="citation-marker"', client_html)
+        for forbidden in ("https://", "Grade A", "2026-01-15T", "conflict_of_interest"):
+            self.assertNotIn(forbidden, client_html)
         entry = next(item for item in Acceptance(self.task).load()["deliverables"] if item["id"] == "report-main")
         names = [check["name"] for check in entry["upstream_checks"]]
         self.assertEqual(names, ["storyline", "coverage", "pagination", "geometry", "visual-regression", "author-review", "independent-review"])
@@ -235,8 +237,7 @@ class A4OutReportPipelineTest(unittest.TestCase):
         self.assertEqual("passed", entry["status"])
         self.assertEqual("independent", entry["reviewer"]["type"])
         recorded_paths = [item["path"] if isinstance(item, dict) else item for item in entry["files"]]
-        self.assertTrue(any(path.endswith("artifact-manifest.json") for path in recorded_paths))
-        self.assertEqual(len([path for path in recorded_paths if path.endswith(".png")]), artifacts["pageCount"])
+        self.assertEqual(["08_deliverables/client-report/report.html", "08_deliverables/client-report/report.pdf"], recorded_paths)
 
     def test_package_fails_closed_before_both_reviews(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -268,6 +269,15 @@ class A4OutReportContractTest(unittest.TestCase):
             self.assertEqual(10, len(list(destination.glob("page-*.png"))))
             out_report.replace_delivery(destination, second_sources)
             self.assertEqual([f"page-{index:03d}.png" for index in range(1, 9)], sorted(path.name for path in destination.glob("page-*.png")))
+
+    def test_delivery_reader_accepts_legacy_report_without_creating_new_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            task = pathlib.Path(temporary)
+            legacy = task / "08_deliverables/report"
+            legacy.mkdir(parents=True)
+            (legacy / "report.html").write_text("legacy", encoding="utf-8")
+            self.assertEqual(legacy.resolve(), out_report.client_report_dir(task, for_write=False))
+            self.assertFalse((task / "08_deliverables/client-report").exists())
 
     def test_skill_routes_reports_to_a4_not_forge_author_pages(self):
         text = (ROOT / "out-report/SKILL.md").read_text(encoding="utf-8")

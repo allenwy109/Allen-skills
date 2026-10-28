@@ -32,6 +32,8 @@ class ReportContractTest(unittest.TestCase):
         report, coverage = self.build()
         self.assertEqual(report["version"], "1.0.0")
         self.assertEqual(report["metadata"]["title"], "星河数据科技经营概览")
+        self.assertEqual(report["metadata"]["bibliography_policy"], "evidence_package")
+        self.assertEqual(report["metadata"]["client_citations"], "compact")
         blocks = [b for section in report["sections"] for b in section["blocks"]]
         self.assertEqual([b["id"] for b in blocks], ["p02-bars", "p02-note", "p03-kpi", "p03-steps"])
         self.assertEqual(blocks[0]["kind"], "chart")
@@ -264,6 +266,14 @@ class ReportContractTest(unittest.TestCase):
         for field in ("title", "author", "publisher", "published", "accessed", "url", "locators", "grade",
                       "conflict_of_interest"):
             self.assertIn(field, reference)
+
+    def test_full_bibliography_requires_explicit_selection(self):
+        report, _ = T.build(self.task, self.slides, F.report_sidecar(), bibliography_policy="full")
+        self.assertEqual("full", report["metadata"]["bibliography_policy"])
+
+        with self.assertRaises(T.ReportError) as cm:
+            T.build(self.task, self.slides, F.report_sidecar(), bibliography_policy="unexpected")
+        self.assertIn("bibliography_policy", str(cm.exception))
 
     def test_validate_report_rejects_duplicate_and_unknown_internal_refs(self):
         report, _ = self.build()

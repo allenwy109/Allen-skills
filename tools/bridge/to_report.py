@@ -212,8 +212,10 @@ def validate_report(report):
     return []
 
 
-def build(task, slides, sidecar=None):
+def build(task, slides, sidecar=None, bibliography_policy=None):
     """Return ``(report, coverage)`` or raise ReportError with a stable code."""
+    if bibliography_policy not in (None, "evidence_package", "full"):
+        raise ReportError("REPORT_COVERAGE_MISMATCH", "bibliography_policy 只能是 evidence_package 或显式 full")
     problems = schema_check.check_document(schema_check.load("slides.schema.json"), slides, "slides.json")
     if problems:
         raise ReportError("REPORT_COVERAGE_MISMATCH", problems)
@@ -393,7 +395,9 @@ def build(task, slides, sidecar=None):
         "version": "1.0.0",
         "metadata": {k: v for k, v in {"title": deck["title"], "language": deck["language"],
                                         "audience": deck.get("audience"), "decision": deck.get("decision"),
-                                        "date": cover.get("date")}.items() if v is not None},
+                                        "date": cover.get("date"),
+                                        "bibliography_policy": bibliography_policy or "evidence_package",
+                                        "client_citations": "compact"}.items() if v is not None},
         "executive_summary": {"question": deck.get("brief", {}).get("question", deck["title"]),
                               "answer_claim_refs": sorted(set(answer_claim_refs)), "a_card_refs": list(a_cards)},
         "registry": {"claim_ids": sorted(set(expected["claims"]) | set(expected["answer_claims"])),
