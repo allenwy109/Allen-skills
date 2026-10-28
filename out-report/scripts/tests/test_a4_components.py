@@ -81,6 +81,44 @@ def component_payload(kind, contract):
 
 
 class A4ComponentTest(unittest.TestCase):
+    def test_native_consulting_exhibits_have_distinct_accessible_structures(self):
+        fixtures = {
+            "executive-summary": {"answer": "先验证付费", "reasons": ["需求未证实", "成本可控"]},
+            "answer-and-reasons": {"answer": "进入试点", "reasons": ["客户有触发事件", "替代方案昂贵"]},
+            "pain-comparison": {"columns": ["现状", "目标"], "rows": [{"label": "等待", "values": ["3 天", "当天"]}]},
+            "competitor-matrix": {"columns": ["成本", "速度"], "rows": [{"label": "方案 A", "values": ["低", "快"]}]},
+            "decision-tree": {"nodes": [{"id": "n1", "label": "有付费意愿？"}, {"id": "n2", "label": "进入试点"}], "edges": [{"from": "n1", "to": "n2", "label": "是"}]},
+            "mechanism-process": {"steps": [{"label": "采集"}, {"label": "判断"}, {"label": "行动"}]},
+            "paired-scenarios": {"scenarios": [{"label": "上行情景", "outcome": "扩张"}, {"label": "下行情景", "outcome": "停止"}]},
+            "30-60-90-roadmap": {"stages": [{"label": "30 天", "output": "访谈"}, {"label": "60 天", "output": "试点"}, {"label": "90 天", "output": "决策"}]},
+            "methods-limitations": {"methods": ["访谈"], "limitations": ["样本较小"]},
+        }
+        seen = set()
+        for kind, exhibit in fixtures.items():
+            with self.subTest(kind=kind):
+                item = block("text")
+                item["content"]["semantic_type"] = kind
+                item["content"]["exhibit"] = {"kind": kind, **exhibit}
+                result = run_node("component.renderBlock(payload.block, {})", {"block": item})
+                self.assertTrue(result["ok"], result)
+                html = result["value"]
+                self.assertIn(f'data-exhibit-kind="{kind}"', html)
+                self.assertIn('id="b-1-exhibit"', html)
+                self.assertRegex(html, r'aria-(?:label|labelledby)=')
+                self.assertNotIn("block-purpose", html)
+                seen.add(html.split('data-exhibit-kind="', 1)[1].split('>', 1)[0])
+        self.assertEqual(len(fixtures), len(seen))
+
+    def test_generic_fallback_is_only_allowed_for_point_evidence(self):
+        item = block("text")
+        item["content"]["semantic_type"] = "decision-tree"
+        missing = run_node("component.renderBlock(payload.block, {})", {"block": item})
+        self.assertFalse(missing["ok"])
+        self.assertEqual("REPORT_EXHIBIT_MISSING", missing["code"])
+        item["content"]["semantic_type"] = "point_evidence"
+        fallback = run_node("component.renderBlock(payload.block, {})", {"block": item})
+        self.assertTrue(fallback["ok"], fallback)
+
     def test_red_components_module_exists(self):
         result = run_node("Object.keys(component).sort()")
         self.assertTrue(result["ok"])

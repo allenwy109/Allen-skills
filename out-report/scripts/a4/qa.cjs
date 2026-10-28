@@ -10,6 +10,26 @@ const MEDIA_TOLERANCE_MM = 0.2;
 const PAGE_ID = /^page-\d{3,}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const ISO8601_TZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+const EXHIBIT_FORMS = Object.freeze({
+  chart: ['svg.custom'], process: ['svg.custom'], timeline: ['svg.custom', 'html.table'],
+  matrix: ['html.table'], scenario: ['html.table'], 'decision-tree': ['svg.custom'],
+});
+
+function validateExhibitDeclaration(declaration) {
+  const family = declaration && declaration.family;
+  if (!Object.hasOwn(EXHIBIT_FORMS, family)) return declaration;
+  if (!declaration.form) {
+    const error = new Error(`${family} exhibit requires a native form`);
+    error.code = 'REPORT_EXHIBIT_MISSING';
+    throw error;
+  }
+  if (!EXHIBIT_FORMS[family].includes(declaration.form)) {
+    const error = new Error(`${family} exhibit cannot use ${declaration.form}`);
+    error.code = 'REPORT_EXHIBIT_MISMATCH';
+    throw error;
+  }
+  return declaration;
+}
 
 function normalizedText(value) {
   return String(value || '').normalize('NFKC').replaceAll('戶', '户').replaceAll('⻓', '长').replaceAll('⻅', '见')
@@ -327,4 +347,4 @@ if (require.main === module) {
   try { main(); } catch (error) { process.stderr.write(`${error.code || 'REPORT_QA_FAILED'}: ${error.message}\n`); process.exit(1); }
 }
 
-module.exports = { A4, COVERAGE_SETS, MEDIA_TOLERANCE_MM, evaluate, evidenceErrors, deriveDifferences };
+module.exports = { A4, COVERAGE_SETS, MEDIA_TOLERANCE_MM, evaluate, evidenceErrors, deriveDifferences, validateExhibitDeclaration };

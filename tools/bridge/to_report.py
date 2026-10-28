@@ -19,6 +19,59 @@ FORM_KIND = {
     "html.kpi": "metric",
     "html.table": "table",
 }
+EXHIBIT_FORMS = {
+    "executive-summary": {"html.text"}, "answer-and-reasons": {"html.text"},
+    "pain-comparison": {"html.table"}, "competitor-matrix": {"html.table"},
+    "decision-tree": {"svg.custom"}, "mechanism-process": {"svg.custom"},
+    "paired-scenarios": {"html.table"}, "30-60-90-roadmap": {"svg.custom", "html.table"},
+    "methods-limitations": {"html.text"},
+}
+
+
+def _route_exhibit_kind(panel):
+    semantic = panel.get("semantic_type")
+    kind = {"pain-demand": "pain-comparison", "competition": "competitor-matrix"}.get(semantic, semantic)
+    if kind in EXHIBIT_FORMS:
+        return kind
+    relationship = panel.get("relationship")
+    capacity = panel.get("capacity") or {}
+    if relationship in {"decision-tree", "branching"}:
+        return "decision-tree"
+    if relationship in {"process", "mechanism"}:
+        return "mechanism-process"
+    if relationship in {"timeline", "roadmap"}:
+        return "30-60-90-roadmap" if capacity.get("stages", 0) <= 3 else "mechanism-process"
+    if relationship == "scenario":
+        return "paired-scenarios"
+    if relationship in {"method", "boundary"}:
+        return "methods-limitations"
+    return None
+
+
+def _native_exhibit(panel, semantic_content):
+    kind = _route_exhibit_kind(panel)
+    if kind not in EXHIBIT_FORMS:
+        return None
+    form = panel.get("form")
+    if not form:
+        raise ReportError("REPORT_EXHIBIT_MISSING", f"panel {panel.get('id')} 的 {kind} 缺少 form")
+    supplied = panel.get("exhibit")
+    if supplied:
+        if supplied.get("kind", kind) != kind:
+            raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 的 exhibit kind 不一致")
+        declared_form = supplied.get("form", form)
+        if declared_form not in EXHIBIT_FORMS[kind]:
+            raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 的 {kind} 不能使用 {declared_form}")
+        return {**supplied, "kind": kind, "form": declared_form}
+    if kind == "pain-comparison" and semantic_content.get("pain_groups"):
+        groups = semantic_content["pain_groups"]
+        return {"kind": kind, "family": "matrix", "form": "html.table", "columns": ["当前替代", "后果", "购买信号"],
+                "rows": [{"label": row["segment"], "values": [row["workaround"], row["consequence"], row["purchase_signal"]]} for row in groups]}
+    if kind == "competitor-matrix" and semantic_content.get("comparison"):
+        comparison = semantic_content["comparison"]
+        return {"kind": kind, "family": "matrix", "form": "html.table", "columns": comparison["criteria"],
+                "rows": [{"label": row["name"], "values": [row["values"].get(column, "未提供") for column in comparison["criteria"]]} for row in comparison["alternatives"]]}
+    raise ReportError("REPORT_EXHIBIT_MISSING", f"panel {panel.get('id')} 的 {kind} 缺少结构化 exhibit")
 
 
 class ReportError(Exception):
@@ -336,6 +389,7 @@ def build(task, slides, sidecar=None, bibliography_policy=None):
             source_bindings = _source_bindings(set(panel_claims), links, evidence, panel.get("source_ids", []))
             rel_refs = sorted(r["id"] for r in relations if panel["id"] in r["panel_refs"])
             semantic_content = _semantic_content(panel, set(panel_claims), claims, decision)
+            native_exhibit = _native_exhibit(panel, semantic_content)
             blocks.append({
                 "id": f"p{slide['page']:02d}-{panel['id']}",
                 "kind": FORM_KIND[panel["form"]],
@@ -356,6 +410,7 @@ def build(task, slides, sidecar=None, bibliography_policy=None):
                     "semantic_type": panel.get("semantic_type"), "visual": panel.get("visual"),
                     "slot": panel["slot"], "span": panel["span"],
                     "claims": _claim_details(panel_claims, claims, links, evidence),
+                    "exhibit": native_exhibit,
                     **semantic_content,
                 }.items() if v is not None},
             })

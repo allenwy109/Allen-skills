@@ -83,7 +83,35 @@ def run_qa(evidence):
     return json.loads(process.stdout)
 
 
+def run_node(expression, payload):
+    script = f"""
+const qa = require({json.dumps(str(QA))});
+const payload = JSON.parse(process.argv[1]);
+Promise.resolve().then(() => {expression}).then(
+  value => process.stdout.write(JSON.stringify({{ok: true, value}})),
+  error => process.stdout.write(JSON.stringify({{ok: false, code: error.code, message: error.message}}))
+);
+"""
+    process = subprocess.run(["node", "-e", script, json.dumps(payload)], cwd=ROOT, check=True, capture_output=True, text=True)
+    return json.loads(process.stdout)
+
+
 class A4QualityGateTest(unittest.TestCase):
+    def test_declared_exhibit_family_requires_matching_native_form(self):
+        cases = [
+            ({"family": "matrix", "form": "html.text"}, "REPORT_EXHIBIT_MISMATCH"),
+            ({"family": "timeline"}, "REPORT_EXHIBIT_MISSING"),
+            ({"family": "decision-tree", "form": "svg.custom"}, None),
+        ]
+        for declaration, expected in cases:
+            with self.subTest(declaration=declaration):
+                result = run_node("qa.validateExhibitDeclaration(payload)", declaration)
+                if expected:
+                    self.assertFalse(result["ok"])
+                    self.assertEqual(expected, result.get("code"), result)
+                else:
+                    self.assertTrue(result["ok"], result)
+
     def test_export_rebuilds_internal_links_and_cleans_temporary_pages_in_finally(self):
         source = EXPORT.read_text(encoding="utf-8")
         self.assertNotIn("pdfunite", source)
