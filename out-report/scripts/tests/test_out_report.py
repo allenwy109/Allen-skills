@@ -102,6 +102,7 @@ class A4OutReportPipelineTest(unittest.TestCase):
 
             document = out_report.render_document(report, task)
             summary = next(item for item in document["components"] if item["kind"] == "executive-summary")
+            self.assertEqual("zh-CN", summary["payload"]["language"])
             pain = next(item for item in document["components"] if item["kind"] == "pain-demand")
             comparison = next(item for item in document["components"] if item["kind"] == "comparison")
             references = next(item for item in document["components"] if item["kind"] == "references-appendix")

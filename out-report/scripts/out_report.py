@@ -191,6 +191,7 @@ def render_document(report, task):
                                        "entries": [{"title": section["title"], "destination": f"chapter-{index:02d}"}
                                                    for index, section in enumerate(report["sections"], 1)]}},
         {"kind": "executive-summary", "payload": {"id": "executive-summary", "title": "执行摘要", "layout_id": "overview-detail", "blocks": [],
+                                                     "language": report["metadata"].get("language", "en"),
                                                      "answers": [answer] if answer else [],
                                                      "summary_items": summary_items,
                                                      "decision_level": decision_summary.get("decision_level"),

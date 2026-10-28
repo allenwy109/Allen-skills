@@ -340,8 +340,8 @@ class A4QualityGateTest(unittest.TestCase):
 
     def test_text_manifest_normalizes_pdfkit_cjk_and_punctuation_variants(self):
         evidence = good_evidence()
-        evidence["media"]["htmlPages"][0]["text"] = "客户，验长见页角门风齐：｜；2024–2025"
-        evidence["media"]["pdfPages"][0]["text"] = "客戶,验⻓⻅⻚⻆⻔⻛⻬:|;2024‒2025"
+        evidence["media"]["htmlPages"][0]["text"] = "客户，验长见页角门风齐马：｜；2024–2025"
+        evidence["media"]["pdfPages"][0]["text"] = "客戶,验⻓⻅⻚⻆⻔⻛⻬⻢:|;2024‒2025"
         codes = {item["code"] for item in run_qa(evidence)["blocking"]}
         self.assertNotIn("REPORT_TEXT_MISMATCH", codes)
 

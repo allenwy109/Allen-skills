@@ -453,6 +453,12 @@ function renderBlock(block, context = {}) {
 }
 
 function executiveSummaryBody(payload) {
+  const chinese = String(payload.language || '').toLowerCase().startsWith('zh');
+  const labels = chinese ? {
+    upside: '最大上行', risk: '主要风险', continue: '继续门槛', stop: '停止门槛', actions: '立即行动',
+  } : {
+    upside: 'Largest upside', risk: 'Largest risk', continue: 'Continue threshold', stop: 'Stop threshold', actions: 'Immediate actions',
+  };
   const answer = `<p class="executive-answer">${escapeHtml(payload.answers[0])}</p>`;
   const items = list(payload.summary_items).map(item =>
     `<li class="summary-item"><strong>${escapeHtml(item.text)}</strong>` +
@@ -461,7 +467,7 @@ function executiveSummaryBody(payload) {
   ).join('');
   const reasons = list(payload.decisive_reasons).map(reason => `<li>${escapeHtml(reason)}</li>`).join('');
   const actions = list(payload.immediate_actions).map(action => `<li>${escapeHtml(action)}</li>`).join('');
-  return `${answer}<div class="executive-decision" data-decision-level="${escapeHtml(payload.decision_level)}"><strong>${escapeHtml(payload.decision_level)}</strong><ul class="decisive-reasons">${reasons}</ul><dl><div><dt>Largest upside</dt><dd>${escapeHtml(payload.largest_upside)}</dd></div><div><dt>Largest risk</dt><dd>${escapeHtml(payload.largest_risk)}</dd></div><div><dt>Continue threshold</dt><dd>${escapeHtml(payload.thresholds.continue)}</dd></div><div><dt>Stop threshold</dt><dd>${escapeHtml(payload.thresholds.stop)}</dd></div></dl><h3>Immediate actions</h3><ul>${actions}</ul></div><ol class="summary-list">${items}</ol>`;
+  return `${answer}<div class="executive-decision" data-decision-level="${escapeHtml(payload.decision_level)}"><strong>${escapeHtml(payload.decision_level)}</strong><ul class="decisive-reasons">${reasons}</ul><dl><div><dt>${labels.upside}</dt><dd>${escapeHtml(payload.largest_upside)}</dd></div><div><dt>${labels.risk}</dt><dd>${escapeHtml(payload.largest_risk)}</dd></div><div><dt>${labels.continue}</dt><dd>${escapeHtml(payload.thresholds.continue)}</dd></div><div><dt>${labels.stop}</dt><dd>${escapeHtml(payload.thresholds.stop)}</dd></div></dl><h3>${labels.actions}</h3><ul>${actions}</ul></div><ol class="summary-list">${items}</ol>`;
 }
 
 function renderComponent(kind, payload = {}, context = {}) {

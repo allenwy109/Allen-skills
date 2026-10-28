@@ -76,9 +76,17 @@ function paginateMeasured(fragments, contentHeightPx) {
     if (page.items.length || page.intentionalBlank) pages.push(page);
     page = newPage(pages.length + 1);
   };
-  for (const fragment of fragments) {
+  for (let index = 0; index < fragments.length; index += 1) {
+    const fragment = fragments[index];
     if (fragment.heightPx > contentHeightPx + 1) {
       throw reportError('REPORT_PAGE_OVERFLOW', `${fragment.originalId} is ${fragment.heightPx}px, page content is ${contentHeightPx}px`);
+    }
+    if (fragment.kind === 'section-title' && fragments[index + 1]) {
+      const pairHeight = fragment.heightPx + fragments[index + 1].heightPx;
+      if (pairHeight > contentHeightPx + 1) {
+        throw reportError('REPORT_KEEP_WITH_NEXT', `${fragment.originalId} cannot share a page with ${fragments[index + 1].originalId}`);
+      }
+      if (page.items.length && page.usedHeightPx + pairHeight > contentHeightPx + 1) flush();
     }
     if (page.items.length && page.usedHeightPx + fragment.heightPx > contentHeightPx + 1) flush();
     page.items.push(fragment);

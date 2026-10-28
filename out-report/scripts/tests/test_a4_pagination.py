@@ -132,6 +132,36 @@ class A4PaginationTest(unittest.TestCase):
         self.assertGreater(result["manifest"]["pageCount"], 1)
         self.assertTrue(all(page["usedHeightPx"] <= page["contentHeightPx"] + 1 for page in result["manifest"]["pages"]))
 
+    def test_section_title_keeps_with_next_body_without_blank_or_overflow(self):
+        intro = component("intro")
+        intro["payload"]["blocks"][0]["content"]["purpose"] = "words " * 220
+        opener = component(
+            "chapter", "section-title", layout_id="overview-detail",
+            blocks=[block("chapter")], chapter_claims=["下一章结论"],
+        )
+        result = render({"title": "Keep with next", "components": [intro, opener, component("finding")]})
+        repeated = render({"title": "Keep with next", "components": [intro, opener, component("finding")]})
+        manifest = result["manifest"]
+        self.assertEqual(manifest, repeated["manifest"])
+        self.assertEqual(manifest["blockToPage"]["chapter"], manifest["blockToPage"]["finding"])
+        self.assertEqual([1, 2], [page["number"] for page in manifest["pages"]])
+        self.assertTrue(all(page["usedHeightPx"] <= page["contentHeightPx"] + 1 for page in manifest["pages"]))
+
+    def test_section_title_fails_closed_when_atomic_next_component_cannot_share_a_page(self):
+        opener = component(
+            "chapter", "section-title", layout_id="overview-detail",
+            blocks=[block("chapter")], chapter_claims=["下一章结论"],
+        )
+        finding = component("finding")
+        finding["payload"]["blocks"][0]["content"]["purpose"] = "word " * 450
+        process = subprocess.run(
+            ["node", str(RENDER)], cwd=ROOT,
+            input=json.dumps({"title": "Impossible keep", "components": [opener, finding]}),
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(0, process.returncode)
+        self.assertIn("REPORT_KEEP_WITH_NEXT", process.stderr)
+
     def test_unsplittable_overflow_fails_instead_of_clipping_or_shrinking(self):
         huge = component("huge")
         huge["payload"]["blocks"][0]["content"]["purpose"] = "very long evidence " * 20000

@@ -259,6 +259,7 @@ class A4ComponentTest(unittest.TestCase):
             "largest_upside": "可复用闲置容量", "largest_risk": "锁定率不足",
             "immediate_actions": ["签两份付费试点"],
             "thresholds": {"continue": "锁定率至少 55%", "stop": "连续八周低于 32%"},
+            "language": "zh-CN",
         }
         rendered = run_node("component.renderComponent('executive-summary', payload, {})", payload)
         self.assertTrue(rendered["ok"], rendered)
@@ -267,6 +268,14 @@ class A4ComponentTest(unittest.TestCase):
         self.assertIn("judgment · low", rendered["value"])
         self.assertIn("尚无访谈、订单或愿付价格", rendered["value"])
         for text in ("conditional-go", "付费信号", "可复用闲置容量", "锁定率不足", "签两份付费试点", "锁定率至少 55%", "连续八周低于 32%"):
+            self.assertIn(text, rendered["value"])
+        for text in ("最大上行", "主要风险", "继续门槛", "停止门槛", "立即行动"):
+            self.assertIn(text, rendered["value"])
+        self.assertNotIn("Largest upside", rendered["value"])
+
+        payload["language"] = "en-US"
+        rendered = run_node("component.renderComponent('executive-summary', payload, {})", payload)
+        for text in ("Largest upside", "Largest risk", "Continue threshold", "Stop threshold", "Immediate actions"):
             self.assertIn(text, rendered["value"])
 
     def test_executive_summary_rejects_any_missing_decision_part(self):
