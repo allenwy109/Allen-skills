@@ -65,7 +65,7 @@ core-review 的第 5 个角色，L2 起必开。
 ```json
 {"type": "independent", "reviewer": "成品审查员", "at": "2026-10-23T10:00:00+08:00",
  "conclusion": "一句话总体结论",
- "issues": [{"id": "RV-0001", "level": "major", "text": "第 3 页图注没有写统计口径", "resolved": false}]}
+ "issues": [{"id": "RV-0001", "reviewer": "成品审查员", "level": "major", "text": "第 3 页图注没有写统计口径", "resolved": false}]}
 ```
 
 - 每条问题都记录实际提出问题的 `issue.reviewer`。阻塞或重要问题修复后重新出成品、重新登记，记录 remedy 和 remedy evidence，再交给该问题的原审查员复看一次；`re_review.reviewer` 必须与 `issue.reviewer` 相同，复审还包含时间、可定位 evidence 和规范摘要。一轮后仍未关闭则不通过。未关闭的轻微问题可以保留在记录中，不阻断正式报告验收。
