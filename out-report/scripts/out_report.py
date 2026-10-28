@@ -12,9 +12,16 @@ import subprocess
 import sys
 import datetime
 import tempfile
+import zipfile
 
 SKILL_DIR = pathlib.Path(__file__).resolve().parents[1]
 A4_DIR = SKILL_DIR / "scripts" / "a4"
+A4_LAYOUT_CATALOG = json.loads((SKILL_DIR / "assets" / "a4-layout-catalog.json").read_text(encoding="utf-8"))
+NATIVE_EXHIBIT_KINDS = {
+    semantic: item["kind"]
+    for item in A4_LAYOUT_CATALOG["exhibits"]
+    for semantic in item["semantic_types"]
+}
 
 
 def _bootstrap():
@@ -32,7 +39,8 @@ def _bootstrap():
 
 
 _bootstrap()
-from tools.acceptance import Acceptance  # noqa: E402
+from tools.acceptance import Acceptance, aware_datetime, review_closure_failures, review_digest  # noqa: E402
+from tools import package_support  # noqa: E402
 from tools.bridge import to_forge, to_report  # noqa: E402
 from tools.lib import runtime  # noqa: E402
 from tools.lib.ledger import Ledger  # noqa: E402
@@ -49,6 +57,14 @@ def story_dir(task):
 
 def work_dir(task):
     return story_dir(task) / "a4-work"
+
+
+def client_report_dir(task, for_write=True):
+    """Use the new delivery path, while allowing legacy reports to be read in place."""
+    deliverables = pathlib.Path(task).resolve() / "08_deliverables"
+    current = deliverables / "client-report"
+    legacy = deliverables / "report"
+    return current if for_write or current.exists() or not legacy.exists() else legacy
 
 
 def read_json(path):
@@ -112,9 +128,20 @@ def _component_for_block(block, section, index, report, metrics):
     if displays:
         block["content"]["visual"] = "、".join(displays)
     base = {"id": f"{section['id']}-item-{index:02d}", "title": block["content"]["title"], "blocks": [block]}
+    if index > 1 and section.get("repeat_reason"):
+        base["repeat_reason"] = section["repeat_reason"]
+        base["repeat_approved"] = section.get("repeat_approved") is True
     source_groups = [{"source_id": binding["source_id"], "locators": binding["locators"]}
                      for binding in block["source_bindings"]]
     semantic_type = block["content"].get("semantic_type")
+    exhibit = block["content"].get("exhibit")
+    if exhibit:
+        expected_kind = NATIVE_EXHIBIT_KINDS.get(semantic_type)
+        if not expected_kind:
+            raise to_report.ReportError("REPORT_EXHIBIT_MISSING", f"block {block['id']} 的 {semantic_type} 无法路由")
+        if exhibit.get("kind") != expected_kind:
+            raise to_report.ReportError("REPORT_EXHIBIT_MISMATCH", f"block {block['id']} 声明 {semantic_type} 但提供 {exhibit.get('kind')}")
+        return {"kind": "native-exhibit", "payload": {**base, "layout_id": "full-evidence", "exhibits": [exhibit]}}
     if semantic_type == "pain-demand" and block["content"].get("pain_groups"):
         return {"kind": "pain-demand", "payload": {**base, "layout_id": "full-evidence",
                                                           "pain_groups": block["content"]["pain_groups"]}}
@@ -123,14 +150,19 @@ def _component_for_block(block, section, index, report, metrics):
         return {"kind": "comparison", "payload": {**base, "layout_id": "comparison-columns",
                                                          "criteria": comparison["criteria"],
                                                          "alternatives": comparison["alternatives"]}}
+    if semantic_type != "point_evidence":
+        raise to_report.ReportError("REPORT_EXHIBIT_MISSING", f"block {block['id']} 的 {semantic_type or '<missing>'} 缺少结构化 exhibit")
+    client_source_groups = source_groups if report["metadata"].get("bibliography_policy") == "full" else source_groups[:1]
     if block["kind"] == "chart":
         return {"kind": "data-chart", "payload": {**base, "layout_id": "full-evidence", "unit": block["content"].get("subtitle") or "见来源口径",
                                                         "period": report["metadata"].get("date") or "报告期", "items": [block["id"]]}}
     if block["kind"] == "metric":
-        return {"kind": "executive-summary", "payload": {**base, "layout_id": "overview-detail", "answers": [block["content"]["purpose"]],
-                                                               "summary_items": [{"text": block["id"], "qualification": block["content"].get("subtitle") or "以来源口径为准"}]}}
+        block["kind"] = "text"
+        base["blocks"] = [block]
+        return {"kind": "claim-evidence", "payload": {**base, "layout_id": "full-evidence", "claim": block["content"]["purpose"],
+                                                          "evidence_groups": client_source_groups}}
     return {"kind": "claim-evidence", "payload": {**base, "layout_id": "full-evidence", "claim": block["content"]["purpose"],
-                                                          "evidence_groups": source_groups}}
+                                                          "evidence_groups": client_source_groups}}
 
 
 def render_document(report, task):
@@ -149,6 +181,9 @@ def render_document(report, task):
             "qualification": claim.get("limitation") or "需要结合正文边界判断",
         })
     answer = answer_claims[0]["statement"] if answer_claims else report["executive_summary"].get("question", "")
+    decision_summary = report["executive_summary"].get("decision_structure")
+    if not isinstance(decision_summary, dict):
+        raise to_report.ReportError("REPORT_COMPONENT_CONTRACT", "executive_summary.decision_structure is required; storyline must supply all six decision parts")
     components = [
         {"kind": "cover", "payload": {"id": "cover", "title": report["metadata"]["title"], "layout_id": "overview-detail",
                                          "title_groups": [{"title": report["metadata"]["title"]}], "blocks": []}},
@@ -156,17 +191,28 @@ def render_document(report, task):
                                        "entries": [{"title": section["title"], "destination": f"chapter-{index:02d}"}
                                                    for index, section in enumerate(report["sections"], 1)]}},
         {"kind": "executive-summary", "payload": {"id": "executive-summary", "title": "执行摘要", "layout_id": "overview-detail", "blocks": [],
+                                                     "language": report["metadata"].get("language", "en"),
                                                      "answers": [answer] if answer else [],
-                                                     "summary_items": summary_items}},
+                                                     "summary_items": summary_items,
+                                                     "decision_level": decision_summary.get("decision_level"),
+                                                     "decisive_reasons": decision_summary.get("decisive_reasons"),
+                                                     "largest_upside": decision_summary.get("largest_upside"),
+                                                     "largest_risk": decision_summary.get("largest_risk"),
+                                                     "immediate_actions": decision_summary.get("immediate_actions"),
+                                                     "thresholds": decision_summary.get("thresholds")}},
     ]
     for section_index, section in enumerate(report["sections"], 1):
         chapter_id = f"chapter-{section_index:02d}"
         components.append({"kind": "section-title", "payload": {"id": chapter_id, "title": section["title"], "layout_id": "overview-detail",
                                                                     "chapter_claims": [section["title"]], "blocks": []}})
         components.extend(_component_for_block(block, section, index, report, metrics) for index, block in enumerate(section["blocks"], 1))
-    components.append({"kind": "references-appendix", "payload": {"id": "references", "title": "来源与附录", "layout_id": "continued-table",
-                                                                         "blocks": [], "references": report["references"]}})
+    if report["metadata"].get("bibliography_policy") == "full":
+        components.append({"kind": "references-appendix", "payload": {
+            "id": "references", "title": "来源索引", "layout_id": "continued-table",
+            "blocks": [], "references": report["references"],
+        }})
     document = {"title": report["metadata"]["title"], "components": components}
+    document["citation_mode"] = report["metadata"].get("bibliography_policy", "evidence_package")
     if "citation_registry" in report:
         document["citation_registry"] = report["citation_registry"]
     return document
@@ -182,7 +228,7 @@ def cmd_init(args):
     slides, sidecar = load_story(task)
     try:
         legacy = to_forge.build(task, slides, sidecar, args.allow)
-        report, coverage = to_report.build(task, slides, sidecar)
+        report, coverage = to_report.build(task, slides, sidecar, bibliography_policy=args.bibliography_policy)
     except (to_forge.BridgeError, to_report.ReportError) as error:
         return report_problem(error)
     work.mkdir(parents=True)
@@ -303,6 +349,36 @@ def replace_delivery(destination, sources):
             shutil.rmtree(backup)
 
 
+def publish_deliverables(staged_root, deliverables, names):
+    """Publish a staged set together and restore all prior artifacts on failure."""
+    staged_root = pathlib.Path(staged_root)
+    deliverables = pathlib.Path(deliverables)
+    rollback = pathlib.Path(tempfile.mkdtemp(prefix=".delivery-rollback-", dir=deliverables))
+    moved_old = []
+    moved_new = []
+    try:
+        for name in names:
+            current = deliverables / name
+            if current.exists():
+                os.replace(current, rollback / name)
+                moved_old.append(name)
+        for name in names:
+            os.replace(staged_root / name, deliverables / name)
+            moved_new.append(name)
+    except Exception:
+        for name in reversed(moved_new):
+            current = deliverables / name
+            if current.is_dir():
+                shutil.rmtree(current)
+            elif current.exists():
+                current.unlink()
+        for name in moved_old:
+            os.replace(rollback / name, deliverables / name)
+        raise
+    finally:
+        shutil.rmtree(rollback, ignore_errors=True)
+
+
 def cmd_render(args):
     work = work_dir(args.task)
     if not (work / "render-document.json").is_file():
@@ -351,7 +427,7 @@ def _validate_author(review, regression, artifacts):
         raise StepError("REPORT_REVIEW_INVALID: author review must have a timezone-aware timestamp, accepted disposition with a specific reason, and bind the current artifact, pagination, baseline, candidate, and difference digests")
 
 
-def _validate_independent(review, work, artifacts):
+def _validate_independent(review, work, artifacts, author_reviewer=None):
     pagination = read_json(work / "build/pagination-manifest.json")
     page_ids = [page["id"] for page in pagination["pages"]]
     try:
@@ -361,10 +437,22 @@ def _validate_independent(review, work, artifacts):
     observations = review.get("observations")
     sheets = review.get("chapter_contact_sheets")
     headline = review.get("headline_chain") or {}
+    worst = review.get("worst_page") or {}
+    decision = review.get("decision_review") or {}
+    executive_questions = {
+        "answer_visibility", "executive_summary", "argument_sufficiency",
+        "actions", "ownership", "continue_stop_thresholds",
+    }
+    answers = decision.get("answers") or {}
+    author_name = str(author_reviewer or "").strip()
+    visual_name = str(review.get("reviewer") or "").strip()
+    decision_name = str(decision.get("reviewer") or "").strip()
     observed_ids = [item.get("page_id") for item in observations] if isinstance(observations, list) else []
     sheet_ids = [page for sheet in sheets for page in sheet.get("page_ids", [])] if isinstance(sheets, list) else []
     required = (
-        review.get("type") == "independent" and isinstance(review.get("reviewer"), str) and review["reviewer"].strip()
+        review.get("type") == "independent" and visual_name
+        and review.get("role") == "visual-design-reviewer" and review.get("review_digest") == review_digest(review)
+        and visual_name != author_name
         and reviewed_at is not None and reviewed_at.tzinfo is not None and useful_observation(review.get("conclusion"))
         and review.get("artifactDigest") == artifacts["artifactDigest"]
         and review.get("paginationDigest") == artifacts["paginationDigest"]
@@ -373,14 +461,22 @@ def _validate_independent(review, work, artifacts):
         and isinstance(sheets, list) and sheets and len(sheet_ids) == len(page_ids) and set(sheet_ids) == set(page_ids)
         and all(useful_observation(sheet.get("observation")) for sheet in sheets)
         and headline.get("status") == "reviewed" and useful_observation(headline.get("observation"))
+        and worst.get("page_id") in page_ids and useful_observation(worst.get("finding"))
+        and decision.get("role") == "decision-maker-reviewer" and decision.get("review_digest") == review_digest(decision)
+        and decision_name and aware_datetime(decision.get("at"))
+        and decision_name != author_name
+        and decision_name != visual_name
+        and set(answers) == executive_questions and all(useful_observation(answers[key]) for key in executive_questions)
         and isinstance(observations, list) and observed_ids == page_ids
         and all(set(item.get("media") or []) == {"html", "pdf"} and "100%" in (item.get("scale") or [])
                 and bool({"contact-sheet", "thumbnail"} & set(item.get("scale") or []))
                 and useful_observation(item.get("observation")) and useful_observation(item.get("reason")) for item in observations)
-        and isinstance(review.get("issues"), list) and not any(not issue.get("resolved", False) for issue in review["issues"])
+        and isinstance(review.get("issues"), list)
+        and not any(not issue.get("resolved", False) and issue.get("level") in ("blocking", "major") for issue in review["issues"])
+        and not review_closure_failures(review)
     )
     if not required:
-        raise StepError("REPORT_REVIEW_INVALID: independent review must bind artifacts and pagination, cover every page in HTML/PDF at 100% and contact-sheet/thumbnail scales, review chapter sheets and headline chain, and record specific observations/reasons with no unresolved issues")
+        raise StepError("REPORT_REVIEW_INVALID: independent reviewer must differ from the author; every report issue requires an issue reviewer; visual review must bind review digests, cover every page and the worst page with concrete aesthetic findings; decision review must answer all six executive questions; blocking/major issues require remedy evidence and one re-review")
 
 
 def cmd_review(args):
@@ -406,11 +502,13 @@ def cmd_review(args):
             print(str(error), file=sys.stderr)
             return 1
         if qa["status"] == "failed":
-            print("REPORT_REVIEW_INVALID: author disposition did not clear visual QA", file=sys.stderr)
+            codes = "、".join(item["code"] for item in qa["blocking"])
+            print(f"REPORT_REVIEW_INVALID: author disposition did not clear visual QA ({codes})", file=sys.stderr)
             return 1
     else:
         try:
-            _validate_independent(review, work, artifacts)
+            author = read_json(work / "author-review.json") if (work / "author-review.json").is_file() else {}
+            _validate_independent(review, work, artifacts, author.get("reviewer"))
         except StepError as error:
             print(str(error), file=sys.stderr)
             return 1
@@ -421,11 +519,14 @@ def cmd_review(args):
 
 def storyline_check(task):
     script = SKILL_DIR.parent / "core-storyline/scripts/storyline.py"
-    result = subprocess.run([sys.executable, str(script), "check", str(task), "--json"], capture_output=True, text=True)
+    env = dict(os.environ, ALLEN_RUNTIME=str(SKILL_DIR.parent))
+    result = subprocess.run([sys.executable, str(script), "check", str(task), "--json"], capture_output=True, text=True, env=env)
     try:
         value = json.loads(result.stdout)
-        return {"name": "storyline", "result": "passed" if value["passed"] else "failed",
-                "detail": f"errors={len(value['errors'])}; warnings={len(value['warnings'])}"}
+        detail = f"errors={len(value['errors'])}; warnings={len(value['warnings'])}"
+        if value["errors"]:
+            detail += "; " + str(value["errors"][0])[:350]
+        return {"name": "storyline", "result": "passed" if value["passed"] else "failed", "detail": detail}
     except (ValueError, KeyError):
         return {"name": "storyline", "result": "failed", "detail": (result.stdout + result.stderr)[-500:]}
 
@@ -468,7 +569,8 @@ def cmd_package(args):
     try:
         artifacts = verify_artifacts(work)
         _validate_author(read_json(work / "author-review.json"), read_json(work / "visual-regression.json"), artifacts)
-        _validate_independent(read_json(work / "independent-review.json"), work, artifacts)
+        _validate_independent(read_json(work / "independent-review.json"), work, artifacts,
+                              read_json(work / "author-review.json").get("reviewer"))
         qa = _qa(work)
     except StepError as error:
         print(str(error), file=sys.stderr)
@@ -477,20 +579,20 @@ def cmd_package(args):
         print("REPORT_QA_FAILED: " + "、".join(item["code"] for item in qa["blocking"]), file=sys.stderr)
         return 1
     build = work / "build"
-    out = task / "08_deliverables/report"
-    sources = {
-        "report.html": build / "report.html", "report.pdf": build / "report.pdf",
-        "coverage-manifest.json": work / "coverage-manifest.json",
-        "pagination-manifest.json": build / "pagination-manifest.json",
-        "geometry-manifest.json": build / "geometry-manifest.json",
-        "media-manifest.json": build / "media-manifest.json", "visual-candidate.json": build / "visual-candidate.json",
-        "visual-regression.json": work / "visual-regression.json", "qa-evidence.json": work / "qa-evidence.json",
-        "qa-result.json": work / "qa-result.json", "artifact-manifest.json": work / "artifact-manifest.json",
-        "author-review.json": work / "author-review.json", "independent-review.json": work / "independent-review.json",
-    }
-    for page in sorted(build.glob("page-*.png")):
-        sources[page.name] = page
-    replace_delivery(out, sources)
+    deliverables = task / "08_deliverables"
+    deliverables.mkdir(parents=True, exist_ok=True)
+    sources = {"report.html": build / "report.html", "report.pdf": build / "report.pdf"}
+    with tempfile.TemporaryDirectory(prefix=".delivery-stage-", dir=deliverables) as temporary:
+        staged = pathlib.Path(temporary)
+        replace_delivery(staged / "client-report", sources)
+        try:
+            evidence = package_support.build(task, require_app=False, output_root=staged, record_acceptance=False)
+        except (package_support.PackageError, OSError, ValueError, zipfile.BadZipFile) as error:
+            print(f"EVIDENCE_PACKAGE_FAILED: {error}", file=sys.stderr)
+            return 1
+        publish_deliverables(staged, deliverables, ("client-report", "evidence-package", "evidence-package.zip"))
+    out = deliverables / "client-report"
+    Acceptance(task).record(evidence["acceptance_record"])
     checks = [
         storyline_check(task), *diligence_checks(task),
         {"name": "coverage", "result": "passed", "detail": "input/output sets equal; duplicates rejected"},
@@ -501,13 +603,18 @@ def cmd_package(args):
         {"name": "independent-review", "result": "passed", "detail": read_json(work / "independent-review.json")["reviewer"]},
     ]
     independent = read_json(work / "independent-review.json")
-    acceptance_reviewer = {key: independent[key] for key in ("type", "reviewer", "at", "conclusion", "issues")}
+    acceptance_reviewer = {key: independent[key] for key in ("type", "reviewer", "role", "review_digest", "at", "conclusion", "issues", "worst_page", "decision_review")}
+    acceptance_reviewer["author"] = read_json(work / "author-review.json")["reviewer"]
+    acceptance_reviewer["review_digest"] = review_digest(acceptance_reviewer)
     entry = Acceptance(task).record({
         "id": f"report-{args.slug}", "kind": "report", "title": read_json(story_dir(task) / "report.json")["metadata"]["title"],
         "files": [str((out / name).relative_to(task)) for name in sources], "upstream_checks": checks, "reviewer": acceptance_reviewer,
     })
     print(f"已打包 A4 报告：{out}")
+    print(f"已打包证据包：{deliverables / 'evidence-package.zip'}")
     print(f"统一验收状态：{entry['status']}")
+    if entry["status"] == "failed":
+        print("REPORT_ACCEPTANCE_FAILED: " + "；".join(entry["failures"]), file=sys.stderr)
     return 0 if entry["status"] == "passed" else 1
 
 
@@ -518,6 +625,7 @@ def main(argv=None):
         item = sub.add_parser(name)
         item.add_argument("task")
         item.add_argument("--allow", action="append", default=[])
+        item.add_argument("--bibliography-policy", choices=("evidence_package", "full"), default="evidence_package")
     item = sub.add_parser("render"); item.add_argument("task")
     item = sub.add_parser("review"); item.add_argument("task"); item.add_argument("kind", choices=("author", "independent")); item.add_argument("review")
     item = sub.add_parser("package"); item.add_argument("task"); item.add_argument("--slug", default="main")

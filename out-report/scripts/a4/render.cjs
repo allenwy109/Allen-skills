@@ -13,7 +13,9 @@ const CSS = `
 @page{size:210mm 297mm;margin:0}*{box-sizing:border-box}html,body{margin:0;color:#262d31;font-family:NotoSansSC,Arial,sans-serif;font-size:10.75pt;line-height:1.58}.page{width:210mm;height:297mm;padding:18mm 17mm 18mm 20mm;background:#f7f5ef;position:relative;break-after:page;overflow:hidden}.page__body{width:173mm;height:261mm;overflow:visible}.report-component{display:block;margin:0 0 6mm;border-top:.7pt solid #bdc5c3;padding-top:3mm}.report-component>h1{font:600 26pt/1.22 NotoSerifSC,serif;margin:0 0 7mm}.report-component>h2{font:600 20pt/1.35 NotoSerifSC,serif;margin:0 0 5mm}.report-block{display:block;margin:0 0 4mm}.report-block header{display:block}.report-block h3{font-size:12pt;line-height:1.45;margin:0 0 2mm}.report-block p{margin:0 0 2mm}.block-subtitle,.block-reason{color:#667176}.citation-markers{margin-left:1mm}.citation-marker{color:#0b6b66;text-decoration:none;margin-right:.5mm}.identity-key{display:inline-block;margin-right:2mm;font-size:8.5pt}.table-body,.source-table{width:100%;border-collapse:collapse;font-size:8.5pt;line-height:1.4}.table-body th,.table-body td,.source-table th,.source-table td{border-bottom:.35pt solid #bdc5c3;padding:1.6mm;text-align:left;vertical-align:top}.source-table .source-locator{font-size:7.5pt}.block-figure{margin:0}.block-figure svg{width:100%;height:38mm;stroke:#0b6b66;fill:#d8e7e3}.folio{position:absolute;right:17mm;bottom:3mm;font-size:7.5pt}.intentional-blank{display:grid;place-items:center;color:#667176;font-size:8.5pt}.toc-list{margin:0;padding-left:0;list-style:none}.toc-list a{color:inherit}.toc-page{float:right;min-width:3ch;text-align:right}.page-item,.measure-item{display:flow-root;width:173mm}.measure-root{width:173mm}`;
 
 const SEMANTIC_CSS = `
-.page{height:297mm;break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid}.page__body{height:259mm}.report-component>h1,.report-component>h2{padding-top:1.5mm}.report-block{margin-bottom:3mm}.executive-answer{font:600 16pt/1.45 NotoSerifSC,serif;border-left:1.2mm solid #0b6b66;padding-left:4mm}.summary-list{display:grid;grid-template-columns:1fr 1fr;gap:4mm;padding:0;list-style:none}.summary-item{background:#fff;border-top:1mm solid #0b6b66;padding:3mm}.summary-item strong,.summary-meta{display:block}.summary-meta{color:#667176;font-size:8.5pt;margin:1mm 0}.claim-detail{border-left:1.2mm solid #0b6b66;padding:2.5mm 0 2.5mm 4mm;margin:0 0 3mm}.claim-statement{font:600 12pt/1.45 NotoSerifSC,serif}.claim-meta{display:grid;grid-template-columns:1fr 2fr;gap:2mm;margin:0 0 2mm}.claim-meta div{display:grid;grid-template-columns:25mm 1fr}.claim-meta dt,.pain-group dt{color:#667176}.claim-meta dd,.pain-group dd{margin:0}.claim-evidence-pair{display:grid;grid-template-columns:1fr 1fr;gap:4mm}.claim-evidence-pair h4{margin:0;font-size:9pt}.claim-evidence-pair ul{margin:1mm 0 2mm;padding-left:5mm}.evidence-locator,.evidence-more,.evidence-empty{color:#667176;font-size:8.5pt}.claim-limitation{background:#e8ece8;padding:2mm}.pain-groups{display:grid;grid-template-columns:1fr 1fr;gap:4mm}.pain-group{border-top:1mm solid #0b6b66;background:#fff;padding:3mm}.pain-group h4{font:600 11pt/1.4 NotoSerifSC,serif;margin:0 0 2mm}.pain-group dl{margin:0}.pain-group dl div{display:grid;grid-template-columns:20mm 1fr;border-top:.35pt solid #d6dbd8;padding:1.2mm 0}.pain-group dd{line-height:1.4}.competition-matrix{table-layout:fixed}.competition-matrix th:first-child{width:33mm}.competition-matrix th,.competition-matrix td{padding:1.2mm;overflow-wrap:anywhere}.competition-layer{display:block;color:#0b6b66;font-size:8.5pt;text-transform:uppercase}`;
+.page{height:297mm;break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid}.page__body{height:259mm}.report-component>h1,.report-component>h2{padding-top:1.5mm}.report-block{margin-bottom:3mm}.executive-answer{font:600 16pt/1.45 NotoSerifSC,serif;border-left:1.2mm solid #0b6b66;padding-left:4mm}.summary-list{display:grid;grid-template-columns:1fr 1fr;gap:4mm;padding:0;list-style:none}.summary-item{background:#fff;border-top:1mm solid #0b6b66;padding:3mm}.summary-item strong,.summary-meta{display:block}.summary-meta{color:#667176;font-size:8.5pt;margin:1mm 0}.claim-detail{border-left:1.2mm solid #0b6b66;padding:2.5mm 0 2.5mm 4mm;margin:0 0 3mm}.claim-statement{font:600 12pt/1.45 NotoSerifSC,serif}.claim-meta{display:grid;grid-template-columns:1fr 2fr;gap:2mm;margin:0 0 2mm}.claim-meta div{display:grid;grid-template-columns:25mm 1fr}.claim-meta dt,.pain-group dt{color:#667176}.claim-meta dd,.pain-group dd{margin:0}.claim-evidence-pair{display:grid;grid-template-columns:1fr 1fr;gap:4mm}.claim-evidence-pair h4{margin:0;font-size:9pt}.claim-evidence-pair ul{margin:1mm 0 2mm;padding-left:5mm}.evidence-locator,.evidence-more,.evidence-empty{color:#667176;font-size:8.5pt}.claim-limitation{background:#e8ece8;padding:2mm}.pain-groups{display:grid;grid-template-columns:1fr 1fr;gap:4mm}.pain-group{border-top:1mm solid #0b6b66;background:#fff;padding:3mm}.pain-group h4{font:600 11pt/1.4 NotoSerifSC,serif;margin:0 0 2mm}.pain-group dl{margin:0}.pain-group dl div{display:grid;grid-template-columns:20mm 1fr;border-top:.35pt solid #d6dbd8;padding:1.2mm 0}.pain-group dd{line-height:1.4}.competition-matrix{table-layout:fixed}.competition-matrix th:first-child{width:33mm}.competition-matrix th,.competition-matrix td{padding:1.2mm;overflow-wrap:anywhere}.competition-layer{display:block;color:#0b6b66;font-size:8.5pt;text-transform:uppercase}.native-exhibit{margin:0;background:#fff;border-top:1mm solid #0b6b66;padding:3mm}.native-exhibit table{width:100%;border-collapse:collapse}.native-exhibit th,.native-exhibit td{border-bottom:.35pt solid #bdc5c3;padding:1.6mm;text-align:left}.native-exhibit svg{display:block;width:100%;height:42mm}.native-exhibit rect{fill:#d8e7e3;stroke:#0b6b66}.native-exhibit text{fill:#262d31;font:4px NotoSansSC,Arial,sans-serif;text-anchor:middle}.native-exhibit--paired-scenarios{display:grid;grid-template-columns:1fr 1fr;gap:4mm}.roadmap-stages{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;padding:0;list-style:none}.roadmap-stages time,.roadmap-stages span{display:block}.exhibit-answer{font:600 15pt/1.4 NotoSerifSC,serif}`;
+
+const CONNECTOR_CSS = `.native-exhibit line{stroke:#0b6b66;stroke-width:1.2}.native-exhibit text{font-size:8.5pt}`;
 
 const FONTS = Object.freeze([
   { family: 'NotoSansSC', weight: 400, file: 'noto-sans-sc-400.woff2', hash: '758dff09a5625dd659ea4c529ffdb7741bdbc182b54957a7007f1cfcfd450820' },
@@ -78,7 +80,7 @@ function fragmentHtml(fragment, context) {
 
 function citationContext(document) {
   const hasAppendix = document.components.some(item => item.kind === 'references-appendix');
-  if (!document.citation_registry && !hasAppendix) return { citationRegistry: [] };
+  if (!document.citation_registry && !hasAppendix && document.citation_mode !== 'evidence_package') return { citationRegistry: [] };
   const bodyIds = [];
   const seen = new Set();
   for (const component of document.components) {
@@ -103,10 +105,10 @@ function citationContext(document) {
   const referenceIds = references.map(item => item.id);
   const counts = new Map();
   for (const sourceId of referenceIds) counts.set(sourceId, (counts.get(sourceId) || 0) + 1);
-  if (bodyIds.some(sourceId => counts.get(sourceId) !== 1) || referenceIds.some(sourceId => counts.get(sourceId) !== 1)) {
+  if (hasAppendix && (bodyIds.some(sourceId => counts.get(sourceId) !== 1) || referenceIds.some(sourceId => counts.get(sourceId) !== 1))) {
     throw reportError('REPORT_CITATION_MISMATCH', 'body sources and appendix targets must match, with one target per source');
   }
-  const ordered = [...bodyIds, ...[...new Set(referenceIds.filter(sourceId => !seen.has(sourceId)))].sort()];
+  const ordered = hasAppendix ? [...bodyIds, ...[...new Set(referenceIds.filter(sourceId => !seen.has(sourceId)))].sort()] : bodyIds;
   const generated = ordered.map((source_id, index) => ({ source_id, number: index + 1, appendix_anchor: `source-${source_id}` }));
   if (document.citation_registry) {
     const supplied = document.citation_registry;
@@ -158,11 +160,13 @@ async function measure(fragments, css, chromium) {
   }
 }
 
-function renderPages(pages, navigation, title, css) {
-  let html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${escapeHtml(title || 'Report')}</title><style>${css}</style></head><body>${pages.map(page => {
+function renderPages(pages, navigation, title, css, citationContext, citationMode) {
+  const compactAnchors = citationMode === 'evidence_package' ? citationContext.citationRegistry.map(citation =>
+    `<span hidden class="compact-source-anchor" id="${escapeHtml(citation.appendix_anchor)}" data-source-record="${escapeHtml(citation.source_id)}"></span>`).join('') : '';
+  let html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${escapeHtml(title || 'Report')}</title><style>${css}</style></head><body>${pages.map((page, index) => {
     if (page.intentionalBlank) return `<section class="page intentional-blank" data-page-id="${page.id}" aria-label="Intentionally blank page"><span>本页有意留白</span><span class="folio">${page.number}</span></section>`;
     const content = page.items.map(item => `<div class="page-item">${item.html}</div>`).join('');
-    return `<section class="page" data-page-id="${page.id}"><div class="page__body">${content}</div><span class="folio">${page.number}</span></section>`;
+    return `<section class="page" data-page-id="${page.id}">${index === 0 ? compactAnchors : ''}<div class="page__body">${content}</div><span class="folio">${page.number}</span></section>`;
   }).join('')}</body></html>`;
   html = html.replace(/\{\{PAGE:([^}]+)\}\}/g, (_, id) => {
     const number = navigation.anchorToPage[id] || navigation.componentToPage[id];
@@ -170,6 +174,19 @@ function renderPages(pages, navigation, title, css) {
     return `<span data-cross-reference="${escapeHtml(id)}">${number}</span>`;
   });
   return html;
+}
+
+function pageRole(items) {
+  const kinds = [...new Set(items.map(item => item.kind))];
+  if (kinds.includes('cover') && kinds.every(kind => ['cover', 'toc'].includes(kind))) return kinds.includes('toc') ? 'cover-toc' : 'cover';
+  if (kinds.length === 1 && kinds[0] === 'toc') return 'toc';
+  if (kinds.length === 1 && kinds[0] === 'section-title') return 'section-divider';
+  if (kinds.length === 1 && kinds[0] === 'references-appendix') return 'references';
+  return 'body';
+}
+
+function whitespaceJustification(role) {
+  return ({ cover: 'cover-identity', 'cover-toc': 'cover-identity', toc: 'toc-navigation', 'section-divider': 'section-transition' })[role];
 }
 
 async function renderDocument(document) {
@@ -183,9 +200,39 @@ async function renderDocument(document) {
       seen.add(id);
     }
   }
+  for (const [label, titles] of [
+    ['section', document.components.filter(component => component && component.kind === 'section-title').map(component => component.payload && component.payload.title)],
+  ]) {
+    const seen = new Set();
+    for (const title of titles.map(value => String(value || '').trim()).filter(Boolean)) {
+      const key = title.normalize('NFKC').toLocaleLowerCase();
+      if (seen.has(key)) throw reportError('REPORT_DUPLICATE_TITLE', `${label} title is duplicated: ${title}`);
+      seen.add(key);
+    }
+  }
+  {
+    const seen = new Set();
+    for (const title of document.components.flatMap(component => ((component && component.payload && component.payload.blocks) || [])
+      .map(block => String(block && block.content && block.content.title || '').trim())).filter(Boolean)) {
+      const key = title.normalize('NFKC').toLocaleLowerCase();
+      if (seen.has(key)) throw reportError('REPORT_DUPLICATE_TITLE', `block title is duplicated: ${title}`);
+      seen.add(key);
+    }
+  }
+  let seenStructures = new Map();
+  for (let index = 0; index < document.components.length; index += 1) {
+    const currentComponent = document.components[index];
+    const current = currentComponent.payload || {};
+    const currentStructure = `${currentComponent.kind}:${current.layout_id || ''}`;
+    if (currentComponent.kind === 'section-title') seenStructures = new Map();
+    if (seenStructures.has(currentStructure) && !(current.repeat_approved === true && String(current.repeat_reason || '').trim().length >= 24)) {
+      throw reportError('REPORT_REPEATED_PRIMARY_STRUCTURE', `${current.id || index} repeats ${currentStructure} without a specific reason`);
+    }
+    seenStructures.set(currentStructure, current.id || index);
+  }
   const context = citationContext(document);
   const runtime = lockedRuntime();
-  const css = `${runtime.fontCss}${CSS}${SEMANTIC_CSS}`;
+  const css = `${runtime.fontCss}${CSS}${SEMANTIC_CSS}${CONNECTOR_CSS}`;
   let fragments = expandComponents(document.components).map(blockMetadata).map(fragment => ({ ...fragment, html: fragmentHtml(fragment, context) }));
   let measured;
   for (;;) {
@@ -215,17 +262,22 @@ async function renderDocument(document) {
   }
   const pages = paginateMeasured(fragments, measured.contentHeightPx);
   const navigation = resolveNavigation(pages);
-  const html = renderPages(pages, navigation, document.title, css);
+  const html = renderPages(pages, navigation, document.title, css, context, document.citation_mode);
   const tableContinuations = pages.flatMap(page => page.items.filter(item => item.table).map(item => ({
     componentId: item.originalId, page: page.number, startRow: item.startRow, endRow: item.endRow, rowCount: item.rowCount,
   })));
   const minimumFontPt = measured.items.length ? Math.min(...measured.items.map(item => item.minimumFontPt)) : 10.75;
-  const manifestPages = pages.map(page => ({
-    id: page.id, number: page.number, intentionalBlank: page.intentionalBlank,
-    usedHeightPx: Math.round(page.usedHeightPx * 1000) / 1000,
-    contentHeightPx: measured.contentHeightPx,
-    geometry: PAGE,
-  }));
+  const manifestPages = pages.map(page => {
+    const role = pageRole(page.items);
+    const justification = whitespaceJustification(role);
+    return {
+      id: page.id, number: page.number, intentionalBlank: page.intentionalBlank, role,
+      ...(justification ? { whitespaceJustification: justification } : {}),
+      usedHeightPx: Math.round(page.usedHeightPx * 1000) / 1000,
+      contentHeightPx: measured.contentHeightPx,
+      geometry: PAGE,
+    };
+  });
   const pagesWithTable = pages.filter(page => page.items.some(item => item.table)).map(page => ({
     page: page.number, tableHeaderCount: page.items.filter(item => item.table).length,
   }));

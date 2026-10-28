@@ -6,8 +6,8 @@
   "approvedAt": "2026-10-27T17:30:00+10:30",
   "approvalReason": "Task 4：正文来源带改为 appendix-linked citation markers；逐页与 contact sheet 已检查",
   "baselineManifest": {
-    "path": "out-report/golden/visual-baseline.json",
-    "sha256": "e0118cd29a3849a85b4baeb82b7d531d698b331f9136eb85de2535d0fc651538"
+    "path": "references/release-evidence/a4-user-approved-baseline.json",
+    "sha256": "705ab157221f92c0a02b65e841552a496739c2c3c276938badbe3dc6946a0250"
   },
   "currentReviewSummary": {
     "manifestSha256": "97e4adcac352c2792fb96ccff60505f5a5a5c79a671593c4db437725a0c8e475",

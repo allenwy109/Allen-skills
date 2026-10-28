@@ -11,7 +11,7 @@ import tempfile
 import unittest
 
 from tools.tests import fixtures as F
-from tools.acceptance import Acceptance
+from tools.acceptance import Acceptance, review_digest
 from tools.lib.ledger import Ledger
 
 
@@ -98,6 +98,33 @@ def apply_negative(slides, mutation):
         raise AssertionError(f"unknown negative mutation: {kind}")
 
 
+def add_decision_structure(task):
+    path = pathlib.Path(task) / "07_storyline/slides.json"
+    slides = read_json(path)
+    slides["deck"]["decision_structure"] = {
+        "decision_level": "Proceed conditionally",
+        "decisive_reasons": [
+            "The accepted evidence supports the bounded finding",
+            "The tested relationship is visible in the evidence",
+            "The stated limitations keep the recommendation conditional",
+        ],
+        "largest_upside": "The tested opportunity may justify the next validation step",
+        "largest_risk": "Evidence outside the tested boundary remains incomplete",
+        "immediate_actions": ["Run the next evidence-gated validation step"],
+        "thresholds": {"continue": "The next gate passes", "stop": "The next gate fails"},
+    }
+    for slide in slides["slides"]:
+        if slide.get("panels"):
+            slide.setdefault("visual_intent", {}).update({
+                "repetition_approved": True,
+                "repetition_reason": "固定跨场景夹具保留一致的主张—证据结构，以验证语义覆盖和媒介一致性",
+            })
+        for panel in slide.get("panels", []):
+            panel["semantic_type"] = "point_evidence"
+            panel["purpose"] = f"{panel['purpose']} · {panel['id']}"
+    write_json(path, slides)
+
+
 def make_case_task(root, case, negative=False):
     task = pathlib.Path(root) / ("negative" if negative else "positive")
     F.make_storyline_package(task)
@@ -142,18 +169,29 @@ def approve_and_package(task, work):
     if result.returncode:
         raise AssertionError(result.stdout + result.stderr)
     independent = work / "independent-review.json"
-    write_json(independent, {
-        "type": "independent", "reviewer": "固定场景独立审查员", "at": "2026-10-27T14:05:00+10:30",
+    decision = {
+        "reviewer": "固定场景决策审查员", "role": "decision-maker-reviewer", "at": "2026-10-27T14:04:00+10:30",
+        "answers": {key: "最终 PDF 给出了具体、可执行且边界清楚的答案。" for key in (
+            "answer_visibility", "executive_summary", "argument_sufficiency", "actions", "ownership", "continue_stop_thresholds")},
+    }
+    decision["review_digest"] = review_digest(decision)
+    independent_value = {
+        "type": "independent", "reviewer": "固定场景独立审查员", "role": "visual-design-reviewer",
+        "at": "2026-10-27T14:05:00+10:30",
         "conclusion": "逐页复核 HTML 与 PDF 后，结构、证据绑定和阅读节奏满足固定场景验收要求。", "issues": [],
         "artifactDigest": artifacts["artifactDigest"], "paginationDigest": artifacts["paginationDigest"],
         "page_ids": page_ids, "media": ["html", "pdf"], "scales": ["100%", "contact-sheet"],
         "chapter_contact_sheets": [{"chapter": "whole-book", "page_ids": page_ids,
                                      "observation": "整册缩略图显示章节过渡、信息密度与留白节奏保持一致。"}],
         "headline_chain": {"status": "reviewed", "observation": "标题链从证据推进到判断与行动，论证顺序完整。"},
+        "worst_page": {"page_id": page_ids[-1], "finding": "最密页面仍保持可读，未发现裁切或证据遗漏。"},
+        "decision_review": decision,
         "observations": [{"page_id": page_id, "media": ["html", "pdf"], "scale": ["100%", "contact-sheet"],
                           "observation": f"{page_id} 已在两种媒介和两种尺度检查层级、正文、图表与来源。",
                           "reason": "未发现裁切、证据遗漏或会改变结论的视觉强调。"} for page_id in page_ids],
-    })
+    }
+    independent_value["review_digest"] = review_digest(independent_value)
+    write_json(independent, independent_value)
     result = run_cli("review", task, "independent", independent)
     if result.returncode:
         raise AssertionError(result.stdout + result.stderr)
@@ -201,6 +239,7 @@ class ReportOutputScenarioAcceptanceTest(unittest.TestCase):
                 self.assertEqual(semantic["source_title"], ledger.get("sources", "M001")["title"])
                 self.assertEqual(semantic["metric_unit"], ledger.get("metrics", "m-0001")["unit"])
                 self.assertIn(semantic["claim_phrase"], (task / "07_storyline/04_manuscript.md").read_text(encoding="utf-8"))
+                add_decision_structure(task)
                 init = run_cli("init", task)
                 self.assertEqual(0, init.returncode, init.stdout + init.stderr)
                 work = task / "07_storyline/a4-work"
@@ -230,6 +269,7 @@ class ReportOutputScenarioAcceptanceTest(unittest.TestCase):
 
             with self.subTest(case=case["id"], path="negative"), tempfile.TemporaryDirectory() as temporary:
                 task = make_case_task(temporary, case, negative=True)
+                add_decision_structure(task)
                 result = run_cli("init", task)
                 self.assertNotEqual(0, result.returncode, result.stdout + result.stderr)
                 expected = case["negative_mutation"]["expected_status"]
@@ -240,6 +280,7 @@ class ReportOutputScenarioAcceptanceTest(unittest.TestCase):
     def test_missing_reviews_fail_closed(self):
         with tempfile.TemporaryDirectory() as temporary:
             task = make_case_task(temporary, self.cases[0])
+            add_decision_structure(task)
             self.assertEqual(0, run_cli("init", task).returncode)
             self.assertEqual(1, run_cli("render", task).returncode)
             package = run_cli("package", task)

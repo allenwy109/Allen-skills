@@ -90,11 +90,26 @@ function pdfBackend() {
         const nodes = [...section.querySelectorAll(selector)].filter(node => getComputedStyle(node).display !== 'none');
         return nodes.length ? Math.min(...nodes.map(node => parseFloat(getComputedStyle(node).fontSize) * .75)) : null;
       };
-      const sourceMinimum = fontMinimum('.source-locator, [data-source-locator]');
+      const sourceMinimum = fontMinimum('.source, .url, .method-footnote, .source-locator, [data-source-locator]');
       const citationMinimum = fontMinimum('.citation-marker, .citation-markers');
-      const text = section.innerText.replace(/\s+/g, ' ').trim()
+      const textSource = section.cloneNode(true);
+      const textOriginals = [section, ...section.querySelectorAll('*')];
+      const textClones = [textSource, ...textSource.querySelectorAll('*')];
+      textOriginals.forEach((node, index) => {
+        const clone = textClones[index];
+        if (!clone) return;
+        const content = getComputedStyle(node, '::before').content;
+        if (!content || content === 'none' || content === 'normal' || content.includes('counter(')) return;
+        let value = content;
+        try { value = JSON.parse(content); } catch (_) { value = content.replace(/^['"]|['"]$/g, ''); }
+        if (value) clone.insertBefore(document.createTextNode(`${value} `), clone.firstChild);
+      });
+      textSource.querySelectorAll('.decision').forEach((node, index) => node.insertBefore(document.createTextNode(`${String(index + 1).padStart(2, '0')} `), node.firstChild));
+      textSource.querySelectorAll('.ref').forEach((node, index) => node.insertBefore(document.createTextNode(`[${index + 1}] `), node.firstChild));
+      textSource.querySelectorAll('.visually-hidden').forEach(node => node.remove());
+      let text = textSource.textContent.replace(/\s+/g, ' ').trim()
         .replace(/(?<=\p{Script=Han})\s+(?=\d)|(?<=\d)\s+(?=\p{Script=Han})/gu, '');
-      const fonts = [{ role: 'body', minimumPt: Math.round((fontMinimum('*:not(.folio):not(.source-locator):not([data-source-locator]):not(.citation-marker):not(.citation-markers)') || 10.75) * 1000) / 1000 }];
+      const fonts = [{ role: 'body', minimumPt: Math.round((fontMinimum('*:not(.folio):not(.source):not(.url):not(.method-footnote):not(.source-locator):not([data-source-locator]):not(.citation-marker):not(.citation-markers)') || 10.75) * 1000) / 1000 }];
       if (sourceMinimum !== null) fonts.push({ role: 'source', minimumPt: Math.round(sourceMinimum * 1000) / 1000 });
       if (citationMinimum !== null) fonts.push({ role: 'citation', minimumPt: Math.round(citationMinimum * 1000) / 1000 });
       const visible = section.cloneNode(true);
@@ -108,14 +123,37 @@ function pdfBackend() {
         return hidden ? [index] : [];
       });
       hiddenIndexes.reverse().forEach(index => clones[index].remove());
-      const role = visible.querySelector('[data-component-kind="references-appendix"]') ? 'references' : 'body';
+      visible.querySelectorAll('.visually-hidden').forEach(node => node.remove());
+      const addGenerated = (selector, label) => {
+        const sourceNodes = [...section.querySelectorAll(selector)];
+        [...visible.querySelectorAll(selector)].forEach((node, index) => {
+          if (getComputedStyle(sourceNodes[index], '::before').content.includes('counter(')) node.insertBefore(document.createTextNode(`${label(index)} `), node.firstChild);
+        });
+      };
+      addGenerated('.decision', index => String(index + 1).padStart(2, '0'));
+      addGenerated('.ref', index => `[${index + 1}]`);
+      visible.querySelectorAll('p,div,span,li,td,th,h1,h2,h3,h4').forEach(node => node.appendChild(document.createTextNode(' ')));
+      visible.style.cssText += ';position:absolute!important;left:-100000px!important;top:0!important;';
+      document.body.appendChild(visible);
+      text = visible.innerText.replace(/\s+/g, ' ').trim()
+        .replace(/(?<=\p{Script=Han})\s+(?=\d)|(?<=\d)\s+(?=\p{Script=Han})/gu, '');
+      visible.removeAttribute('style');
+      visible.remove();
+      const kinds = [...new Set([...visible.querySelectorAll('[data-component-kind]')].map(node => node.dataset.componentKind))];
+      const role = kinds.includes('cover') && kinds.every(kind => ['cover', 'toc'].includes(kind))
+        ? (kinds.includes('toc') ? 'cover-toc' : 'cover')
+        : kinds.length === 1 && kinds[0] === 'toc' ? 'toc'
+        : kinds.length === 1 && kinds[0] === 'section-title' ? 'section-divider'
+        : kinds.length === 1 && kinds[0] === 'references-appendix' ? 'references' : 'body';
       const appendixDestinations = role === 'references'
         ? [...visible.querySelectorAll('[data-source-record][id], .ref[id]')].map(node => node.id)
-        : [];
+        : [...section.querySelectorAll('.compact-source-anchor[data-source-record][id]')].map(node => node.id);
+      const extractorOrderExclusions = [...section.querySelectorAll('.chart-sub,.axis-x,.axis-y,.takeaway,.continued,.citation-markers,.folio,.stage-no,.toc-page')]
+        .filter(node => getComputedStyle(node).display !== 'none').map(node => node.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean);
       return {
         id: section.dataset.pageId, role, text,
         visibleHtml: visible.innerHTML, empty: !text, overlaps, clipped: [...new Set(clipped)], fonts,
-        appendixDestinations,
+        appendixDestinations, extractorOrderExclusions,
       };
     });
   });
@@ -173,7 +211,7 @@ function pdfBackend() {
     const target = path.join(outputDir, `${record.id}.png`);
     fs.renameSync(generated, target);
     pageHashes[record.id] = sha(target);
-    const text = canonicalText(cp.execFileSync('pdftotext', ['-f', String(index + 1), '-l', String(index + 1), '-layout', pdf, '-'], { encoding: 'utf8' }).replace(/\f/g, ''));
+    const text = canonicalText(cp.execFileSync('pdftotext', ['-f', String(index + 1), '-l', String(index + 1), '-raw', pdf, '-'], { encoding: 'utf8' }).replace(/\f/g, ''));
     pdfPages.push({ id: record.id, text });
   });
   const geometry = { schemaVersion: '1.0', pages: dom.map(record => ({
@@ -181,7 +219,7 @@ function pdfBackend() {
     empty: record.empty, fonts: record.fonts,
   })) };
   const media = {
-    schemaVersion: '1.0', htmlPages: dom.map(({ id, role, text, visibleHtml }) => ({ id, role, text, visibleHtml })), pdfPages,
+    schemaVersion: '1.0', htmlPages: dom.map(({ id, role, text, visibleHtml, extractorOrderExclusions }) => ({ id, role, text, visibleHtml, extractorOrderExclusions })), pdfPages,
     appendixDestinations: dom.flatMap(record => record.appendixDestinations),
     resources: [
       { type: 'font', url: 'data:font/woff2;base64,embedded-noto-sans-400', embedded: true },

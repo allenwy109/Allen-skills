@@ -66,7 +66,8 @@ def report_slides():
     """报告夹具的 slides.json：封面、两页正文（分析页、行动页）、封底。"""
     def panel(pid, role, slot, purpose, claims, form, relationship, reason, **extra):
         return {"id": pid, "role": role, "slot": slot, "span": extra.pop("span", 1), "purpose": purpose, "claim_refs": claims,
-                "form": form, "relationship": relationship, "reason": reason, **extra}
+                "form": form, "relationship": relationship, "reason": reason,
+                "semantic_type": extra.pop("semantic_type", "point_evidence"), **extra}
     return {
         "deck": {"title": "星河数据科技经营概览", "kind": "reading", "language": "zh-CN", "audience": "投资经理", "decision": "是否继续跟进",
                  "story_mode": "company_research", "arc": "evidence-to-view", "ratio": "16x9",
@@ -74,6 +75,14 @@ def report_slides():
                            "period": "2024–2026", "baseline": "2024 年收入", "constraints": "缺少客户留存和利润数据",
                            "success_criteria": "区分已核实的收入变化和待补的增长质量"},
                  "answer_claim_refs": ["cl-0001"],
+                 "decision_structure": {
+                     "decision_level": "有条件继续跟进",
+                     "decisive_reasons": ["收入两年增长 77.8%", "绝对规模仍小", "客户留存与合同期限尚未核实"],
+                     "largest_upside": "留存良好时进入利润与现金流正式尽调",
+                     "largest_risk": "一次性大单造成增长质量误判",
+                     "immediate_actions": ["取得客户留存数据", "核实主要合同期限"],
+                     "thresholds": {"continue": "留存良好且主要合同期限得到核实", "stop": "留存不理想或主要合同无法核实"},
+                 },
                  "cover": {"subtitle": "虚构样稿，仅用于工具验证", "producer": "Allen 分析系统", "date": "2026-10-23", "version": "v1",
                            "project": "星河数据科技", "closing_text": "谢谢"}},
         "slides": [
@@ -88,7 +97,7 @@ def report_slides():
                                "layout_reason": "主图占左侧三分之二，右侧写口径和边界"},
              "anchor_panel": "bars",
              "panels": [panel("bars", "primary", "main", "两年收入同量尺比较，看出增长幅度", ["cl-0001"], "svg.custom", "comparison",
-                              "两期数值共用零基线，柱形比较绝对规模最直接", visual="两年收入柱形", semantic_type="comparison",
+                              "两期数值共用零基线，柱形比较绝对规模最直接", visual="两年收入柱形", semantic_type="point_evidence",
                               alternative="并排数字卡", tradeoff="柱形更适合比较绝对规模", capacity={"items": 2}, span=2),
                         panel("note", "support", "aside", "说明收入口径和不能推出的结论", ["cl-0001"], "html.text", "text",
                               "口径和边界是文字判断，用短段落最清楚")],
@@ -100,7 +109,9 @@ def report_slides():
              "density": {"profile": "balanced", "space_intent": "左侧单个指标，右侧条件表",
                          "evidence_units": [{"role": "context", "purpose": "2026 年指引作为规模参考"}, {"role": "primary", "purpose": "建议与对应的前提条件"}]},
              "visual_intent": {"relationship": "decision", "form": "html.table", "layout": "custom", "reading_path": "标题 → 指引 → 建议与待确认事项",
-                               "layout_reason": "左侧指标卡给出规模参考，右侧表格写建议和前提"},
+                               "layout_reason": "左侧指标卡给出规模参考，右侧表格写建议和前提",
+                               "repetition_reason": "指标背景与建议条件使用相邻证据结构，以形成同一决策阅读单元",
+                               "repetition_approved": True},
              "anchor_panel": "steps",
              "panels": [panel("kpi", "context", "left", "给出 2026 年收入指引的规模参考", ["cl-0003"], "html.kpi", "kpi",
                               "单个预测值用指标卡突出，并标明预测身份", capacity={"items": 1}),

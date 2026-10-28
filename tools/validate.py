@@ -142,6 +142,16 @@ if schema_dir.is_dir():
         sys.path.insert(0, str(ROOT))
     from tools.lib import schema_check
 
+    required_schemas = {
+        "research-coverage.schema.json",
+        "skill-usage.schema.json",
+        "review-closure.schema.json",
+        "research-handoff.schema.json",
+    }
+    for name in sorted(required_schemas):
+        if not (schema_dir / name).is_file():
+            errors.append(f"tools/lib/schema/{name}：缺少 consulting project schema")
+
     for f in sorted(schema_dir.glob("*.schema.json")):
         for e in schema_check.self_check(schema_check.load(f)):
             errors.append(f"{f.relative_to(ROOT)}：{e}")

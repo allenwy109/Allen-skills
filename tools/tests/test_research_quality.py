@@ -135,6 +135,8 @@ class ResearchQualityTest(unittest.TestCase):
         self.assertRegex(prompts, r"找出没有证据支持的强度措辞")
         self.assertRegex(prompts, r"是否只列方法名，却没有可检查的实际产出")
         self.assertIn("决策研究门禁失败", standard)
+        self.assertIn('"reviewer": "成品审查员", "level": "major"', standard)
+        self.assertIn("每条问题都必须填写实际提出者的 `issue.reviewer`", prompts)
 
     def test_pressure_suite_contains_five_required_cases(self):
         text = PRESSURE_CASES.read_text(encoding="utf-8")

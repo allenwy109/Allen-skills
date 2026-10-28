@@ -1,7 +1,7 @@
 {
   "version": 1,
   "fixture": "tools.tests.fixtures.make_storyline_package",
-  "materializedInputSha256": "735bee1e80f372f05db013374a9c74ef4eb443166d187f2aac64c4cce3179438",
+  "materializedInputSha256": "8c042d0c6a58263ec2f8365fcf56235dbc81a58539f30c24b51ebaf874e9bec8",
   "referenceStrategy": "pre-composer out-deck wrapper with locked fixed-pages author",
   "referenceAuthor": {
     "html": "out-report/scripts/tests/fixture_body.html",

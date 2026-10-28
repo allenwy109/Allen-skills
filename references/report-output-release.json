@@ -3,12 +3,12 @@
   "schema": "references/report-output-release.schema.json",
   "status": "approved",
   "releasedAt": "2026-10-27T15:28:08+10:30",
-  "implementationHead": "e6017d2883c425fe85da49c6933a940f4e07725f",
+  "implementationHead": "188627cafc44ace4badc44d8f236cf1c36bafad5",
   "provenance": {
     "upstreamRepository": "https://github.com/ZeroxZhang/zerox-skills.git",
     "upstreamCommit": "ee1f980c8dd7c53408e1a05a084229e6ec03c660",
     "composerReferenceCommit": "bfef13d",
-    "finalBenchmarkIntegrityCommit": "e6017d2883c425fe85da49c6933a940f4e07725f",
+    "finalBenchmarkIntegrityCommit": "79e90cad0abeb7042ba1d0b27efa1d78d35cd4b7",
     "a4ApprovalCommit": "e6017d2883c425fe85da49c6933a940f4e07725f"
   },
   "capabilities": {
@@ -32,19 +32,19 @@
     },
     "deckReveal": {
       "path": "references/release-evidence/deck-reveal.json",
-      "sha256": "0bef09bd9a462b08dd3327cebec6b2890f5c02ea1c8433260443539f7477125f"
+      "sha256": "db71c208d427c2dc552af3adc16b5d5e6fd3917711f7694c0eabd3b4a67d7f8b"
     },
     "deckArtifacts": {
       "path": "references/release-evidence/deck-artifacts.json",
-      "sha256": "0dddc8a131df6b0b9c4c026f589b1837276a8d6401568201be6bd4f2978b6834"
+      "sha256": "8ecb007cca301a4d573196481f16d000ffbea0b72ee4a87d22bfe6fb5ce5e014"
     },
     "a4Evidence": {
       "path": "references/release-evidence/a4-evidence.json",
-      "sha256": "d10338afa0781326177147cb822b6478128b452cb8f8174f773debe2a1c63aeb"
+      "sha256": "db9af2ed01633bae9058c1f002907dd33892a399d0e480650027e780115ea712"
     },
     "scenarioTests": {
       "path": "references/release-evidence/scenario-tests.json",
-      "sha256": "70a28d5207a1665842a5342af15501cc5c52722142f70ee7ae4050f4f33a8ab7"
+      "sha256": "0f1dbbf5869144acbd7029b2d66c60a9944a6fdf9b0e88ffe264bb75c4a6deff"
     }
   },
   "a4": {
@@ -53,10 +53,10 @@
     "approvedBy": "user",
     "approvedAt": "2026-10-27T17:30:00+10:30",
     "approvalReason": "Task 4：正文来源带改为 appendix-linked citation markers；逐页与 contact sheet 已检查",
-    "baselineManifest": "out-report/golden/visual-baseline.json",
-    "baselineManifestSha256": "e0118cd29a3849a85b4baeb82b7d531d698b331f9136eb85de2535d0fc651538",
+    "baselineManifest": "references/release-evidence/a4-user-approved-baseline.json",
+    "baselineManifestSha256": "705ab157221f92c0a02b65e841552a496739c2c3c276938badbe3dc6946a0250",
     "reviewManifest": "references/release-evidence/a4-evidence.json",
-    "reviewManifestSha256": "d10338afa0781326177147cb822b6478128b452cb8f8174f773debe2a1c63aeb",
+    "reviewManifestSha256": "db9af2ed01633bae9058c1f002907dd33892a399d0e480650027e780115ea712",
     "pageCount": 16,
     "contactSheetCount": 5,
     "scores": {
@@ -74,15 +74,15 @@
     "status": "approved",
     "reviewPacket": "references/release-evidence/deck-artifacts.json",
     "rebuildConfig": "out-deck/benchmarks/semantic-benchmark.json",
-    "rebuildConfigSha256": "e8a3ecaa8a3a4dbbb1a9dc05709b8d7e393a167abe2a7040905aed8d54b84e4f",
-    "anonymousManifestSha256": "c72cb7a932aae1df07d64755ce88c4e8a8552e21eacdc8e253bb583a1bf74f4b",
-    "inputSha256": "735bee1e80f372f05db013374a9c74ef4eb443166d187f2aac64c4cce3179438",
-    "blueprintSha256": "4838621e1af9d2251cc8313c8b4cd2676335b27bff35d97d68f94b32d4a73db5",
+    "rebuildConfigSha256": "773a3d4a14751f658af3e5b6398ba74290665e9e27eb1e5fcfd61709542534ef",
+    "anonymousManifestSha256": "bb4a92a84c38171aec1366b8c3f39c8b607138d584fee55d1c67c86afc93c7fe",
+    "inputSha256": "8c042d0c6a58263ec2f8365fcf56235dbc81a58539f30c24b51ebaf874e9bec8",
+    "blueprintSha256": "e906c7ee1148ecca2a8dc89381ba0688f6d927b111961eea6da3c27340abfafc",
     "candidateLabel": "Cinder",
     "referenceLabel": "Willow",
     "passingLabel": "Cinder",
     "scoreThreshold": 4,
-    "candidatePdfSha256": "ac2275ccd34ad34a3f78b05b31aa24d4f0418736e2c82011e69a650d9595c81d",
+    "candidatePdfSha256": "43151ae96ca7fcfbbd1ab6d420368698d0a1cf1b646ef3dfb8cb728c82f317b6",
     "candidateCrossMediaSha256": "0d8046af8e2fdde9d425d9fb178edfcfdad3a1548578cbebf47634f5ae6ab5dd",
     "candidateScores": {
       "visual_focus": 4,
@@ -139,7 +139,7 @@
   },
   "scenarios": {
     "manifest": "tests/report-output-cases.json",
-    "manifestSha256": "7338683c34096718e70119d30a14e2de8b4e935958a7597d2ea6a676fee8ae88",
+    "manifestSha256": "eddb75f08a294dbc61b2e8ce8b6f40d43ab91c4230185734fc58fc0e37d2d9ce",
     "positiveCases": 6,
     "negativeCases": 6,
     "missingReviewFailureClosed": true,
@@ -155,27 +155,37 @@
       {
         "command": "ALLEN_RUNTIME=${ALLEN_RUNTIME:?set installed runtime} ALLEN_REQUIRE_TOOLS=1 python3 -m unittest discover -s out-deck/scripts/tests -t out-deck/scripts/tests",
         "result": "passed",
-        "summary": "24/24"
+        "summary": "25/25"
       },
       {
         "command": "ALLEN_RUNTIME=${ALLEN_RUNTIME:?set installed runtime} ALLEN_REQUIRE_TOOLS=1 python3 -m unittest discover -s out-report/scripts/tests -t out-report/scripts/tests",
         "result": "passed",
-        "summary": "72/72"
+        "summary": "133/133"
       },
       {
-        "command": "ALLEN_RUNTIME=${ALLEN_RUNTIME:?set installed runtime} ./tools/selftest.sh --e2e",
+        "command": "ALLEN_RUNTIME=${ALLEN_RUNTIME:?set installed runtime} python3 -m unittest discover -s tools/e2e -t .",
         "result": "passed",
-        "summary": "8/8; six positive, six mutation-negative, and missing-review failure-closed paths"
+        "summary": "10/10 fixed report-output, smoke, and consulting paths"
       },
       {
-        "command": "ALLEN_RUNTIME=${ALLEN_RUNTIME:?set installed runtime} ./tools/selftest.sh",
+        "command": "ALLEN_RUNTIME=${ALLEN_RUNTIME:?set installed runtime} ./tools/selftest.sh --quick",
         "result": "passed",
-        "summary": "complete repository, browser, vendor, upgrade, think-cell, and one-pager suites"
+        "summary": "tools 302; core-diligence 44; core-intake 16; core-research 48; core-storyline 32; out-chart 5; out-deck 25; out-poster 4; out-report 133"
       },
       {
         "command": "python3 tools/validate.py",
         "result": "passed",
         "summary": "0 errors; 3 pre-existing hints"
+      },
+      {
+        "command": "python3 tools/report_release.py check",
+        "result": "passed",
+        "summary": "release evidence and provenance checks passed"
+      },
+      {
+        "command": "python3 tools/build-zips.py",
+        "result": "passed",
+        "summary": "23 skill archives built"
       },
       {
         "command": "git diff --check",

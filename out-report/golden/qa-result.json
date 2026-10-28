@@ -1,0 +1,253 @@
+{
+  "schemaVersion": "1.0",
+  "status": "passed",
+  "blocking": [],
+  "warnings": [],
+  "pageManifest": {
+    "pageCount": 16,
+    "pages": [
+      {
+        "id": "page-001",
+        "number": 1,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-002",
+        "number": 2,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-003",
+        "number": 3,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-004",
+        "number": 4,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-005",
+        "number": 5,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-006",
+        "number": 6,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-007",
+        "number": 7,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-008",
+        "number": 8,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-009",
+        "number": 9,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-010",
+        "number": 10,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-011",
+        "number": 11,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-012",
+        "number": 12,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-013",
+        "number": 13,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-014",
+        "number": 14,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-015",
+        "number": 15,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      },
+      {
+        "id": "page-016",
+        "number": 16,
+        "intentionalBlank": false,
+        "geometry": {
+          "widthMm": 210,
+          "heightMm": 297
+        }
+      }
+    ]
+  },
+  "textManifest": {
+    "pages": [
+      {
+        "id": "page-001",
+        "htmlDigest": "af1e2c924eeccfbc45fb2e45962982c6fbdb820038aeefa4732840b21cd4e73e",
+        "pdfDigest": "af1e2c924eeccfbc45fb2e45962982c6fbdb820038aeefa4732840b21cd4e73e"
+      },
+      {
+        "id": "page-002",
+        "htmlDigest": "9edecd33c9ee2e7464b1a8e028e4190bf0901db88fb0d8a5ad7fd8d7093f0818",
+        "pdfDigest": "9edecd33c9ee2e7464b1a8e028e4190bf0901db88fb0d8a5ad7fd8d7093f0818"
+      },
+      {
+        "id": "page-003",
+        "htmlDigest": "dd34c28ccd3011d0d08a4ad5f1c20d5e7bd3424591d48b200dd135591a429e43",
+        "pdfDigest": "dd34c28ccd3011d0d08a4ad5f1c20d5e7bd3424591d48b200dd135591a429e43"
+      },
+      {
+        "id": "page-004",
+        "htmlDigest": "3bdda7da157e2cd6656e50796dc7b57a0e89296a3861cd04f08d8ba76cf2f6c1",
+        "pdfDigest": "3bdda7da157e2cd6656e50796dc7b57a0e89296a3861cd04f08d8ba76cf2f6c1"
+      },
+      {
+        "id": "page-005",
+        "htmlDigest": "d9615194645a680ad3a8c9c3f19dde165214440b4c3ff959b618601706cbc99f",
+        "pdfDigest": "d9615194645a680ad3a8c9c3f19dde165214440b4c3ff959b618601706cbc99f"
+      },
+      {
+        "id": "page-006",
+        "htmlDigest": "6791b6546114e47e2dfb0f2fc9200c2b73f1f01c2a9fa2d93a98653f042ac806",
+        "pdfDigest": "6791b6546114e47e2dfb0f2fc9200c2b73f1f01c2a9fa2d93a98653f042ac806"
+      },
+      {
+        "id": "page-007",
+        "htmlDigest": "508ac9c051c36983c9a689a2b4c899f86b1bf4798fada4b60e98f353adedbf31",
+        "pdfDigest": "508ac9c051c36983c9a689a2b4c899f86b1bf4798fada4b60e98f353adedbf31"
+      },
+      {
+        "id": "page-008",
+        "htmlDigest": "c6d2ce093493e60c670c1d9a7ee0f4675f1e5577e32417e2b81e9ff5667be7a3",
+        "pdfDigest": "c6d2ce093493e60c670c1d9a7ee0f4675f1e5577e32417e2b81e9ff5667be7a3"
+      },
+      {
+        "id": "page-009",
+        "htmlDigest": "f05fea43c0d53f0e80b7e7677bc7d4a76c5d3995395ba822e985828cc20f7559",
+        "pdfDigest": "f05fea43c0d53f0e80b7e7677bc7d4a76c5d3995395ba822e985828cc20f7559"
+      },
+      {
+        "id": "page-010",
+        "htmlDigest": "4aa0d80727dcd60b4d1374a265ed23bd722cee38b38f616147b975d22eeb03de",
+        "pdfDigest": "4aa0d80727dcd60b4d1374a265ed23bd722cee38b38f616147b975d22eeb03de"
+      },
+      {
+        "id": "page-011",
+        "htmlDigest": "51f83240391eeca7a2a7505c0ca07dba4b96d9da341063c797f53e1638e5497c",
+        "pdfDigest": "7478f1745c48071fe0bc854316db82d4a925bb838fc875200a7213f8f0654817"
+      },
+      {
+        "id": "page-012",
+        "htmlDigest": "4b1de5a261a40d6375675d93b967b608fde85be2869036bccf79903a056910cf",
+        "pdfDigest": "ae20cfe996185467571d22fb4da2cfab06b58957edcb32aacd3f17eabe8d4c7e"
+      },
+      {
+        "id": "page-013",
+        "htmlDigest": "58b1d6a4a21c959fdcc8faf3d91ba19c7ea6f3e82bb2d5217598f13e13a4c28e",
+        "pdfDigest": "867212e5f645e2505c9c459a403f275ea789ff6cbf8fae50d38edb32da99c89c"
+      },
+      {
+        "id": "page-014",
+        "htmlDigest": "c5fc916b7a9faaef47b7f8f42d036f96e6c640968ed2fa7fec3293ed33bebcdb",
+        "pdfDigest": "b4b85cc192fb060a3430424e1ceca4a11547625ac9f43ca14e2ca79e5cba1fa7"
+      },
+      {
+        "id": "page-015",
+        "htmlDigest": "9338006950e8f229e55114e79e52a25aa1f085b322bd9e54f3927d4ee3d3a1e6",
+        "pdfDigest": "9338006950e8f229e55114e79e52a25aa1f085b322bd9e54f3927d4ee3d3a1e6"
+      },
+      {
+        "id": "page-016",
+        "htmlDigest": "64cda459e2cfb1e926592586efcec075ea1aea2fad53992209ae773557730ce5",
+        "pdfDigest": "64cda459e2cfb1e926592586efcec075ea1aea2fad53992209ae773557730ce5"
+      }
+    ]
+  },
+  "audit": {
+    "worstPage": {
+      "id": "page-001",
+      "score": 0.643,
+      "issueCodes": [],
+      "unusedRatio": 0.643
+    },
+    "visualRegression": {
+      "baselineDigest": "9d9982a20b49764e66bd63a78b1e14b70e97fee8ac20f9208856a8e01e21d6d2",
+      "candidateDigest": "9d9982a20b49764e66bd63a78b1e14b70e97fee8ac20f9208856a8e01e21d6d2",
+      "differences": [],
+      "disposition": null
+    }
+  }
+}

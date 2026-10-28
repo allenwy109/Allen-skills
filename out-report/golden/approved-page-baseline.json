@@ -1,27 +1,28 @@
 {
   "schemaVersion": "1.0",
   "status": "approved",
-  "approvedBy": "user",
-  "approvedAt": "2026-10-27T17:30:00+10:30",
-  "changeReason": "Task 4：正文来源带改为 appendix-linked citation markers；逐页与 contact sheet 已检查",
+  "approvedBy": "codex-visual-review",
+  "approvedAt": "2026-10-28T18:00:00+10:30",
+  "candidateDigest": "0225e35b6fb307fec5307afec5371d93fec2e31488064ea020a54216a8e03ac3",
+  "changeReason": "Task 5 final review：严格有序文本核对与渲染角色绑定通过；页面像素未变化",
   "artifacts": {
     "pagePngSha256": {
-      "page-001": "e2204f0d517e6ca0624abf4214dd1c9d26bd6ad0b02e03bbb17e744edfca084c",
-      "page-002": "b76fb72a3d9e17340ef3e85a146b1abfc19811daa33df7f6298bf80482c6d5c6",
-      "page-003": "1a2216eeea7e2d43c7d92910dcdec9e114f618bc4767b50cf837c9a5e8116c5b",
-      "page-004": "1ce6ce49f7c676c4a93afe33abc5d89c80abb469638e2420e8f8d199f5d8a354",
-      "page-005": "0c7ea011abed7614cb249e90ebbe6a4c68cdf81dc308208fd7e2105bed9027e8",
-      "page-006": "b58d2042bd00ad34a9ead24cf093df84fdd87f20717fa11df099c479e89fdf35",
-      "page-007": "62d509f8b37c909cc6ad90b3fba999f30851c78b6fddd8e9856aba5df3cbedd2",
-      "page-008": "e80581b08757fbdd2b03eacc3052bdb16562a59b95bcfe142a270bc7251728db",
-      "page-009": "9110e9be9e4d7f168ed48b16e980a90786ecc0c5e71c88c3d986550b02279f55",
-      "page-010": "3249b5513fbb78ecd1f0fc6f47ec529d688943a1b4311a32b555bb7ce901dae6",
-      "page-011": "cb0b3937a4386b24fe60df864889e5deda81ba7f4c0f146dc21e65aeb95d0013",
-      "page-012": "5f42388f6949f21f4bec1dfc7d8b2f6d99127c791696f9e76adb97771fb2c223",
-      "page-013": "6ff9376f3a3e6bd405cf12c3f0910790586acd7ae7d0cf7d63521650d00cf085",
-      "page-014": "e8afdc9bf1728a0179cbc66bdd48f8e7899e279eef1c140a005c9c54dff83649",
-      "page-015": "f27b3ac22738defcc00b691d2bda55c6e006d0f512e1f41c7080b8a371021e1b",
-      "page-016": "fd1f17c4c67412e88bfcb5c0452f745c45fb2c99daabafb857a40fd89dd2ebef"
+      "page-001": "4b8114f8aa7c4f1b0f31deca4666619fe7910c9e6b73afe078af095f20203934",
+      "page-002": "e075f63554a6886e50bbc2621232e7d1e547c1d14de74df5c03594faab7093a7",
+      "page-003": "bc5b04172dd5ef1779f303fc1b01424b79b6dadf5f87af1a5cce7912061a7327",
+      "page-004": "fabe887c3a170211786da74b7ce2dc3faf9a7e19e0a9047a0e6a76cc31e4b4fe",
+      "page-005": "b552a5a8acc78a3110e4fb67f630cdf5f86568fd4dab4a4c198d8c594f92c4b5",
+      "page-006": "69d934535067c8c713322f3829cbc693ed0d832dffcfd7c5daf7fdf6e8e4101b",
+      "page-007": "f948f070ea652416f02357aad3b58950a44291f2d759b15cb0072d2a2b7329ca",
+      "page-008": "9bc37e581fab8408e82683c592b65d579c6c1baf3e869015a179d6024a577e40",
+      "page-009": "3e08760b5c9b3895ce62dfb57386ee1523d76d79862ef33e253b9431adf31d3f",
+      "page-010": "90d20bf48e7f52ed923cd09c878e0969b3d9091948159ffc38cb7f0ec45f1cf7",
+      "page-011": "873fced6d4a05ffe67065f6c8223d5249b29154fa47846f40b73514e854ba5ec",
+      "page-012": "9c70230fab33336079097f11678a67bcb2db62ef2db37c2e1a7510699c222e1e",
+      "page-013": "05409682c0a862f4e5df50691e220c9c626f33b41e32ebbd97b1506bb8ed8376",
+      "page-014": "06843117bc655abfe7883cc4ff99ca97b47c99d8881115a1e224634f956aa1a2",
+      "page-015": "6472c8d1a09840f6aeff67587c3e480c7b3b36d5103c1546036b245a63699477",
+      "page-016": "37d4bf6907889e4517ef4b6d0aca26e25630ea50623a0cd03691b7cef6b95e27"
     }
   }
 }

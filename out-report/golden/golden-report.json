@@ -2,7 +2,23 @@
   "id": "regional-compute-pool-golden-v1",
   "title": "区域算力资源池创业评估",
   "fixtureKind": "synthetic-example",
+  "metadata": {"bibliography_policy": "full", "client_citations": "compact"},
   "disclaimer": "全部业务数据均为合成示例，仅用于版式评估，不构成市场事实或投资建议。",
+  "executiveSummary": {
+    "decisionLevel": "有条件启动 90 天验证，不批准重资产扩容",
+    "decisiveReasons": ["可迁移负载存在，但付费锁定率尚未证实", "合成单位经济为正，但对闲置率高度敏感", "供给集中与事故责任仍是扩张前置风险"],
+    "largestUpside": "以容量聚合复用闲置算力，形成轻资产调度服务",
+    "largestRisk": "锁定率不足导致采购承诺转化为持续闲置成本",
+    "immediateActions": ["签署含金额与退出条款的试点订单", "完成三类作业的稳定性验证", "按客户核对单位贡献与现金周期"],
+    "thresholds": {"continue": "90 天内锁定率达到 55%、作业成功率达到 97%、单位贡献不低于 1.5 元", "stop": "锁定率连续八周低于 32%，或发生未闭环的严重事故"}
+  },
+  "exhibits": [
+    {"id":"demand-structure","decisionUse":"判断可迁移负载是否足以支持试点"},
+    {"id":"unit-economics","decisionUse":"判断单位经济对锁定率的敏感程度"},
+    {"id":"option-comparison","decisionUse":"选择轻资产容量聚合而非自建机房"},
+    {"id":"risk-map","decisionUse":"确定扩张前必须消减的风险"},
+    {"id":"validation-roadmap","decisionUse":"用继续与停止门管理 90 天验证"}
+  ],
   "pages": [
     {"id":"p01","role":"cover","title":"封面"},
     {"id":"p02","role":"toc","title":"目录"},
@@ -19,6 +35,6 @@
     {"id":"p13","role":"risk","title":"风险"},
     {"id":"p14","role":"roadmap","title":"路线图"},
     {"id":"p15","role":"references","title":"来源与口径（一）"},
-    {"id":"p16","role":"references","title":"来源与口径（二）"}
+    {"id":"p16","role":"methods-limitations","title":"方法、口径与限制"}
   ]
 }

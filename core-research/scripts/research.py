@@ -16,6 +16,7 @@ import datetime
 import json
 import os
 import pathlib
+import re
 import shutil
 import sys
 
@@ -36,8 +37,151 @@ import rcapture  # noqa: E402
 import rcheck  # noqa: E402
 import rseal  # noqa: E402
 from tools.lib.ledger import Ledger  # noqa: E402
+from tools.lib import schema_check  # noqa: E402
 
 TEMPLATES = SKILL_DIR / "assets" / "templates"
+WORKSTREAM_CODE = re.compile(r"^[ABD-LN-TV-Z]$")
+
+
+def _write_json_new(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("x", encoding="utf-8") as stream:
+        json.dump(value, stream, ensure_ascii=False, indent=2)
+        stream.write("\n")
+
+
+def _replace_json_pair(updates):
+    originals = {path: path.read_bytes() if path.is_file() else None for path, _ in updates}
+    temps = []
+    replaced = []
+    try:
+        for path, value in updates:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temp = path.with_name(path.name + ".tmp")
+            temp.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            temps.append(temp)
+        for (path, _), temp in zip(updates, temps):
+            os.replace(temp, path)
+            replaced.append(path)
+    except OSError:
+        for path in replaced:
+            if originals[path] is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.write_bytes(originals[path])
+        for temp in temps:
+            temp.unlink(missing_ok=True)
+        raise
+
+
+def _workstream_paths(task, code):
+    root = pathlib.Path(task)
+    return root / "03r_research" / "tasks" / f"{code}.md", root / "03r_research" / "tasks" / f"{code}.json"
+
+
+def cmd_workstream_add(a):
+    if not a.role.strip() or not a.question.strip():
+        print("role 和 question 不能为空", file=sys.stderr)
+        return 1
+    if not WORKSTREAM_CODE.fullmatch(a.code):
+        print("研究线代号必须是单个大写字母，且不能使用 C、M、U", file=sys.stderr)
+        return 1
+    task_file, metadata_file = _workstream_paths(a.task, a.code)
+    staging = pathlib.Path(a.task) / "03_evidence" / "ledger" / "staging" / a.code
+    handoff = pathlib.Path(a.task) / "research-handoffs" / f"{a.code}.json"
+    if any(path.exists() for path in (task_file, metadata_file, staging, handoff)):
+        print(f"研究线或来源前缀 {a.code} 已存在", file=sys.stderr)
+        return 1
+    text = (TEMPLATES / "subagent-task.md").read_text(encoding="utf-8")
+    text = text.replace("<代号>", a.code).replace("<主题>", a.question).replace("<角色>", a.role)
+    task_file.parent.mkdir(parents=True, exist_ok=True)
+    staging.parent.mkdir(parents=True, exist_ok=True)
+    created = []
+    try:
+        staging.mkdir(exist_ok=False)
+        created.append(staging)
+        with task_file.open("x", encoding="utf-8") as stream:
+            created.append(task_file)
+            stream.write(text)
+        with metadata_file.open("x", encoding="utf-8") as stream:
+            created.append(metadata_file)
+            json.dump({
+                "kind": "research_workstream", "version": 1, "code": a.code, "role": a.role, "question": a.question,
+                "task_file": str(task_file.relative_to(pathlib.Path(a.task))), "status": "awaiting_handoff",
+            }, stream, ensure_ascii=False, indent=2)
+            stream.write("\n")
+    except OSError as err:
+        for path in reversed(created):
+            path.rmdir() if path.is_dir() else path.unlink()
+        print(f"无法创建研究线 {a.code}：{err}", file=sys.stderr)
+        return 1
+    print(json.dumps({"code": a.code, "task_file": str(task_file), "status": "awaiting_handoff"}, ensure_ascii=False))
+    return 0
+
+
+def _load_workstream(task, code):
+    _, metadata_file = _workstream_paths(task, code)
+    if not metadata_file.is_file():
+        raise ValueError(f"研究线 {code} 不存在")
+    return metadata_file, json.loads(metadata_file.read_text(encoding="utf-8"))
+
+
+def cmd_workstream_handoff(a):
+    try:
+        metadata_file, metadata = _load_workstream(a.task, a.code)
+        handoff = json.loads(pathlib.Path(a.handoff).read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError) as err:
+        print(str(err), file=sys.stderr)
+        return 1
+    if "project_manager_disposition" in handoff:
+        print("project_manager_disposition 只能由 workstream decide 写入", file=sys.stderr)
+        return 1
+    if handoff.get("line_id") != a.code or handoff.get("role") != metadata["role"]:
+        print("handoff 的 line_id/role 与研究线不一致", file=sys.stderr)
+        return 1
+    candidate = dict(handoff, project_manager_disposition="accepted")
+    errors = schema_check.check_document(schema_check.load("research-handoff.schema.json"), candidate)
+    if errors:
+        print("；".join(errors), file=sys.stderr)
+        return 1
+    destination = pathlib.Path(a.task) / "research-handoffs" / f"{a.code}.json"
+    if destination.exists():
+        print(f"研究线 {a.code} 已提交 handoff", file=sys.stderr)
+        return 1
+    metadata.update({"status": "awaiting_decision", "handoff": str(destination.relative_to(pathlib.Path(a.task)))})
+    try:
+        _replace_json_pair(((destination, handoff), (metadata_file, metadata)))
+    except OSError as err:
+        print(f"handoff 写入失败：{err}", file=sys.stderr)
+        return 1
+    print(json.dumps({"code": a.code, "status": "awaiting_decision"}, ensure_ascii=False))
+    return 0
+
+
+def cmd_workstream_decide(a):
+    if not a.reason.strip():
+        print("reason 不能为空", file=sys.stderr)
+        return 1
+    try:
+        metadata_file, metadata = _load_workstream(a.task, a.code)
+        handoff_path = pathlib.Path(a.task) / "research-handoffs" / f"{a.code}.json"
+        handoff = json.loads(handoff_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError) as err:
+        print(str(err), file=sys.stderr)
+        return 1
+    handoff["project_manager_disposition"] = a.status
+    errors = schema_check.check_document(schema_check.load("research-handoff.schema.json"), handoff)
+    if errors:
+        print("；".join(errors), file=sys.stderr)
+        return 1
+    metadata.update({"status": a.status, "decision_reason": a.reason})
+    try:
+        _replace_json_pair(((handoff_path, handoff), (metadata_file, metadata)))
+    except OSError as err:
+        print(f"处置写入失败：{err}", file=sys.stderr)
+        return 1
+    print(json.dumps({"code": a.code, "status": a.status, "reason": a.reason}, ensure_ascii=False))
+    return 0
 
 
 def cmd_init(a):
@@ -190,9 +334,27 @@ def main(argv=None):
     p.add_argument("root", help="放轻量包的目录（会建在 <root>/work/ 下）")
     p.add_argument("--slug", required=True)
     p.add_argument("--question", required=True)
+    p = sub.add_parser("workstream")
+    work = p.add_subparsers(dest="workstream_cmd", required=True)
+    q = work.add_parser("add")
+    q.add_argument("task")
+    q.add_argument("code")
+    q.add_argument("--role", required=True)
+    q.add_argument("--question", required=True)
+    q = work.add_parser("handoff")
+    q.add_argument("task")
+    q.add_argument("code")
+    q.add_argument("handoff")
+    q = work.add_parser("decide")
+    q.add_argument("task")
+    q.add_argument("code")
+    q.add_argument("--status", choices=("accepted", "needs_revision", "rejected"), required=True)
+    q.add_argument("--reason", required=True)
     a = ap.parse_args(argv)
     if a.cmd == "check" and not pathlib.Path(a.target).is_dir():
         ap.error(f"{a.target} 不存在")
+    if a.cmd == "workstream":
+        return {"add": cmd_workstream_add, "handoff": cmd_workstream_handoff, "decide": cmd_workstream_decide}[a.workstream_cmd](a)
     return {"init": cmd_init, "resume": cmd_resume, "capture": cmd_capture, "check": cmd_check, "seal": cmd_seal, "lite": cmd_lite}[a.cmd](a)
 
 

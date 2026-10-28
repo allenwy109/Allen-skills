@@ -27,11 +27,19 @@ class ReportContractTest(unittest.TestCase):
             self.build(slides)
         return cm.exception
 
+    def test_shared_slides_schema_allows_deck_without_report_decision_structure(self):
+        slides = copy.deepcopy(self.slides)
+        slides["deck"].pop("decision_structure")
+        self.assertEqual([], schema_check.check_document(schema_check.load("slides.schema.json"), slides, "slides.json"))
+        self.assertEqual("REPORT_COVERAGE_MISMATCH", self.error(slides).code)
+
     def test_build_preserves_panels_relations_anchor_and_coverage(self):
         self.ledger.patch("cards", "card-0001", {"source_refs": [{"source_id": "M001", "locator": "附录 A"}]})
         report, coverage = self.build()
         self.assertEqual(report["version"], "1.0.0")
         self.assertEqual(report["metadata"]["title"], "星河数据科技经营概览")
+        self.assertEqual(report["metadata"]["bibliography_policy"], "evidence_package")
+        self.assertEqual(report["metadata"]["client_citations"], "compact")
         blocks = [b for section in report["sections"] for b in section["blocks"]]
         self.assertEqual([b["id"] for b in blocks], ["p02-bars", "p02-note", "p03-kpi", "p03-steps"])
         self.assertEqual(blocks[0]["kind"], "chart")
@@ -42,7 +50,7 @@ class ReportContractTest(unittest.TestCase):
         self.assertEqual(blocks[0]["content"]["alternative"], "并排数字卡")
         self.assertEqual(blocks[0]["content"]["tradeoff"], "柱形更适合比较绝对规模")
         self.assertEqual(blocks[0]["content"]["capacity"], {"items": 2})
-        self.assertEqual(blocks[0]["content"]["semantic_type"], "comparison")
+        self.assertEqual(blocks[0]["content"]["semantic_type"], "point_evidence")
         self.assertEqual(blocks[0]["content"]["visual"], "两年收入柱形")
         self.assertEqual(blocks[0]["content"]["slot"], "main")
         self.assertEqual(blocks[0]["content"]["span"], 2)
@@ -59,10 +67,82 @@ class ReportContractTest(unittest.TestCase):
         self.assertEqual(blocks[0]["source_bindings"], [{"source_id": "M001", "locators": ["p12"]}])
         self.assertEqual(report["references"][0]["locators"], ["p12", "p30", "附录 A"])
 
+    def test_slides_schema_accepts_and_bridge_preserves_native_exhibits(self):
+        cases = {
+            "competitor-matrix": {
+                "family": "matrix", "form": "html.table", "relationship": "positioning",
+                "columns": ["总成本", "可靠性"],
+                "rows": [{"label": "GPU 云", "values": ["待核价", "有 SLA"]}],
+            },
+            "decision-tree": {
+                "family": "decision-tree", "form": "svg.custom", "relationship": "branching",
+                "nodes": [{"id": "start", "label": "POC"}, {"id": "pilot", "label": "付费试单"}],
+                "edges": [{"from": "start", "to": "pilot", "label": "通过"}],
+            },
+            "mechanism-process": {
+                "family": "process", "form": "svg.custom", "relationship": "mechanism",
+                "steps": [{"label": "检测闲置"}, {"label": "可抢占调度"}],
+            },
+            "30-60-90-roadmap": {
+                "family": "timeline", "form": "html.table", "relationship": "roadmap",
+                "stages": [
+                    {"label": "30 天", "output": "访谈"},
+                    {"label": "60 天", "output": "试点"},
+                    {"label": "90 天", "output": "决策"},
+                ],
+            },
+        }
+        schema = schema_check.load("slides.schema.json")
+        for kind, exhibit in cases.items():
+            with self.subTest(kind=kind):
+                slides = copy.deepcopy(self.slides)
+                panel = slides["slides"][1]["panels"][0]
+                panel["semantic_type"] = kind
+                panel["form"] = exhibit["form"]
+                panel["relationship"] = exhibit["relationship"]
+                panel["capacity"] = {
+                    "rows": len(exhibit.get("rows", [])),
+                    "nodes": len(exhibit.get("nodes", [])),
+                    "steps": len(exhibit.get("steps", [])),
+                    "stages": len(exhibit.get("stages", [])),
+                }
+                panel["exhibit"] = {"kind": kind, **{k: v for k, v in exhibit.items() if k != "relationship"}}
+                self.assertEqual([], schema_check.check_document(schema, slides, "slides.json"))
+                report, _ = self.build(slides)
+                block = report["sections"][0]["blocks"][0]
+                self.assertEqual(kind, block["content"]["exhibit"]["kind"])
+                self.assertEqual(exhibit["family"], block["content"]["exhibit"]["family"])
+
+    def test_slides_schema_rejects_unknown_or_incomplete_native_exhibit(self):
+        schema = schema_check.load("slides.schema.json")
+        for exhibit in (
+            {"kind": "unknown", "family": "process", "form": "svg.custom", "steps": [{"label": "A"}, {"label": "B"}]},
+            {"kind": "decision-tree", "family": "decision-tree", "form": "svg.custom", "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}]},
+        ):
+            with self.subTest(exhibit=exhibit):
+                slides = copy.deepcopy(self.slides)
+                panel = slides["slides"][1]["panels"][0]
+                panel["semantic_type"] = exhibit["kind"]
+                panel["exhibit"] = exhibit
+                problems = schema_check.check_document(schema, slides, "slides.json")
+                self.assertTrue(problems)
+                with self.assertRaises(T.ReportError) as cm:
+                    self.build(slides)
+                self.assertEqual("REPORT_COVERAGE_MISMATCH", cm.exception.code)
+
+    def test_ambiguous_non_point_semantic_is_not_rewritten_to_fallback(self):
+        slides = copy.deepcopy(self.slides)
+        slides["slides"][1]["panels"][0]["semantic_type"] = "comparison"
+        error = self.error(slides)
+        self.assertEqual("REPORT_EXHIBIT_MISSING", error.code)
+        self.assertIn("comparison", str(error))
+
     def test_build_carries_claims_and_decision_research_into_semantic_blocks(self):
         slides = copy.deepcopy(self.slides)
         slides["slides"][1]["panels"][0]["semantic_type"] = "pain-demand"
+        slides["slides"][1]["panels"][0]["form"] = "html.table"
         slides["slides"][2]["panels"][1]["semantic_type"] = "competition"
+        slides["slides"][2]["panels"][1]["form"] = "html.table"
         evidence_dir = pathlib.Path(self.task) / "03_evidence"
         evidence_dir.mkdir(exist_ok=True)
         (evidence_dir / "decision-research.json").write_text(json.dumps({
@@ -88,8 +168,8 @@ class ReportContractTest(unittest.TestCase):
 
         report, _ = self.build(slides)
         blocks = [block for section in report["sections"] for block in section["blocks"]]
-        pain = next(block for block in blocks if block["content"].get("semantic_type") == "pain-demand")
-        competition = next(block for block in blocks if block["content"].get("semantic_type") == "competition")
+        pain = next(block for block in blocks if block["content"].get("semantic_type") == "pain-comparison")
+        competition = next(block for block in blocks if block["content"].get("semantic_type") == "competitor-matrix")
 
         self.assertEqual("收入从 1800 万元增至 3200 万元", pain["content"]["claims"][0]["statement"])
         self.assertEqual("high", pain["content"]["claims"][0]["confidence"])
@@ -102,8 +182,52 @@ class ReportContractTest(unittest.TestCase):
         self.assertEqual("direct", competition["content"]["comparison"]["alternatives"][0]["layer"])
         self.assertEqual("官方价可比", competition["content"]["comparison"]["alternatives"][0]["values"]["总拥有成本"])
         self.assertEqual("缺同口径状态数据", competition["content"]["comparison"]["alternatives"][0]["values"]["可靠性"])
+        self.assertEqual("pain-comparison", pain["content"]["exhibit"]["selected_layout"])
+        self.assertIn("comparison", pain["content"]["exhibit"]["layout_reason"])
+        self.assertEqual("within-soft", pain["content"]["exhibit"]["capacity_state"])
+        pain["content"]["exhibit"]["capacity_state"] = "soft-exceeded"
+        with self.assertRaises(T.ReportError) as cm:
+            T.validate_report(report)
+        self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
+        pain["content"]["exhibit"]["capacity_state"] = "within-soft"
+        pain["content"]["exhibit"]["selected_layout"] = "decision-tree"
+        with self.assertRaises(T.ReportError) as cm:
+            T.validate_report(report)
+        self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
         recommendation = next(detail for block in blocks for detail in block["content"]["claims"] if detail["id"] == "cl-0004")
         self.assertEqual("indirect_lead", recommendation["support_label"])
+
+    def test_catalog_capacity_and_form_policy_is_enforced(self):
+        panel = {"id": "tree", "semantic_type": "decision-tree", "relationship": "branching", "form": "svg.custom", "capacity": {"nodes": 11},
+                 "exhibit": {"kind": "decision-tree", "family": "decision-tree", "form": "svg.custom",
+                             "nodes": [{"id": str(i), "label": str(i)} for i in range(11)], "edges": [{"from": "0", "to": "1", "label": "yes"}]}}
+        with self.assertRaises(T.ReportError) as cm:
+            T._native_exhibit(panel, {})
+        self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
+        panel["capacity"]["nodes"] = 2
+        panel["exhibit"]["nodes"] = panel["exhibit"]["nodes"][:2]
+        panel["exhibit"]["form"] = "html.text"
+        with self.assertRaises(T.ReportError) as cm:
+            T._native_exhibit(panel, {})
+        self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
+
+    def test_matrix_exhibits_reject_short_and_long_rows(self):
+      for semantic, kind in (("competition", "competitor-matrix"), ("pain-comparison", "pain-comparison")):
+        base = {"id": "matrix", "semantic_type": semantic, "relationship": "positioning", "form": "html.table", "capacity": {"rows": 1},
+                "exhibit": {"kind": kind, "family": "matrix", "form": "html.table", "columns": ["A", "B"], "rows": [{"label": "X", "values": []}]}}
+        for values in (["one"], ["one", "two", "three"]):
+            panel = copy.deepcopy(base)
+            panel["exhibit"]["rows"][0]["values"] = values
+            with self.assertRaises(T.ReportError) as cm:
+                T._native_exhibit(panel, {})
+            self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
+
+    def test_supplied_capacity_state_cannot_lie(self):
+        panel = {"id": "matrix", "semantic_type": "competition", "relationship": "positioning", "form": "html.table", "capacity": {"rows": 1},
+                 "exhibit": {"kind": "competitor-matrix", "family": "matrix", "form": "html.table", "capacity_state": "soft-exceeded", "columns": ["A"], "rows": [{"label": "X", "values": ["1"]}]}}
+        with self.assertRaises(T.ReportError) as cm:
+            T._native_exhibit(panel, {})
+        self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
 
     def test_report_matches_schema_and_schema_self_checks(self):
         schema = schema_check.load("report.schema.json")
@@ -264,6 +388,14 @@ class ReportContractTest(unittest.TestCase):
         for field in ("title", "author", "publisher", "published", "accessed", "url", "locators", "grade",
                       "conflict_of_interest"):
             self.assertIn(field, reference)
+
+    def test_full_bibliography_requires_explicit_selection(self):
+        report, _ = T.build(self.task, self.slides, F.report_sidecar(), bibliography_policy="full")
+        self.assertEqual("full", report["metadata"]["bibliography_policy"])
+
+        with self.assertRaises(T.ReportError) as cm:
+            T.build(self.task, self.slides, F.report_sidecar(), bibliography_policy="unexpected")
+        self.assertIn("bibliography_policy", str(cm.exception))
 
     def test_validate_report_rejects_duplicate_and_unknown_internal_refs(self):
         report, _ = self.build()

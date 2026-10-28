@@ -1,4 +1,5 @@
 import json
+import hashlib
 import pathlib
 import subprocess
 import tempfile
@@ -9,9 +10,21 @@ from tools import acceptance as A
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
+def expected_digest(value):
+    def clean(item):
+        if isinstance(item, dict):
+            return {key: clean(child) for key, child in item.items() if key not in ("review_digest", "digest")}
+        if isinstance(item, list):
+            return [clean(child) for child in item]
+        return item
+    payload = json.dumps(clean(value), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
 def review(*issues, kind="independent"):
     return {"type": kind, "reviewer": "成品审查员", "at": "2026-10-23T10:00:00+00:00", "conclusion": "看过全部页面",
-            "issues": [{"id": f"RV-{i:04d}", "level": lvl, "text": t, "resolved": res} for i, (lvl, t, res) in enumerate(issues, 1)]}
+            "issues": [{"id": f"RV-{i:04d}", "level": lvl, "text": t, "resolved": res,
+                        "reviewer": "Visual reviewer"} for i, (lvl, t, res) in enumerate(issues, 1)]}
 
 
 def entry(**over):
@@ -19,6 +32,30 @@ def entry(**over):
          "upstream_checks": [{"name": "tc_validate", "result": "passed"}], "reviewer": review()}
     e.update(over)
     return e
+
+
+def report_review(*issues, author="Report author", visual_reviewer="Visual reviewer", decision_reviewer="Decision reviewer"):
+    value = review(*issues)
+    value.update({
+        "author": author,
+        "reviewer": visual_reviewer,
+        "role": "visual-design-reviewer",
+        "worst_page": {"page_id": "page-004", "finding": "The dense matrix is still readable, but has the weakest hierarchy in the report."},
+        "decision_review": {
+            "reviewer": decision_reviewer,
+            "role": "decision-maker-reviewer",
+            "at": "2026-10-23T10:05:00+00:00",
+            "answers": {key: "Page-specific answer with enough detail for an executive decision."
+                        for key in ("answer_visibility", "executive_summary", "argument_sufficiency", "actions", "ownership", "continue_stop_thresholds")},
+        },
+    })
+    return stamp_review(value)
+
+
+def stamp_review(value):
+    value["decision_review"]["review_digest"] = expected_digest(value["decision_review"])
+    value["review_digest"] = expected_digest(value)
+    return value
 
 
 class StatusRuleTest(unittest.TestCase):
@@ -65,6 +102,81 @@ class StatusRuleTest(unittest.TestCase):
         self.assertEqual(self.status(**disposed)[0], "passed")
         self.assertEqual(self.status(fixture=True, upstream_checks=[{"name": "storyline check", "result": "skipped"}])[0], "passed")
 
+    def test_report_rejects_open_major_and_incomplete_final_reviews(self):
+        base = dict(kind="report", reviewer=report_review())
+        bad_decision_time = report_review()
+        bad_decision_time["decision_review"]["at"] = "2026-10-23T10:05:00"
+        stamp_review(bad_decision_time)
+        cases = {
+            "未解决的重要问题": report_review(("major", "第 3 页论据不足", False)),
+            "最差页": {**report_review(), "worst_page": None},
+            "六个高管问题": {**report_review(), "decision_review": {**report_review()["decision_review"], "answers": {}}},
+            "独立审查者与作者不能相同": report_review(author="Same person", visual_reviewer="Same person"),
+            "视觉与决策审查者必须独立": report_review(visual_reviewer="Same reviewer", decision_reviewer="Same reviewer"),
+            "报告作者身份不能为空": report_review(author=""),
+            "审查摘要与内容不匹配": {**report_review(), "review_digest": "a" * 64},
+            "决策者审查时间": bad_decision_time,
+        }
+        for message, reviewer in cases.items():
+            with self.subTest(message):
+                status, failures, _ = self.status(**{**base, "reviewer": reviewer})
+                self.assertEqual("failed", status)
+                self.assertIn(message, "；".join(failures))
+
+    def test_report_requires_digest_and_closure_evidence_for_resolved_major_issue(self):
+        issue = ("major", "第 3 页论据不足", True)
+        incomplete = report_review(issue)
+        status, failures, _ = self.status(kind="report", reviewer=incomplete)
+        self.assertEqual("failed", status)
+        self.assertIn("补救证据和一次复审", "；".join(failures))
+
+        complete = report_review(issue)
+        complete["issues"][0].update({
+            "reviewer": "Decision reviewer",
+            "remedy": "Rewrote the claim and added the missing comparison.",
+            "remedy_evidence": ["page-003"],
+            "re_review": {"reviewer": "Decision reviewer", "at": "2026-10-23T11:00:00+00:00",
+                          "evidence": ["page-003"], "digest": ""},
+        })
+        complete["issues"][0]["re_review"]["digest"] = expected_digest(complete["issues"][0]["re_review"])
+        complete["decision_review"]["review_digest"] = expected_digest(complete["decision_review"])
+        complete["review_digest"] = expected_digest(complete)
+        self.assertEqual("passed", self.status(kind="report", reviewer=complete)[0])
+
+        wrong_reviewer = json.loads(json.dumps(complete))
+        wrong_reviewer["issues"][0]["re_review"]["reviewer"] = "Replacement reviewer"
+        wrong_reviewer["issues"][0]["re_review"]["digest"] = expected_digest(wrong_reviewer["issues"][0]["re_review"])
+        wrong_reviewer["review_digest"] = expected_digest(wrong_reviewer)
+        status, failures, _ = self.status(kind="report", reviewer=wrong_reviewer)
+        self.assertEqual("failed", status)
+        self.assertIn("原审查者", "；".join(failures))
+
+        missing_owner = json.loads(json.dumps(complete))
+        missing_owner["issues"][0]["reviewer"] = ""
+        missing_owner["review_digest"] = expected_digest(missing_owner)
+        status, failures, _ = self.status(kind="report", reviewer=missing_owner)
+        self.assertEqual("failed", status)
+        self.assertIn("问题审查者", "；".join(failures))
+
+    def test_report_requires_owner_on_open_and_resolved_minor_issues(self):
+        for resolved in (False, True):
+            value = report_review(("minor", "Minor wording issue", resolved))
+            value["issues"][0]["reviewer"] = ""
+            stamp_review(value)
+            with self.subTest(resolved=resolved):
+                status, failures, _ = self.status(kind="report", reviewer=value)
+                self.assertEqual("failed", status)
+                self.assertIn("问题审查者", "；".join(failures))
+
+    def test_digest_cli_uses_canonical_review_content(self):
+        value = report_review()
+        with tempfile.TemporaryDirectory() as temporary:
+            source = pathlib.Path(temporary) / "review.json"
+            source.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
+            result = subprocess.run(["python3", str(ROOT / "tools/acceptance.py"), "digest", str(source)], capture_output=True, text=True)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(expected_digest(value), result.stdout.strip())
+
 
 class RecordTest(unittest.TestCase):
     def setUp(self):
@@ -90,6 +202,13 @@ class RecordTest(unittest.TestCase):
         doc = self.acc.check()
         self.assertEqual(doc["deliverables"][0]["status"], "failed")
         self.assertIn("验收后文件被改动", doc["deliverables"][0]["failures"][0])
+
+    def test_legacy_non_report_issue_without_reviewer_still_saves(self):
+        legacy = review(("minor", "legacy wording issue", False))
+        legacy["issues"][0].pop("reviewer")
+        self.rec()
+        saved = self.acc.review("chart-x", legacy)
+        self.assertEqual("passed", saved["status"])
 
     def test_re_record_keeps_review_only_if_files_unchanged(self):
         self.rec()

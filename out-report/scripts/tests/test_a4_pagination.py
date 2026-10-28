@@ -68,6 +68,7 @@ def block(block_id="b-1", kind="text", anchor=True):
             "form": {"text": "html.text", "table": "html.table"}[kind],
             "relationship": "supports", "reason": "Decision support",
             "anchor": anchor, "role": "primary", "slot": "main", "span": 1,
+            "semantic_type": "point_evidence",
         },
     }
 
@@ -115,11 +116,51 @@ class A4PaginationTest(unittest.TestCase):
         self.assertNotIn("{{PAGE:", result["html"])
         self.assertIn('data-cross-reference="finding">1</span>', result["html"])
 
+    def test_cover_and_toc_share_authoritative_cover_toc_role_and_whitespace_reason(self):
+        cover = {"kind": "cover", "payload": {"id": "cover", "title": "Report", "layout_id": "overview-detail",
+                  "title_groups": [{"title": "Report"}], "blocks": []}}
+        toc = {"kind": "toc", "payload": {"id": "toc", "title": "目录", "layout_id": "full-evidence",
+                "entries": [{"title": "第一章", "destination": "cover"}], "blocks": []}}
+        result = render({"title": "Cover TOC", "components": [cover, toc]})
+        first = result["manifest"]["pages"][0]
+        self.assertEqual("cover-toc", first["role"])
+        self.assertEqual("cover-identity", first["whitespaceJustification"])
+
     def test_boundary_places_next_component_on_new_page_without_overflow(self):
-        components = [component(f"c-{index}") for index in range(1, 9)]
+        components = [component(f"c-{index}", repeat_reason="Repeated evidence cards exercise the physical page boundary only", repeat_approved=True) for index in range(1, 9)]
         result = render({"title": "Boundary", "components": components})
         self.assertGreater(result["manifest"]["pageCount"], 1)
         self.assertTrue(all(page["usedHeightPx"] <= page["contentHeightPx"] + 1 for page in result["manifest"]["pages"]))
+
+    def test_section_title_keeps_with_next_body_without_blank_or_overflow(self):
+        intro = component("intro")
+        intro["payload"]["blocks"][0]["content"]["purpose"] = "words " * 220
+        opener = component(
+            "chapter", "section-title", layout_id="overview-detail",
+            blocks=[block("chapter")], chapter_claims=["下一章结论"],
+        )
+        result = render({"title": "Keep with next", "components": [intro, opener, component("finding")]})
+        repeated = render({"title": "Keep with next", "components": [intro, opener, component("finding")]})
+        manifest = result["manifest"]
+        self.assertEqual(manifest, repeated["manifest"])
+        self.assertEqual(manifest["blockToPage"]["chapter"], manifest["blockToPage"]["finding"])
+        self.assertEqual([1, 2], [page["number"] for page in manifest["pages"]])
+        self.assertTrue(all(page["usedHeightPx"] <= page["contentHeightPx"] + 1 for page in manifest["pages"]))
+
+    def test_section_title_fails_closed_when_atomic_next_component_cannot_share_a_page(self):
+        opener = component(
+            "chapter", "section-title", layout_id="overview-detail",
+            blocks=[block("chapter")], chapter_claims=["下一章结论"],
+        )
+        finding = component("finding")
+        finding["payload"]["blocks"][0]["content"]["purpose"] = "word " * 450
+        process = subprocess.run(
+            ["node", str(RENDER)], cwd=ROOT,
+            input=json.dumps({"title": "Impossible keep", "components": [opener, finding]}),
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(0, process.returncode)
+        self.assertIn("REPORT_KEEP_WITH_NEXT", process.stderr)
 
     def test_unsplittable_overflow_fails_instead_of_clipping_or_shrinking(self):
         huge = component("huge")
@@ -166,12 +207,16 @@ class A4PaginationTest(unittest.TestCase):
                         for index in range(1, 8)]
         matrix_block = block("competition", "table")
         matrix_block["content"].update(semantic_type="competition", comparison={"criteria": criteria, "alternatives": alternatives})
+        matrix_block["content"]["exhibit"] = {
+            "kind": "competitor-matrix", "family": "matrix", "form": "html.table", "columns": criteria,
+            "rows": [{"label": item["name"], "values": [item["values"][key] for key in criteria]} for item in alternatives],
+        }
         matrix = component("competition", "comparison", layout_id="comparison-columns", blocks=[matrix_block],
                            criteria=criteria, alternatives=alternatives)
         result = render({"title": "Competition", "components": [matrix]})
-        self.assertEqual(2, result["html"].count('class="table-body competition-matrix"'))
-        self.assertEqual(2, result["html"].count('<th scope="col">层级 / 选项</th>'))
-        self.assertEqual(7, result["html"].count('class="competition-layer"'))
+        self.assertEqual(2, result["html"].count('data-exhibit-kind="competitor-matrix"'))
+        self.assertEqual(2, result["html"].count('<th scope="col">比较项</th>'))
+        self.assertEqual(7, sum(result["html"].count(f'<th scope="row">Option {index}</th>') for index in range(1, 8)))
 
     def test_long_sources_split_at_record_boundaries_and_keep_locators(self):
         refs = [{"id": f"src-{i}", "title": "Evidence " + "detail " * 20, "locators": [f"§{i}"]} for i in range(1, 18)]
@@ -215,8 +260,51 @@ class A4PaginationTest(unittest.TestCase):
         first = render(doc)
         second = render(doc)
         self.assertEqual(first, second)
-        self.assertEqual(2, first["manifest"]["blockToPage"]["chapter-2"])
+        self.assertEqual(1, first["manifest"]["blockToPage"]["chapter-2"])
         self.assertFalse(any(page["intentionalBlank"] for page in first["manifest"]["pages"]))
+
+    def test_compatible_components_and_section_heading_compose_continuously(self):
+        heading = component(
+            "chapter-2", "section-title", layout_id="overview-detail",
+            blocks=[block("chapter-2")], chapter_claims=["Prove demand"],
+        )
+        result = render({"title": "Continuous", "components": [heading, component("finding")]})
+        self.assertEqual(1, result["manifest"]["pageCount"])
+        self.assertEqual(1, result["manifest"]["blockToPage"]["chapter-2"])
+        self.assertEqual(1, result["manifest"]["blockToPage"]["finding"])
+
+    def test_duplicate_titles_and_unjustified_repeated_primary_structures_fail(self):
+        first = component("one")
+        second = component("two")
+        second["payload"]["blocks"][0]["content"]["title"] = "  BLOCK one  "
+        duplicate = [first, second]
+        process = subprocess.run(
+            ["node", str(RENDER)], cwd=ROOT, input=json.dumps({"title": "Duplicate", "components": duplicate}),
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(0, process.returncode)
+        self.assertIn("REPORT_DUPLICATE_TITLE", process.stderr)
+
+        repeated = [component("one"), component("two")]
+        process = subprocess.run(
+            ["node", str(RENDER)], cwd=ROOT, input=json.dumps({"title": "Repeated", "components": repeated}),
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(0, process.returncode)
+        self.assertIn("REPORT_REPEATED_PRIMARY_STRUCTURE", process.stderr)
+
+        repeated[1]["payload"]["repeat_reason"] = "Same decision matrix continued across a semantic table boundary"
+        repeated[1]["payload"]["repeat_approved"] = True
+        self.assertEqual(1, render({"title": "Approved repeat", "components": repeated})["manifest"]["pageCount"])
+
+        non_adjacent = [component("one"), component("middle", "risk-boundary", layout_id="decision-matrix",
+                        risks=[{"name": "Cash", "priority": "P1"}]), component("three")]
+        process = subprocess.run(
+            ["node", str(RENDER)], cwd=ROOT, input=json.dumps({"title": "A-B-A", "components": non_adjacent}),
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(0, process.returncode)
+        self.assertIn("REPORT_REPEATED_PRIMARY_STRUCTURE", process.stderr)
 
     def test_file_mode_writes_html_and_pagination_manifest(self):
         doc = {"title": "Artifacts", "components": [component("finding")]}

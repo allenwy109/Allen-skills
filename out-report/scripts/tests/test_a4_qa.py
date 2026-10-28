@@ -38,9 +38,11 @@ def load_visual():
 def good_evidence():
     return {
         "pagination": {
+            "maximumUnusedRatio": 0.55,
             "pageCount": 1,
             "pages": [{
                 "id": "page-001", "number": 1, "intentionalBlank": False,
+                "role": "body",
                 "usedHeightPx": 500, "contentHeightPx": 986,
                 "geometry": {"widthMm": 210, "heightMm": 297},
             }],
@@ -83,7 +85,136 @@ def run_qa(evidence):
     return json.loads(process.stdout)
 
 
+def run_node(expression, payload):
+    script = f"""
+const qa = require({json.dumps(str(QA))});
+const payload = JSON.parse(process.argv[1]);
+Promise.resolve().then(() => {expression}).then(
+  value => process.stdout.write(JSON.stringify({{ok: true, value}})),
+  error => process.stdout.write(JSON.stringify({{ok: false, code: error.code, message: error.message}}))
+);
+"""
+    process = subprocess.run(["node", "-e", script, json.dumps(payload)], cwd=ROOT, check=True, capture_output=True, text=True)
+    return json.loads(process.stdout)
+
+
 class A4QualityGateTest(unittest.TestCase):
+    def test_nonfunctional_whitespace_and_a4_type_minimums_block_and_worst_page_is_named(self):
+        evidence = good_evidence()
+        evidence["pagination"]["pages"][0]["usedHeightPx"] = 200
+        evidence["geometry"]["pages"][0]["fonts"][0]["minimumPt"] = 8.49
+        result = run_qa(evidence)
+        codes = {item["code"] for item in result["blocking"]}
+        self.assertIn("REPORT_NONFUNCTIONAL_WHITESPACE", codes)
+        self.assertIn("REPORT_FONT_TOO_SMALL", codes)
+        self.assertEqual("page-001", result["audit"]["worstPage"]["id"])
+        self.assertGreater(result["audit"]["worstPage"]["score"], 0)
+
+    def test_intentional_whitespace_is_allowed_only_with_a_specific_reason(self):
+        evidence = good_evidence()
+        evidence["pagination"]["pages"][0].update(usedHeightPx=450, role="section-divider", whitespaceJustification="section-transition")
+        evidence["media"]["htmlPages"][0]["role"] = "section-divider"
+        result = run_qa(evidence)
+        self.assertNotIn("REPORT_NONFUNCTIONAL_WHITESPACE", {item["code"] for item in result["blocking"]})
+
+        evidence["pagination"]["pages"][0].update(usedHeightPx=207, role="cover", whitespaceJustification="cover-identity")
+        evidence["media"]["htmlPages"][0]["role"] = "body"
+        result = run_qa(evidence)
+        self.assertIn("REPORT_NONFUNCTIONAL_WHITESPACE", {item["code"] for item in result["blocking"]})
+        self.assertGreaterEqual(result["audit"]["worstPage"]["score"], .9)
+
+    def test_cover_toc_whitespace_requires_matching_authoritative_dom_role(self):
+        evidence = good_evidence()
+        evidence["pagination"]["pages"][0].update(
+            usedHeightPx=314, role="cover-toc", whitespaceJustification="cover-identity")
+        evidence["media"]["htmlPages"][0]["role"] = "cover-toc"
+        self.assertNotIn("REPORT_NONFUNCTIONAL_WHITESPACE", {
+            item["code"] for item in run_qa(evidence)["blocking"]})
+
+        evidence["media"]["htmlPages"][0]["role"] = "body"
+        self.assertIn("REPORT_NONFUNCTIONAL_WHITESPACE", {
+            item["code"] for item in run_qa(evidence)["blocking"]})
+
+    def test_text_fingerprint_preserves_normalized_reading_order(self):
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0]["text"] = "A B C"
+        evidence["media"]["pdfPages"][0]["text"] = "C B A"
+        self.assertIn("REPORT_TEXT_MISMATCH", {item["code"] for item in run_qa(evidence)["blocking"]})
+
+        evidence["media"]["htmlPages"][0]["text"] = "第一项 第二项 第三项"
+        evidence["media"]["pdfPages"][0]["text"] = "第一项 第三项"
+        self.assertIn("REPORT_TEXT_MISMATCH", {item["code"] for item in run_qa(evidence)["blocking"]})
+
+    def test_text_manifest_tolerates_pdf_extractor_punctuation_lines_and_list_markers(self):
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0]["text"] = "客户（首轮）。\n飞轮？ 第一项；第二项"
+        evidence["media"]["pdfPages"][0]["text"] = "客户(首轮). ⻜轮? 1. 第一项; 2. 第二项"
+        self.assertNotIn("REPORT_TEXT_MISMATCH", {
+            item["code"] for item in run_qa(evidence)["blocking"]})
+
+    def test_text_manifest_tolerates_multiple_reset_ordered_lists_only(self):
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0]["text"] = "方法 调研 建模 复核 限制 样本 经济 合规"
+        evidence["media"]["pdfPages"][0]["text"] = (
+            "方法 1. 调研 2. 建模 3. 复核 限制 1. 样本 2. 经济 3. 合规")
+        self.assertNotIn("REPORT_TEXT_MISMATCH", {
+            item["code"] for item in run_qa(evidence)["blocking"]})
+
+        evidence["media"]["htmlPages"][0]["text"] = "版本 1. 测试，增长 2.5%，2026 年"
+        evidence["media"]["pdfPages"][0]["text"] = "版本 2. 测试,增长 2.5%,2026 年"
+        self.assertIn("REPORT_TEXT_MISMATCH", {
+            item["code"] for item in run_qa(evidence)["blocking"]})
+
+        evidence["media"]["htmlPages"][0]["text"] = "方法 调研 建模 复核"
+        evidence["media"]["pdfPages"][0]["text"] = "方法 1. 调研 2. 复核 3. 建模"
+        self.assertIn("REPORT_TEXT_MISMATCH", {
+            item["code"] for item in run_qa(evidence)["blocking"]})
+
+        evidence["media"]["htmlPages"][0]["text"] = "First paragraph. Second paragraph."
+        evidence["media"]["pdfPages"][0]["text"] = "Second paragraph. First paragraph."
+        self.assertIn("REPORT_TEXT_MISMATCH", {item["code"] for item in run_qa(evidence)["blocking"]})
+    def test_real_evaluate_rejects_missing_and_mismatched_rendered_exhibits(self):
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0]["visibleHtml"] = (
+            '<article data-semantic-type="decision-tree" data-exhibit-required="true" '
+            'data-form="svg.custom"><p>Decision evidence source</p></article>'
+        )
+        codes = {item["code"] for item in run_qa(evidence)["blocking"]}
+        self.assertIn("REPORT_EXHIBIT_MISSING", codes)
+
+        evidence["media"]["htmlPages"][0]["visibleHtml"] = (
+            '<article data-semantic-type="decision-tree" data-exhibit-required="true" data-form="html.text">'
+            '<figure data-exhibit-kind="decision-tree" data-exhibit-family="decision-tree" '
+            'data-exhibit-form="svg.custom" data-structure="decision-branch-svg">Decision evidence source</figure></article>'
+        )
+        codes = {item["code"] for item in run_qa(evidence)["blocking"]}
+        self.assertIn("REPORT_EXHIBIT_MISMATCH", codes)
+
+    def test_semantic_alias_resolves_to_canonical_catalog_exhibit(self):
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0]["visibleHtml"] = (
+            '<article data-semantic-type="competition" data-exhibit-required="true" data-form="html.table">'
+            '<figure data-exhibit-kind="competitor-matrix" data-exhibit-family="matrix" data-exhibit-form="html.table" '
+            'data-structure="competitor-criteria-table">Decision evidence source</figure></article>'
+        )
+        codes = {item["code"] for item in run_qa(evidence)["blocking"]}
+        self.assertNotIn("REPORT_EXHIBIT_MISSING", codes)
+        self.assertNotIn("REPORT_EXHIBIT_MISMATCH", codes)
+    def test_declared_exhibit_family_requires_matching_native_form(self):
+        cases = [
+            ({"family": "matrix", "form": "html.text"}, "REPORT_EXHIBIT_MISMATCH"),
+            ({"family": "timeline"}, "REPORT_EXHIBIT_MISSING"),
+            ({"family": "decision-tree", "form": "svg.custom"}, None),
+        ]
+        for declaration, expected in cases:
+            with self.subTest(declaration=declaration):
+                result = run_node("qa.validateExhibitDeclaration(payload)", declaration)
+                if expected:
+                    self.assertFalse(result["ok"])
+                    self.assertEqual(expected, result.get("code"), result)
+                else:
+                    self.assertTrue(result["ok"], result)
+
     def test_export_rebuilds_internal_links_and_cleans_temporary_pages_in_finally(self):
         source = EXPORT.read_text(encoding="utf-8")
         self.assertNotIn("pdfunite", source)
@@ -200,17 +331,17 @@ class A4QualityGateTest(unittest.TestCase):
         codes = {item["code"] for item in run_qa(evidence)["blocking"]}
         self.assertEqual({"REPORT_TEXT_MISMATCH", "REPORT_EXTERNAL_RESOURCE"}, codes)
 
-    def test_text_manifest_allows_pdf_reading_order_changes_without_content_loss(self):
+    def test_text_manifest_rejects_pdf_reading_order_changes(self):
         evidence = good_evidence()
         evidence["media"]["htmlPages"][0]["text"] = "左列事实 右列反证"
         evidence["media"]["pdfPages"][0]["text"] = "右列反证 左列事实"
         codes = {item["code"] for item in run_qa(evidence)["blocking"]}
-        self.assertNotIn("REPORT_TEXT_MISMATCH", codes)
+        self.assertIn("REPORT_TEXT_MISMATCH", codes)
 
     def test_text_manifest_normalizes_pdfkit_cjk_and_punctuation_variants(self):
         evidence = good_evidence()
-        evidence["media"]["htmlPages"][0]["text"] = "客户，验长见页角门风齐：｜；2024–2025"
-        evidence["media"]["pdfPages"][0]["text"] = "客戶,验⻓⻅⻚⻆⻔⻛⻬:|;2024‒2025"
+        evidence["media"]["htmlPages"][0]["text"] = "客户，验长见页角门风齐马：｜；2024–2025"
+        evidence["media"]["pdfPages"][0]["text"] = "客戶,验⻓⻅⻚⻆⻔⻛⻬⻢:|;2024‒2025"
         codes = {item["code"] for item in run_qa(evidence)["blocking"]}
         self.assertNotIn("REPORT_TEXT_MISMATCH", codes)
 
@@ -489,9 +620,9 @@ class A4QualityGateTest(unittest.TestCase):
 
         evidence = good_evidence()
         evidence["pagination"]["pageCount"] = 2
-        evidence["pagination"]["pages"].append({"id": "page-002", "number": 2, "intentionalBlank": False, "usedHeightPx": 10, "contentHeightPx": 986, "geometry": {"widthMm": 210, "heightMm": 297}})
+        evidence["pagination"]["pages"].append({"id": "page-002", "number": 2, "intentionalBlank": False, "role": "section-divider", "usedHeightPx": 450, "contentHeightPx": 986, "whitespaceJustification": "section-transition", "geometry": {"widthMm": 210, "heightMm": 297}})
         evidence["geometry"]["pages"].append({"id": "page-002", "mediaBoxMm": [210, 297], "overlaps": [], "clipped": [], "empty": False, "fonts": [{"role": "body", "minimumPt": 8.5}]})
-        evidence["media"]["htmlPages"].append({"id": "page-002", "role": "body", "text": "Second", "visibleHtml": "<p>Second</p>"})
+        evidence["media"]["htmlPages"].append({"id": "page-002", "role": "section-divider", "text": "Second", "visibleHtml": "<p>Second</p>"})
         evidence["media"]["pdfPages"].append({"id": "page-002", "text": "Second"})
         evidence["regression"] = regression
         blocked = run_qa(evidence)

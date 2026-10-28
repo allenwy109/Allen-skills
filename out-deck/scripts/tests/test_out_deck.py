@@ -20,7 +20,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(HERE))
 import out_deck  # noqa: E402,F401  （导入时完成运行时定位）
 import synthetic  # noqa: E402
-from tools.acceptance import Acceptance  # noqa: E402
+from tools.acceptance import Acceptance, review_digest  # noqa: E402
 from tools.tests import fixtures as F  # noqa: E402
 
 
@@ -51,18 +51,27 @@ def build_a4_report(task):
         "paginationDigest": artifacts["paginationDigest"],
     }), encoding="utf-8")
     independent = work / "independent-review.json"
-    independent.write_text(json.dumps({
-        "type": "independent", "reviewer": "Synthetic independent reviewer", "at": "2026-10-27T12:05:00+10:30",
+    decision = {"reviewer": "Synthetic decision reviewer", "role": "decision-maker-reviewer", "at": "2026-10-27T12:04:00+10:30",
+                "answers": {key: "The rendered A4 report gives a concrete executive answer."
+                            for key in ("answer_visibility", "executive_summary", "argument_sufficiency", "actions", "ownership", "continue_stop_thresholds")}}
+    decision["review_digest"] = review_digest(decision)
+    independent_value = {
+        "type": "independent", "reviewer": "Synthetic independent reviewer", "role": "visual-design-reviewer",
+        "at": "2026-10-27T12:05:00+10:30",
         "conclusion": "Synthetic A4 coexistence review accepted", "issues": [],
         "artifactDigest": artifacts["artifactDigest"], "paginationDigest": artifacts["paginationDigest"],
         "page_ids": pages, "media": ["html", "pdf"], "scales": ["100%", "contact-sheet"],
         "chapter_contact_sheets": [{"chapter": "whole-book", "page_ids": pages,
                                      "observation": "All A4 pages were inspected together for rhythm and hierarchy."}],
         "headline_chain": {"status": "reviewed", "observation": "The A4 headline chain remains coherent."},
+        "worst_page": {"page_id": pages[-1], "finding": "The densest page remains legible in both media."},
+        "decision_review": decision,
         "observations": [{"page_id": page, "media": ["html", "pdf"], "scale": ["100%", "contact-sheet"],
                            "observation": f"A4 page {page} was inspected in both media and scales.",
                            "reason": "No clipping or semantic omission was observed."} for page in pages],
-    }), encoding="utf-8")
+    }
+    independent_value["review_digest"] = review_digest(independent_value)
+    independent.write_text(json.dumps(independent_value), encoding="utf-8")
     for role, review in (("author", author), ("independent", independent)):
         result = command("review", task, role, review)
         if result.returncode:
@@ -70,7 +79,7 @@ def build_a4_report(task):
     package = command("package", task)
     if package.returncode:
         raise AssertionError(package.stdout + package.stderr)
-    report_dir = pathlib.Path(task) / "08_deliverables" / "report"
+    report_dir = pathlib.Path(task) / "08_deliverables" / "client-report"
     return {name: (report_dir / name).read_bytes() for name in ("report.html", "report.pdf")}
 
 
@@ -271,10 +280,10 @@ class OutDeckPipelineTest(unittest.TestCase):
 
     def test_a4_report_and_deck_coexist_without_overwrite(self):
         out = self.task / "08_deliverables"
-        self.assertTrue((out / "report" / "report.pdf").is_file())
+        self.assertTrue((out / "client-report" / "report.pdf").is_file())
         self.assertTrue((out / "deck" / "星河数据科技经营概览.pdf").is_file())
         for name, content in self.a4_artifacts.items():
-            self.assertEqual((out / "report" / name).read_bytes(), content)
+            self.assertEqual((out / "client-report" / name).read_bytes(), content)
         entries = {item["id"]: item for item in Acceptance(self.task).load()["deliverables"]}
         self.assertIn("report-main", entries)
         self.assertIn("deck-main", entries)

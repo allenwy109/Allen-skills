@@ -1,8 +1,8 @@
 {
- "version": "1.1.0",
+ "version": "1.2.0",
  "comment": "07_storyline/slides.json 的结构（设计 §5.3）。在 storyline 上游 slides.json 的基础上，增加报告引擎需要的逐页字段。哪些页必须填哪些字段，由 storyline check 按页面角色检查（计划 5），这里只管结构。",
  "upstream": "storyline 的 slides-schema（inventory/storyline.md E 节）；report-forge deck-blueprint 的 slides 字段（inventory/storyline.md H 节）",
- "changes": ["card_ids 的格式由 C001 改为 card-0001", "页面类型补充 risk 和 close", "新增 page_role、story_beat、proves、adds、claim_refs、metric_refs、density、visual_intent、chart_spec_file（交给 out-chart 的图表 spec，存为 07_storyline/charts/*.json）、block_ids", "deck 新增 story_mode、arc、arc_reason、decision、ratio", "1.1.0：补充报告引擎 narrative-focus-1 要求的字段——deck 新增 brief、answer_claim_refs、cover；页面新增 subtitle（口径副标题）、panels、relations、anchor_panel（组合证据）；evidence_role 补充 evidence"],
+ "changes": ["card_ids 的格式由 C001 改为 card-0001", "页面类型补充 risk 和 close", "新增 page_role、story_beat、proves、adds、claim_refs、metric_refs、density、visual_intent、chart_spec_file（交给 out-chart 的图表 spec，存为 07_storyline/charts/*.json）、block_ids", "deck 新增 story_mode、arc、arc_reason、decision、ratio", "1.1.0：补充报告引擎 narrative-focus-1 要求的字段——deck 新增 brief、answer_claim_refs、cover；页面新增 subtitle（口径副标题）、panels、relations、anchor_panel（组合证据）；evidence_role 补充 evidence", "panels 新增与 A4 报告引擎共享的原生 exhibit 输入合同"],
  "enums": {
   "deck_kind": {"values": ["presentation", "reading"], "labels": {"presentation": "演讲型", "reading": "阅读型"}},
   "closing_type": {"values": ["recommendation", "next_steps", "decision_request"], "labels": {"recommendation": "建议", "next_steps": "下一步", "decision_request": "请求决策"}},
@@ -16,7 +16,9 @@
   "density_profile": {"values": ["dense", "balanced", "sparse"], "labels": {"dense": "密", "balanced": "均衡", "sparse": "疏"}},
   "evidence_role": {"values": ["primary", "support", "context", "evidence", "implication"], "labels": {"primary": "主展品", "support": "支持", "context": "背景", "evidence": "证据", "implication": "含义"}},
   "brief_purpose": {"values": ["diagnosis", "decision", "research"], "labels": {"diagnosis": "诊断", "decision": "决策", "research": "研究"}},
-  "relation_kind": {"values": ["compare", "decompose", "sequence", "complement", "overview-detail", "boundary", "other"], "labels": {"compare": "对照", "decompose": "拆解", "sequence": "递进", "complement": "互补", "overview-detail": "总览与细节", "boundary": "边界", "other": "其他"}}
+  "relation_kind": {"values": ["compare", "decompose", "sequence", "complement", "overview-detail", "boundary", "other"], "labels": {"compare": "对照", "decompose": "拆解", "sequence": "递进", "complement": "互补", "overview-detail": "总览与细节", "boundary": "边界", "other": "其他"}},
+  "exhibit_kind": {"values": ["executive-summary", "answer-and-reasons", "pain-comparison", "competitor-matrix", "decision-tree", "mechanism-process", "paired-scenarios", "30-60-90-roadmap", "methods-limitations", "point_evidence"], "labels": {"executive-summary":"执行摘要","answer-and-reasons":"答案与理由","pain-comparison":"痛点比较","competitor-matrix":"竞品矩阵","decision-tree":"决策树","mechanism-process":"机制流程","paired-scenarios":"成对情景","30-60-90-roadmap":"三阶段路线图","methods-limitations":"方法与限制","point_evidence":"要点证据"}},
+  "exhibit_family": {"values": ["chart", "process", "timeline", "matrix", "scenario", "decision-tree", "point_evidence"], "labels": {"chart":"图表","process":"流程","timeline":"时间线","matrix":"矩阵","scenario":"情景","decision-tree":"决策树","point_evidence":"要点证据"}}
  },
  "root": {
   "type": "object",
@@ -48,6 +50,17 @@
       "constraints": {"type": "string", "required": true},
       "success_criteria": {"type": "string", "required": true}}},
      "answer_claim_refs": {"type": "array", "items": {"type": "string", "pattern": "^cl-[0-9]{4,}$"}},
+     "decision_structure": {"type": "object", "fields": {
+      "decision_level": {"type": "string", "required": true},
+      "decisive_reasons": {"type": "array", "required": true, "min_items": 3, "max_items": 3, "items": {"type": "string"}},
+      "largest_upside": {"type": "string", "required": true},
+      "largest_risk": {"type": "string", "required": true},
+      "immediate_actions": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}},
+      "thresholds": {"type": "object", "required": true, "fields": {
+       "continue": {"type": "string", "required": true},
+       "stop": {"type": "string", "required": true}
+      }}
+     }},
      "cover": {"type": "object", "fields": {
       "subtitle": {"type": "string"},
       "producer": {"type": "string"},
@@ -102,6 +115,7 @@
        "layout": {"type": "string"},
        "layout_reason": {"type": "string"},
        "repetition_reason": {"type": "string"},
+       "repetition_approved": {"type": "boolean"},
        "semantic_type": {"type": "string"}}},
       "chart_spec_file": {"type": "string", "pattern": "^charts/[A-Za-z0-9_.-]+\\.json$"},
       "block_ids": {"type": "array", "items": {"type": "string"}},
@@ -118,6 +132,30 @@
        "tradeoff": {"type": "string"},
        "capacity": {"type": "map", "values": {"type": "integer", "min": 0}},
        "semantic_type": {"type": "string"},
+       "exhibit": {"type": "object", "require_if": [
+        {"if":{"field":"kind","in":["executive-summary","answer-and-reasons"]},"then":["answer","reasons"],"message":"答案类展品需要答案与理由"},
+        {"if":{"field":"kind","in":["pain-comparison","competitor-matrix"]},"then":["columns","rows"],"message":"矩阵类展品需要列和行"},
+        {"if":{"field":"kind","equals":"decision-tree"},"then":["nodes","edges"],"message":"决策树需要节点与边"},
+        {"if":{"field":"kind","equals":"mechanism-process"},"then":["steps"],"message":"流程需要步骤"},
+        {"if":{"field":"kind","equals":"paired-scenarios"},"then":["scenarios"],"message":"情景展品需要成对情景"},
+        {"if":{"field":"kind","equals":"30-60-90-roadmap"},"then":["stages"],"message":"路线图需要阶段"},
+        {"if":{"field":"kind","equals":"methods-limitations"},"then":["methods","limitations"],"message":"方法展品需要方法与限制"}
+       ], "fields": {
+        "kind": {"type": "string", "enum": "exhibit_kind", "required": true},
+        "family": {"type": "string", "enum": "exhibit_family", "required": true},
+        "form": {"type": "string", "required": true},
+        "answer": {"type": "string"},
+        "reasons": {"type": "array", "min_items": 1, "items": {"type": "string"}},
+        "columns": {"type": "array", "min_items": 1, "items": {"type": "string"}},
+        "rows": {"type": "array", "min_items": 1, "items": {"type": "object", "fields": {"label":{"type":"string","required":true},"values":{"type":"array","required":true,"min_items":1,"items":{"type":"string"}}}}},
+        "nodes": {"type": "array", "min_items": 2, "items": {"type": "object", "fields": {"id":{"type":"string","required":true},"label":{"type":"string","required":true}}}},
+        "edges": {"type": "array", "min_items": 1, "items": {"type": "object", "fields": {"from":{"type":"string","required":true},"to":{"type":"string","required":true},"label":{"type":"string","required":true}}}},
+        "steps": {"type": "array", "min_items": 2, "items": {"type": "object", "fields": {"label":{"type":"string","required":true}}}},
+        "scenarios": {"type": "array", "min_items": 2, "max_items": 2, "items": {"type": "object", "fields": {"label":{"type":"string","required":true},"outcome":{"type":"string","required":true}}}},
+        "stages": {"type": "array", "min_items": 3, "max_items": 3, "items": {"type": "object", "fields": {"label":{"type":"string","required":true},"output":{"type":"string","required":true}}}},
+        "methods": {"type": "array", "min_items": 1, "items": {"type": "string"}},
+        "limitations": {"type": "array", "min_items": 1, "items": {"type": "string"}}
+       }},
        "visual": {"type": "string"},
        "source_ids": {"type": "array", "items": {"type": "string"}},
        "slot": {"type": "string"},

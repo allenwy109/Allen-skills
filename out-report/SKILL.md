@@ -21,7 +21,7 @@ python3 <本 skill>/scripts/out_report.py <命令> <任务文件夹>
 2. `render`：用锁定字体和 Chromium 两遍分页，生成 A4 HTML、PDF、逐页 PNG、pagination、geometry、media、visual-regression 和 QA 记录。首次报告与批准黄金样册通常存在视觉差异，因此会失败关闭，但仍留下可审查预览。
 3. 作者逐页查看 PDF/PNG 后提交 `review <任务> author <review.json>`。作者记录必须接受并绑定当前 `baselineDigest`、`candidateDigest`、`differenceDigest` 和 `artifactDigest`，不能复用旧审批。
 4. 成品审查员独立查看最终 HTML/PDF，只把结论写入 `review <任务> independent <review.json>`。记录必须绑定当前 artifact 与 pagination digest，逐页覆盖 HTML/PDF，同时记录 100% 和整册缩略图尺度、章节 contact sheet、标题链、具体观察和理由；“PASS”“正常”等泛化文字无效。未解决问题不能通过。
-5. `package`：仅在 QA、作者审查和独立审查均通过后复制正式成品与全部审计清单到 `08_deliverables/report/`，并登记统一验收。
+5. `package`：仅在 QA、作者审查和独立审查均通过后，把正式成品写入 `08_deliverables/client-report/`，并把完整来源、快照、证据账、数据与计算、检索日志、审查和清单封装到 `08_deliverables/evidence-package/` 及同名 ZIP，再登记统一验收。旧任务的 `08_deliverables/report/` 只作读取兼容；新任务不会重复写两份报告。
 
 故事线或证据变化后运行 `refresh`，再从渲染与审查重新开始。视觉差异只允许人工处置，脚本永不自动更新批准基线。
 
@@ -39,8 +39,10 @@ PDF 导出有两个正式后端：macOS 且可用 Swift 时默认逐页打印并
 
 ## 输出门禁
 
-系统机械检查 A4 MediaBox、溢出、遮挡、裁切、空页、最小字号、内嵌资源、HTML/PDF 页序与文字清单、claim/A 卡/panel/relation/metric/source 覆盖集合和逐页视觉哈希。审查时锁定 HTML、PDF、逐页 PNG、report/render document，以及 coverage、pagination、geometry、media/page-text、visual candidate 这些原始 QA 输入；打包前重新计算，任何篡改都失败。`qa-evidence`、visual-regression 和 QA result 含作者处置，处置本身又绑定 artifact digest，因此不放进同一 digest，避免哈希循环；它们进入正式包后由 acceptance 文件哈希锁定。正式包保留全部审计清单和逐页 PNG。缺测量证据本身就是失败。
+系统机械检查 A4 MediaBox、溢出、遮挡、裁切、空页、最小字号、内嵌资源、HTML/PDF 页序与文字清单、claim/A 卡/panel/relation/metric/source 覆盖集合和逐页视觉哈希。审查时锁定 HTML、PDF、逐页 PNG、report/render document，以及 coverage、pagination、geometry、media/page-text、visual candidate 这些原始 QA 输入；打包前重新计算，任何篡改都失败。`qa-evidence`、visual-regression 和 QA result 含作者处置，处置本身又绑定 artifact digest，因此不放进同一 digest，避免哈希循环；它们进入证据包后由 checksum manifest 锁定。证据包保留审计清单，但不复制逐页渲染缓存。缺测量证据本身就是失败。
 
-完整来源（标题、URL、locator、质量与访问日期）只渲染在 references appendix。正文引用标记由 renderer 根据 `source_ids` 和 `source_bindings` 自动生成并链接到 appendix；作者不得手写 URL、引用编号、`.source-strip` 或其他多行页底来源带。隐藏的 source ID/locator 继续保留用于机器追溯，但不属于读者可见正文。
+默认 `bibliography_policy=evidence_package`、`client_citations=compact`：客户版只显示紧凑编号、source ID 与 locator 锚点，不显示 URL、来源等级、抓取时间或内部研究元数据；这些字段进入证据包。只有调用方明确选择 `bibliography_policy=full` 时才在客户版渲染完整书目。正文引用标记由 renderer 根据 `source_ids` 和 `source_bindings` 自动生成；作者不得手写 URL、引用编号、`.source-strip` 或其他多行页底来源带。
 
-四个企业应用完成主报告后，仍需运行 `tools/package_support.py <任务>` 生成并验收支撑文件包。
+需要完整客户版书目时，在 `init` 或 `refresh` 显式传 `--bibliography-policy full`。
+
+四个企业应用的 `package` 会同时生成证据包；也可单独运行 `tools/package_support.py <任务>` 重建并验收。

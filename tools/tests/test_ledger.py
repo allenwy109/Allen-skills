@@ -3,6 +3,7 @@ import pathlib
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 from tools.lib import ledger as L
 
@@ -167,6 +168,97 @@ class MergeTest(Base):
     def test_merge_without_staging(self):
         with self.assertRaises(L.LedgerError):
             self.led.merge("B")
+
+    def test_consulting_project_merge_requires_accepted_matching_disposition(self):
+        (self.task / "consulting-project.json").write_text('{"version":1,"depth":"L3"}\n')
+        self.stage("C", "claims", [dict(claim(statement="rejected finding"), id="C-cl-0001")])
+        tasks = self.task / "03r_research" / "tasks"
+        tasks.mkdir(parents=True)
+        (tasks / "C.json").write_text(json.dumps({
+            "kind": "research_workstream", "version": 1, "code": "C", "role": "competitors-and-substitutes",
+            "question": "Which substitutes constrain adoption?", "task_file": "03r_research/tasks/C.md", "status": "rejected",
+        }))
+        handoffs = self.task / "research-handoffs"
+        handoffs.mkdir()
+        (handoffs / "C.json").write_text(json.dumps({
+            "version": 1, "line_id": "C", "role": "competitors-and-substitutes", "summary": "rejected line",
+            "source_ids": [], "data_files": [], "supported_claims": ["C-cl-0001"], "counter_evidence": [],
+            "limitations": ["fixture"], "unresolved_questions": [], "next_search_recommendation": "stop",
+            "project_manager_disposition": "rejected",
+        }))
+        with self.assertRaisesRegex(L.LedgerError, "accepted"):
+            self.led.merge("C")
+        self.assertTrue((self.led.dir / "staging" / "C").is_dir())
+        self.assertNotIn("rejected finding", [item["statement"] for item in self.led.read("claims")])
+
+    def test_consulting_project_merge_rejects_claim_smuggling_and_preserves_staging(self):
+        (self.task / "consulting-project.json").write_text('{"version":1,"depth":"L3"}\n')
+        reviewed = dict(claim(statement="reviewed finding"), id="A-cl-0001")
+        smuggled = dict(claim(statement="smuggled finding"), id="A-cl-0002")
+        self.stage("A", "claims", [reviewed, smuggled])
+        self.stage("A", "cards", [{
+            "id": "card-0001", "type": "fact", "content": "smuggled card", "value_tier": "B",
+            "topic": "test", "claim_id": "A-cl-0002",
+        }])
+        tasks = self.task / "03r_research" / "tasks"
+        tasks.mkdir(parents=True)
+        (tasks / "A.json").write_text(json.dumps({
+            "kind": "research_workstream", "version": 1, "code": "A", "role": "pain-and-sentiment",
+            "question": "Which pain is urgent?", "task_file": "03r_research/tasks/A.md", "status": "accepted",
+        }))
+        handoffs = self.task / "research-handoffs"
+        handoffs.mkdir()
+        (handoffs / "A.json").write_text(json.dumps({
+            "version": 1, "line_id": "A", "role": "pain-and-sentiment", "summary": "reviewed line",
+            "source_ids": [], "data_files": [], "supported_claims": ["A-cl-0001"], "counter_evidence": [],
+            "limitations": ["fixture"], "unresolved_questions": [], "next_search_recommendation": "stop",
+            "project_manager_disposition": "accepted",
+        }))
+        before = {path.name: path.read_bytes() for path in (self.led.dir / "staging" / "A").iterdir()}
+        with self.assertRaisesRegex(L.LedgerError, "A-cl-0002"):
+            self.led.merge("A")
+        after = {path.name: path.read_bytes() for path in (self.led.dir / "staging" / "A").iterdir()}
+        self.assertEqual(before, after)
+        self.assertEqual([], self.led.read("claims"))
+        self.assertEqual([], self.led.read("cards"))
+
+    def test_consulting_project_merge_reuses_the_validated_staging_snapshot(self):
+        (self.task / "consulting-project.json").write_text('{"version":1,"depth":"L3"}\n')
+        reviewed = dict(claim(statement="reviewed finding"), id="A-cl-0001")
+        smuggled = dict(claim(statement="smuggled after review"), id="A-cl-0002")
+        self.stage("A", "claims", [reviewed])
+        tasks = self.task / "03r_research" / "tasks"
+        tasks.mkdir(parents=True)
+        (tasks / "A.json").write_text(json.dumps({
+            "kind": "research_workstream", "version": 1, "code": "A", "role": "pain-and-sentiment",
+            "question": "Which pain is urgent?", "task_file": "03r_research/tasks/A.md", "status": "accepted",
+        }))
+        handoffs = self.task / "research-handoffs"
+        handoffs.mkdir()
+        (handoffs / "A.json").write_text(json.dumps({
+            "version": 1, "line_id": "A", "role": "pain-and-sentiment", "summary": "reviewed line",
+            "source_ids": [], "data_files": [], "supported_claims": ["A-cl-0001"], "counter_evidence": [],
+            "limitations": ["fixture"], "unresolved_questions": [], "next_search_recommendation": "stop",
+            "project_manager_disposition": "accepted",
+        }))
+        claims_path = self.led.path("claims")
+        original_read = self.led._read_file
+        claims_reads = 0
+
+        def inject_on_second_read(path):
+            nonlocal claims_reads
+            records = original_read(path)
+            if path == claims_path.parent / "staging" / "A" / claims_path.name:
+                claims_reads += 1
+                if claims_reads == 2:
+                    return records + [smuggled]
+            return records
+
+        with mock.patch.object(self.led, "_read_file", side_effect=inject_on_second_read):
+            self.led.merge("A")
+
+        self.assertEqual(1, claims_reads)
+        self.assertEqual(["reviewed finding"], [item["statement"] for item in self.led.read("claims")])
 
 
 class CheckTest(Base):

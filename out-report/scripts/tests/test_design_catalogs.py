@@ -35,6 +35,7 @@ class DesignAssetPresenceTest(unittest.TestCase):
             ASSETS / "layout-atlas" / "catalog.json",
             ASSETS / "layout-atlas.html",
             ASSETS / "form-catalog.json",
+            ASSETS / "a4-layout-catalog.json",
         ]
         self.assertEqual([path.name for path in expected if not path.is_file()], [])
 
@@ -50,6 +51,24 @@ class DesignCatalogTest(unittest.TestCase):
         cls.css = (ASSETS / "report-tokens.css").read_text()
         cls.baseline = json.loads((GOLDEN / "visual-baseline.json").read_text())
         cls.schema = json.loads((ROOT / "tools" / "lib" / "schema" / "report.schema.json").read_text())
+        cls.a4_catalog = json.loads((ASSETS / "a4-layout-catalog.json").read_text())
+
+    def test_a4_layout_catalog_routes_by_relationship_and_capacity(self):
+        self.assertEqual("relationship-capacity", self.a4_catalog["routing_basis"])
+        self.assertNotIn("deck_ratio", json.dumps(self.a4_catalog))
+        self.assertNotIn("layout_id", json.dumps(self.a4_catalog))
+        required = {"kind", "semantic_types", "family", "forms", "required_fields", "relationships", "capacity", "reading_path", "co_location", "forbidden_content", "pagination"}
+        expected = {"executive-summary", "answer-and-reasons", "pain-comparison", "competitor-matrix", "decision-tree", "mechanism-process", "paired-scenarios", "30-60-90-roadmap", "methods-limitations"}
+        exhibits = self.a4_catalog["exhibits"]
+        self.assertEqual(expected, {item["kind"] for item in exhibits})
+        for exhibit in exhibits:
+            self.assertTrue(required <= set(exhibit), exhibit["kind"])
+            self.assertLessEqual(exhibit["capacity"]["soft"], exhibit["capacity"]["hard"])
+            self.assertTrue(exhibit["relationships"] and exhibit["reading_path"])
+            self.assertTrue(exhibit["co_location"] and exhibit["forbidden_content"] and exhibit["pagination"])
+        router = (ROOT / "tools" / "bridge" / "to_report.py").read_text()
+        self.assertIn('a4-layout-catalog.json', router)
+        self.assertNotIn("EXHIBIT_FORMS =", router)
 
     def test_catalogs_record_the_approved_baseline_digest(self):
         self.assertEqual(self.baseline["status"], "approved")

@@ -3,9 +3,10 @@ import json
 import pathlib
 import tempfile
 import unittest
+from unittest import mock
 
 from tools import app_runtime as R
-from tools.acceptance import Acceptance
+from tools.acceptance import Acceptance, review_digest
 
 
 def reviewer():
@@ -16,6 +17,23 @@ def reviewer():
         "conclusion": "文件完整",
         "issues": [],
     }
+
+
+def report_reviewer():
+    value = {
+        **reviewer(), "author": "test-author", "reviewer": "test-visual-reviewer",
+        "role": "visual-design-reviewer",
+        "worst_page": {"page_id": "page-001", "finding": "The only synthetic page is also the weakest page, and remains legible."},
+        "decision_review": {
+            "reviewer": "test-decision-reviewer", "role": "decision-maker-reviewer",
+            "at": "2026-10-23T10:05:00+00:00",
+            "answers": {key: "The synthetic report provides a specific answer for this executive question."
+                        for key in ("answer_visibility", "executive_summary", "argument_sufficiency", "actions", "ownership", "continue_stop_thresholds")},
+        },
+    }
+    value["decision_review"]["review_digest"] = review_digest(value["decision_review"])
+    value["review_digest"] = review_digest(value)
+    return value
 
 
 def confirm_file(task, rel):
@@ -30,10 +48,10 @@ class AppRuntimeTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def init(self, app="allen-company", files=None, urls=None):
+    def init(self, app="allen-company", files=None, urls=None, depth="L2"):
         args = argparse.Namespace(
             task=str(self.task), app=app, request="请分析", request_file=None,
-            file=files or [], url=urls or [], depth="L2",
+            file=files or [], url=urls or [], depth=depth,
         )
         return R.init_task(args)
 
@@ -50,6 +68,12 @@ class AppRuntimeTest(unittest.TestCase):
         self.assertEqual(run["stages"][1:3], ["evidence", "framing"])
         with self.assertRaises(R.AppError):
             self.init("allen-company")
+
+    def test_init_rolls_back_app_run_when_consulting_project_init_fails(self):
+        with mock.patch.object(R.consulting_project, "init_project", side_effect=OSError("injected")):
+            with self.assertRaises(OSError):
+                self.init(depth="L2")
+        self.assertFalse((self.task / "app-run.json").exists())
 
     def test_idea_uses_clarify_pathing_and_research_first(self):
         payload = self.init("allen-idea")
@@ -188,10 +212,49 @@ class AppRuntimeTest(unittest.TestCase):
         self.assertEqual(support["status"], "failed")
         failed = R.advance(self.task)
         self.assertEqual(failed["validation"], "failed")
-        acc.review("report-main", reviewer())
+        acc.review("report-main", report_reviewer())
         acc.review("support-company", reviewer())
         self.assertEqual(R.advance(self.task)["advanced"], "acceptance")
         self.assertEqual(R.finish(self.task)["status"], "completed")
+
+    def test_l3_finish_rejects_open_consulting_contracts_then_completes_truthfully(self):
+        self.init(depth="L3")
+        run = json.loads((self.task / "app-run.json").read_text(encoding="utf-8"))
+        run["cursor"] = len(run["stages"])
+        run["completed_stages"] = list(run["stages"])
+        (self.task / "app-run.json").write_text(json.dumps(run), encoding="utf-8")
+        with self.assertRaisesRegex(R.AppError, "consulting"):
+            R.finish(self.task)
+
+    def test_l1_finish_preserves_legacy_non_manifest_compatibility(self):
+        self.init(depth="L1")
+        run = json.loads((self.task / "app-run.json").read_text(encoding="utf-8"))
+        run["cursor"] = len(run["stages"])
+        run["completed_stages"] = list(run["stages"])
+        (self.task / "app-run.json").write_text(json.dumps(run), encoding="utf-8")
+        self.assertEqual(R.finish(self.task)["status"], "completed")
+
+    def test_l2_finish_rejects_missing_required_acceptance_deliverables(self):
+        self.init(depth="L2")
+        run = json.loads((self.task / "app-run.json").read_text(encoding="utf-8"))
+        run["cursor"] = len(run["stages"])
+        run["completed_stages"] = list(run["stages"])
+        (self.task / "app-run.json").write_text(json.dumps(run), encoding="utf-8")
+        with self.assertRaisesRegex(R.AppError, "report.*support_package"):
+            R.finish(self.task)
+
+    def test_l2_finish_rejects_open_workstream_metadata(self):
+        self.init(depth="L2")
+        self.write("03r_research/tasks/A.json", json.dumps({
+            "version": 1, "code": "A", "role": "market-and-data", "question": "Market?",
+            "task_file": "03r_research/tasks/A.md", "status": "needs_revision",
+        }))
+        run = json.loads((self.task / "app-run.json").read_text(encoding="utf-8"))
+        run["cursor"] = len(run["stages"])
+        run["completed_stages"] = list(run["stages"])
+        (self.task / "app-run.json").write_text(json.dumps(run), encoding="utf-8")
+        with self.assertRaisesRegex(R.AppError, "WORKSTREAM_OPEN"):
+            R.finish(self.task)
 
 
 if __name__ == "__main__":

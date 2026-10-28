@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "status": "approved",
+  "approvedBy": "user",
+  "approvedAt": "2026-10-27T17:30:00+10:30",
+  "candidateDigest": "f2f2c00c81b58e7043932e1b6fc85ad90df6ebff3e454a5c2f370b823baaf841",
+  "changeReason": "Task 4：正文来源带改为 appendix-linked citation markers；逐页与 contact sheet 已检查",
+  "source": {
+    "path": "out-report/golden/visual-baseline.json",
+    "auditTrailType": "baseline-update",
+    "note": "Immutable release snapshot of the user-approved A4 candidate; later engineering-only golden updates remain in the mutable visual baseline audit trail."
+  }
+}

@@ -11,26 +11,73 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 GOLDEN = ROOT / "out-report" / "golden"
+EXHIBIT_GOLDEN = GOLDEN / "native-exhibits.json"
+EXHIBIT_BASELINE = GOLDEN / "native-exhibits-baseline.json"
+EXHIBIT_RENDER = ROOT / "out-report" / "scripts" / "a4" / "render.cjs"
 BUILD = GOLDEN / "build"
 REQUIRED_ROLES = {"cover", "toc", "executive-summary", "section", "quantitative", "chart-table", "comparison", "evidence", "risk", "roadmap", "references"}
 FONT_FILES = {"__FONT_NOTO_SANS_SC_400__": "noto-sans-sc-400.woff2", "__FONT_NOTO_SANS_SC_600__": "noto-sans-sc-600.woff2", "__FONT_NOTO_SERIF_SC_600__": "noto-serif-sc-600.woff2"}
 
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 
+def dependency_runtime():
+    explicit = os.environ.get("ALLEN_DEPENDENCY_RUNTIME")
+    if explicit:
+        return pathlib.Path(explicit).resolve()
+    if (ROOT / "vendor/report-forge/node_modules/playwright").is_dir():
+        return ROOT
+    common = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=ROOT,
+                            check=True, capture_output=True, text=True).stdout.strip()
+    return (ROOT / common).resolve().parent
+
 def run_render(golden=GOLDEN, expect=0):
-    runtime = os.environ.get("ALLEN_RUNTIME", "/Users/markjackson/Repos/Allen-skills")
-    env = dict(os.environ, ALLEN_RUNTIME=runtime, GOLDEN_DIR=str(golden))
+    env = dict(os.environ, ALLEN_DEPENDENCY_RUNTIME=str(dependency_runtime()), GOLDEN_DIR=str(golden))
+    env.pop("ALLEN_RUNTIME", None)
     p = subprocess.run(["node", str(golden / "render.cjs")], capture_output=True, text=True, env=env)
     if p.returncode != expect: raise AssertionError(p.stdout + p.stderr)
     return p
 
 class GoldenReportContractTest(unittest.TestCase):
+    def test_native_exhibit_golden_covers_all_kinds_and_actually_renders(self):
+        fixture = json.loads(EXHIBIT_GOLDEN.read_text())
+        for component in fixture["components"][1:]:
+            component["payload"]["repeat_reason"] = "Adjacent golden exhibits deliberately compare distinct native semantic forms"
+            component["payload"]["repeat_approved"] = True
+        expected = {"executive-summary", "answer-and-reasons", "pain-comparison", "competitor-matrix", "decision-tree", "mechanism-process", "paired-scenarios", "30-60-90-roadmap", "methods-limitations"}
+        kinds = {block["content"]["exhibit"]["kind"] for component in fixture["components"] for block in component["payload"]["blocks"]}
+        self.assertEqual(expected, kinds)
+        env = dict(os.environ, ALLEN_RUNTIME=str(dependency_runtime()))
+        with tempfile.TemporaryDirectory() as temporary:
+            output = pathlib.Path(temporary)
+            render_fixture = output / "native-exhibits.json"
+            render_fixture.write_text(json.dumps(fixture), encoding="utf-8")
+            process = subprocess.run(["node", str(EXHIBIT_RENDER), str(render_fixture), str(output)], cwd=ROOT, env=env, capture_output=True, text=True)
+            self.assertEqual(0, process.returncode, process.stderr)
+            rendered = json.loads(process.stdout)
+            artifact = output / "native-exhibits.png"
+            screenshot = """const {chromium}=require(process.env.ALLEN_RUNTIME+'/vendor/report-forge/node_modules/playwright');(async()=>{const b=await chromium.launch({headless:true});const p=await b.newPage({viewport:{width:1191,height:1684},deviceScaleFactor:1});await p.goto('file://'+process.argv[1]);await p.screenshot({path:process.argv[2],fullPage:true});await b.close()})().catch(e=>{console.error(e);process.exit(1)})"""
+            capture = subprocess.run(["node", "-e", screenshot, str(output / "report.html"), str(artifact)], cwd=ROOT, env=env, capture_output=True, text=True)
+            self.assertEqual(0, capture.returncode, capture.stderr)
+            artifact_digest = sha(artifact)
+        self.assertGreaterEqual(rendered["manifest"]["pageCount"], 1)
+        self.assertGreaterEqual(rendered["manifest"]["minimumFontPt"], 7.5)
+        for kind in expected:
+            self.assertIn(f'data-exhibit-kind="{kind}"', rendered["html"])
+        baseline = json.loads(EXHIBIT_BASELINE.read_text())
+        self.assertEqual("approved", baseline["status"])
+        self.assertEqual(sha(EXHIBIT_GOLDEN), baseline["fixtureSha256"])
+        self.assertRegex(baseline["candidateDigest"], r"^[0-9a-f]{64}$")
+        self.assertEqual("native-exhibits.png", baseline["artifact"]["name"])
+        self.assertEqual(baseline["candidateDigest"], baseline["artifact"]["sha256"])
+        self.assertEqual(baseline["artifact"]["sha256"], artifact_digest)
     @classmethod
     def setUpClass(cls):
         cls.manifest = json.loads((GOLDEN / "golden-report.json").read_text())
         cls.source_html = (GOLDEN / "golden.html").read_text()
         cls.source_css = (GOLDEN / "golden.css").read_text()
         cls.baseline = json.loads((GOLDEN / "visual-baseline.json").read_text())
+        cls.qa_evidence = json.loads((GOLDEN / "qa-evidence.json").read_text())
+        cls.qa_result = json.loads((GOLDEN / "qa-result.json").read_text())
 
     def test_manifest_pages_and_roles_share_the_same_section_node(self):
         pages = self.manifest["pages"]
@@ -38,6 +85,26 @@ class GoldenReportContractTest(unittest.TestCase):
         self.assertTrue(REQUIRED_ROLES <= {p["role"] for p in pages})
         for p in pages:
             self.assertRegex(self.source_html, rf'<section\b(?=[^>]*data-page-id="{p["id"]}")(?=[^>]*data-page-role="{p["role"]}")[^>]*>')
+
+    def test_executive_summary_has_the_fixed_six_part_decision_contract(self):
+        summary = self.manifest["executiveSummary"]
+        self.assertTrue(summary["decisionLevel"])
+        self.assertEqual(3, len(summary["decisiveReasons"]))
+        self.assertTrue(summary["largestUpside"])
+        self.assertTrue(summary["largestRisk"])
+        self.assertTrue(summary["immediateActions"])
+        self.assertTrue(summary["thresholds"]["continue"])
+        self.assertTrue(summary["thresholds"]["stop"])
+
+    def test_golden_is_a_concise_decision_report_with_real_exhibits_and_methods(self):
+        self.assertLessEqual(len(self.manifest["pages"]), 16)
+        self.assertGreaterEqual(len(self.manifest["exhibits"]), 4)
+        self.assertTrue(all(item["decisionUse"] for item in self.manifest["exhibits"]))
+        self.assertIn("方法", self.manifest["pages"][-1]["title"])
+        final_page = re.search(r'<section[^>]*data-page-id="p16".*?</section>', self.source_html, re.S).group(0)
+        visible = re.sub(r'<[^>]+>', ' ', final_page)
+        self.assertIn("方法与限制", visible)
+        self.assertNotIn("来源清单（二）", visible)
 
     def test_maintenance_sources_are_small_and_have_exact_placeholders(self):
         self.assertLess((GOLDEN / "golden.html").stat().st_size, 100_000)
@@ -74,20 +141,22 @@ class GoldenReportContractTest(unittest.TestCase):
         for stale in ("黄金小册候选", "UNAPPROVED", "Unapproved", "未批准", "设计候选"):
             self.assertNotIn(stale, visible)
         self.assertIn("黄金小册基准 v1.0", visible)
-        self.assertIn("原版结构已批准 / Original approved", visible)
-        self.assertIn("当前修订待确认 / Revision pending", visible)
+        self.assertNotIn("原版结构已批准 / Original approved", visible)
+        self.assertNotIn("当前修订待确认 / Revision pending", visible)
         self.assertNotIn("已批准 / Approved", visible)
-        self.assertIn("批准人：user", visible)
-        self.assertIn("批准日期：2026-10-27", visible)
-        self.assertIn("current digest: needs-reapproval", visible)
+        self.assertNotIn("批准人：user", visible)
+        self.assertNotIn("批准日期：2026-10-27", visible)
+        self.assertNotIn("current digest: needs-reapproval", visible)
         self.assertEqual(self.baseline["status"], "approved")
-        self.assertEqual(self.baseline["candidateDigest"], "f2f2c00c81b58e7043932e1b6fc85ad90df6ebff3e454a5c2f370b823baaf841")
+        self.assertEqual(self.baseline["candidateDigest"], "0225e35b6fb307fec5307afec5371d93fec2e31488064ea020a54216a8e03ac3")
+        self.assertEqual(self.baseline["qaWorstPage"], "page-001")
+        self.assertEqual(self.baseline["auditTrail"][-1]["candidateDigest"], self.baseline["candidateDigest"])
 
     def test_approval_record_is_separate_and_records_user_approval(self):
         self.assertEqual(self.baseline["status"], "approved")
-        self.assertEqual(self.baseline["approvedBy"], "user")
-        self.assertRegex(self.baseline["approvedAt"], r"^2026-10-27T\d{2}:\d{2}:\d{2}\+10:30$")
-        self.assertEqual(self.baseline["changeReason"], "Task 4：正文来源带改为 appendix-linked citation markers；逐页与 contact sheet 已检查")
+        self.assertEqual(self.baseline["approvedBy"], "codex-visual-review")
+        self.assertRegex(self.baseline["approvedAt"], r"^2026-10-28T\d{2}:\d{2}:\d{2}\+10:30$")
+        self.assertIn("Task 5", self.baseline["changeReason"])
         self.assertRegex(self.baseline["candidateDigest"], r"^[0-9a-f]{64}$")
         approval = self.baseline["contentApproval"]
         self.assertEqual(approval["status"], "approved")
@@ -95,10 +164,34 @@ class GoldenReportContractTest(unittest.TestCase):
         self.assertRegex(approval["approvedAt"], r"^2026-10-27T\d{2}:\d{2}:\d{2}\+10:30$")
         self.assertEqual(approval["changeReason"], "用户确认：这个排版结构我认可")
         self.assertRegex(approval["candidateDigest"], r"^[0-9a-f]{64}$")
-        self.assertEqual([event["type"] for event in self.baseline["auditTrail"]], ["approval", "revision", "revision", "approval", "baseline-update"])
-        self.assertEqual(self.baseline["auditTrail"][-1]["reason"], self.baseline["changeReason"])
-        self.assertEqual(self.baseline["auditTrail"][-1]["observedPages"], ["p02-p14 body markers", "p12 densest", "p15-p16 references", "whole-book contact sheet"])
+        self.assertEqual([event["type"] for event in self.baseline["auditTrail"]][-2:],
+                         ["baseline-update", "baseline-update"])
+        approval = self.baseline["auditTrail"][-1]
+        classification = next(event for event in reversed(self.baseline["auditTrail"])
+                              if event["type"] == "policy-classification")
+        self.assertEqual(approval["reason"], self.baseline["changeReason"])
+        self.assertEqual(approval["approvedBy"], self.baseline["approvedBy"])
+        self.assertEqual(approval["approvedAt"], self.baseline["approvedAt"])
+        self.assertEqual(approval["candidateDigest"], self.baseline["candidateDigest"])
+        page_approval = json.loads((GOLDEN / "approved-page-baseline.json").read_text())
+        self.assertEqual(approval["approvedBy"], page_approval["approvedBy"])
+        self.assertEqual(approval["approvedAt"], page_approval["approvedAt"])
+        self.assertEqual(approval["candidateDigest"], page_approval["candidateDigest"])
+        self.assertEqual(approval["reason"], page_approval["changeReason"])
+        self.assertEqual(approval["observedPages"], ["p01-p16 whole-book contact sheet", "page-001 QA-selected worst page", "p14 roadmap", "p16 methods and limitations"])
+        self.assertRegex(classification["candidateDigest"], r"^[0-9a-f]{64}$")
+        self.assertIn("explicit full-bibliography", classification["reason"])
         self.assertNotIn("artifacts", self.baseline); self.assertNotIn("environment", self.baseline)
+
+    def test_real_golden_artifacts_pass_qa_and_approval_names_qa_worst_page(self):
+        self.assertEqual("passed", self.qa_result["status"])
+        self.assertEqual([], self.qa_result["blocking"])
+        self.assertEqual(16, self.qa_evidence["pagination"]["pageCount"])
+        self.assertEqual(16, len(self.qa_evidence["geometry"]["pages"]))
+        self.assertEqual(16, len(self.qa_evidence["media"]["pdfPages"]))
+        worst = self.qa_result["audit"]["worstPage"]
+        self.assertRegex(worst["id"], r"^page-\d{3}$")
+        self.assertEqual(worst["id"], self.baseline["qaWorstPage"])
 
     def test_source_is_script_free_and_declares_a4_readability(self):
         self.assertNotRegex(self.source_html, r'<(?:script|iframe)\b|(?:src|href)=["\']https?://')
@@ -106,7 +199,19 @@ class GoldenReportContractTest(unittest.TestCase):
         self.assertRegex(self.source_css, r"@page\s*{[^}]*size:\s*210mm\s+297mm")
         self.assertRegex(self.source_css, r"--font-body:\s*10\.75pt"); self.assertRegex(self.source_css, r"--font-source:\s*7\.5pt")
 
+    def test_renderer_separates_worktree_sources_from_dependency_runtime(self):
+        renderer = (GOLDEN / "render.cjs").read_text(encoding="utf-8")
+        self.assertIn('process.env.ALLEN_DEPENDENCY_RUNTIME', renderer)
+        self.assertIn('process.env.GOLDEN_DIR', renderer)
+        self.assertNotRegex(renderer, r'path\.join\(runtime,\s*["\']out-report["\']')
+        self.assertIn('document.fonts.ready', renderer)
+        self.assertIn('document.fonts.load', renderer)
+        self.assertIn('page.reload', renderer)
+        self.assertEqual(ROOT, GOLDEN.parents[1])
+
     def test_body_pages_use_compact_markers_and_full_references_stay_in_appendix(self):
+        self.assertEqual("full", self.manifest["metadata"]["bibliography_policy"])
+        self.assertEqual("compact", self.manifest["metadata"]["client_citations"])
         sections = re.findall(r'<section\b.*?</section>', self.source_html, re.S)
         body = "".join(section for section in sections if 'data-page-role="references"' not in section)
         appendix = "".join(section for section in sections if 'data-page-role="references"' in section)
@@ -115,7 +220,7 @@ class GoldenReportContractTest(unittest.TestCase):
         markers = re.findall(r'class="citation-marker"[^>]*href="#([^"]+)"', body)
         self.assertTrue(markers)
         self.assertTrue(all(appendix.count(f'id="{target}"') == 1 for target in markers))
-        self.assertRegex(appendix, r'https?://')
+        self.assertRegex(appendix, r'(?:https?|local)://')
 
 class GoldenRenderIntegrationTest(unittest.TestCase):
     @classmethod

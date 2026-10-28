@@ -78,6 +78,7 @@ def compare_manifests(baseline: dict, candidate: dict, pagination_page_ids: list
         "baselinePages": [{"id": page, "digest": baseline_pages[page]} for page in baseline_pages],
         "candidatePages": [{"id": page, "digest": candidate_pages[page]} for page in candidate_pages],
         "differences": differences,
+        "worstPage": differences[0]["page"] if differences else None,
         "differenceDigest": difference_digest,
         "baselineUpdated": False,
     }

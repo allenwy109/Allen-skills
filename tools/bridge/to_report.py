@@ -19,6 +19,70 @@ FORM_KIND = {
     "html.kpi": "metric",
     "html.table": "table",
 }
+LAYOUT_CATALOG = json.loads((ROOT / "out-report" / "assets" / "a4-layout-catalog.json").read_text(encoding="utf-8"))
+EXHIBIT_LAYOUTS = {item["kind"]: item for item in LAYOUT_CATALOG["exhibits"]}
+
+
+def _route_exhibit_kind(panel):
+    semantic = panel.get("semantic_type")
+    if semantic == "point_evidence":
+        return None
+    matches = [item for item in LAYOUT_CATALOG["exhibits"] if semantic in item["semantic_types"]]
+    if len(matches) == 1:
+        return matches[0]["kind"]
+    relationship = panel.get("relationship")
+    capacity = panel.get("capacity") or {}
+    candidates = [item for item in LAYOUT_CATALOG["exhibits"] if relationship in item["relationships"]]
+    fitting = [item for item in candidates if capacity.get(item["capacity"]["field"], 0) <= item["capacity"]["hard"]]
+    return fitting[0]["kind"] if len(fitting) == 1 else None
+
+
+def _native_exhibit(panel, semantic_content):
+    kind = _route_exhibit_kind(panel)
+    if kind not in EXHIBIT_LAYOUTS:
+        return None
+    layout = EXHIBIT_LAYOUTS[kind]
+    form = panel.get("form")
+    if not form:
+        raise ReportError("REPORT_EXHIBIT_MISSING", f"panel {panel.get('id')} 的 {kind} 缺少 form")
+    supplied = panel.get("exhibit")
+    if supplied:
+        if supplied.get("kind", kind) != kind:
+            raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 的 exhibit kind 不一致")
+        declared_form = supplied.get("form", form)
+        if declared_form != form or declared_form not in layout["forms"]:
+            raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 的 {kind} 不能使用 {declared_form}")
+        exhibit = {**supplied, "kind": kind, "form": declared_form}
+    elif kind == "pain-comparison" and semantic_content.get("pain_groups"):
+        groups = semantic_content["pain_groups"]
+        exhibit = {"kind": kind, "family": "matrix", "form": form, "columns": ["当前替代", "后果", "购买信号"],
+                   "rows": [{"label": row["segment"], "values": [row["workaround"], row["consequence"], row["purchase_signal"]]} for row in groups]}
+    elif kind == "competitor-matrix" and semantic_content.get("comparison"):
+        comparison = semantic_content["comparison"]
+        exhibit = {"kind": kind, "family": "matrix", "form": form, "columns": comparison["criteria"],
+                   "rows": [{"label": row["name"], "values": [row["values"].get(column, "未提供") for column in comparison["criteria"]]} for row in comparison["alternatives"]]}
+    else:
+        raise ReportError("REPORT_EXHIBIT_MISSING", f"panel {panel.get('id')} 的 {kind} 缺少结构化 exhibit")
+    if exhibit.get("family") != layout["family"]:
+        raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 的 family 与 catalog 不一致")
+    missing = [field for field in layout["required_fields"] if not exhibit.get(field)]
+    if missing:
+        raise ReportError("REPORT_EXHIBIT_MISSING", f"panel {panel.get('id')} 缺少 {','.join(missing)}")
+    count = len(exhibit[layout["capacity"]["field"]])
+    if layout["family"] == "matrix" and any(len(row.get("values", [])) != len(exhibit["columns"]) for row in exhibit["rows"]):
+        raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 的 matrix 行宽与 columns 不一致")
+    if count > layout["capacity"]["hard"]:
+        raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 超过 hard capacity")
+    forbidden = [field for field in layout["forbidden_content"] if exhibit.get(field)]
+    if forbidden:
+        raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 含 forbidden content：{','.join(forbidden)}")
+    derived_state = "soft-exceeded" if count > layout["capacity"]["soft"] else "within-soft"
+    if exhibit.get("capacity_state") and exhibit["capacity_state"] != derived_state:
+        raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 的 capacity_state 与实际容量不一致")
+    exhibit["selected_layout"] = kind
+    exhibit["layout_reason"] = f"{panel.get('relationship')} · {count}/{layout['capacity']['hard']} {layout['capacity']['unit']}"
+    exhibit["capacity_state"] = derived_state
+    return exhibit
 
 
 class ReportError(Exception):
@@ -159,6 +223,15 @@ def validate_report(report):
               ("source_ids", "source_ids", "source"), ("panel_refs", "panel_ids", "panel"),
               ("relation_refs", "relation_ids", "relation"))
     for block in blocks:
+        exhibit = block.get("content", {}).get("exhibit")
+        if exhibit:
+            semantic = block["content"].get("semantic_type")
+            layout = next((item for item in LAYOUT_CATALOG["exhibits"] if semantic in item["semantic_types"]), None)
+            capacity_field = layout and layout["capacity"]["field"]
+            values = exhibit.get(capacity_field) if capacity_field else None
+            derived_state = ("soft-exceeded" if len(values) > layout["capacity"]["soft"] else "within-soft") if isinstance(values, list) else None
+            if not layout or exhibit.get("selected_layout") != layout["kind"] or exhibit.get("capacity_state") != derived_state:
+                raise ReportError("REPORT_EXHIBIT_MISMATCH", f"block {block['id']} 的 selected_layout/capacity_state 与 catalog 不一致")
         for field, registry_field, label in checks:
             _unique(block[field], f"block {block['id']} {field}", problems)
             for ref in sorted(set(block[field]) - known[registry_field]):
@@ -212,11 +285,15 @@ def validate_report(report):
     return []
 
 
-def build(task, slides, sidecar=None):
+def build(task, slides, sidecar=None, bibliography_policy=None):
     """Return ``(report, coverage)`` or raise ReportError with a stable code."""
+    if bibliography_policy not in (None, "evidence_package", "full"):
+        raise ReportError("REPORT_COVERAGE_MISMATCH", "bibliography_policy 只能是 evidence_package 或显式 full")
     problems = schema_check.check_document(schema_check.load("slides.schema.json"), slides, "slides.json")
     if problems:
         raise ReportError("REPORT_COVERAGE_MISMATCH", problems)
+    if not isinstance(slides.get("deck", {}).get("decision_structure"), dict):
+        raise ReportError("REPORT_COVERAGE_MISMATCH", "reading report requires deck.decision_structure with all six decision parts")
 
     ledger = Ledger(task)
     problems = []
@@ -334,6 +411,9 @@ def build(task, slides, sidecar=None):
             source_bindings = _source_bindings(set(panel_claims), links, evidence, panel.get("source_ids", []))
             rel_refs = sorted(r["id"] for r in relations if panel["id"] in r["panel_refs"])
             semantic_content = _semantic_content(panel, set(panel_claims), claims, decision)
+            native_exhibit = _native_exhibit(panel, semantic_content)
+            if not native_exhibit and panel.get("semantic_type") != "point_evidence":
+                raise ReportError("REPORT_EXHIBIT_MISSING", f"panel {panel.get('id')} 的 {panel.get('semantic_type') or '<missing>'} 无法唯一路由；请显式声明 exhibit kind")
             blocks.append({
                 "id": f"p{slide['page']:02d}-{panel['id']}",
                 "kind": FORM_KIND[panel["form"]],
@@ -345,15 +425,16 @@ def build(task, slides, sidecar=None):
                 "relation_refs": rel_refs,
                 "identity": sorted({claims[cid]["kind"] for cid in panel_claims}),
                 "content": {k: v for k, v in {
-                    "title": slide["action_title"], "subtitle": slide.get("subtitle"),
+                    "title": slide["action_title"] if panel["id"] == slide.get("anchor_panel") else panel["purpose"], "subtitle": slide.get("subtitle"),
                     "purpose": panel["purpose"], "form": panel["form"],
                     "relationship": panel["relationship"], "reason": panel["reason"],
                     "anchor": panel["id"] == slide.get("anchor_panel"),
                     "role": panel["role"], "alternative": panel.get("alternative"),
                     "tradeoff": panel.get("tradeoff"), "capacity": panel.get("capacity"),
-                    "semantic_type": panel.get("semantic_type"), "visual": panel.get("visual"),
+                    "semantic_type": (native_exhibit or {}).get("kind") or "point_evidence", "visual": panel.get("visual"),
                     "slot": panel["slot"], "span": panel["span"],
                     "claims": _claim_details(panel_claims, claims, links, evidence),
+                    "exhibit": native_exhibit,
                     **semantic_content,
                 }.items() if v is not None},
             })
@@ -362,8 +443,12 @@ def build(task, slides, sidecar=None):
             output_sources.update(panel_sources)
             output_panels.add(panel["id"])
         output_relations.update(r["id"] for r in relations)
-        sections.append({"id": f"section-{index:02d}", "title": slide.get("section") or slide["action_title"],
-                         "blocks": blocks, "relations": relations})
+        section = {"id": f"section-{index:02d}", "title": slide.get("section") or slide["action_title"],
+                   "blocks": blocks, "relations": relations}
+        if slide.get("visual_intent", {}).get("repetition_reason"):
+            section["repeat_reason"] = slide["visual_intent"]["repetition_reason"]
+            section["repeat_approved"] = slide["visual_intent"].get("repetition_approved") is True
+        sections.append(section)
 
     expected = {
         "claims": sorted(set(claim_refs)), "a_cards": a_cards, "panels": sorted(panel_ids),
@@ -393,9 +478,12 @@ def build(task, slides, sidecar=None):
         "version": "1.0.0",
         "metadata": {k: v for k, v in {"title": deck["title"], "language": deck["language"],
                                         "audience": deck.get("audience"), "decision": deck.get("decision"),
-                                        "date": cover.get("date")}.items() if v is not None},
+                                        "date": cover.get("date"),
+                                        "bibliography_policy": bibliography_policy or "evidence_package",
+                                        "client_citations": "compact"}.items() if v is not None},
         "executive_summary": {"question": deck.get("brief", {}).get("question", deck["title"]),
-                              "answer_claim_refs": sorted(set(answer_claim_refs)), "a_card_refs": list(a_cards)},
+                              "answer_claim_refs": sorted(set(answer_claim_refs)), "a_card_refs": list(a_cards),
+                              "decision_structure": deck["decision_structure"]},
         "registry": {"claim_ids": sorted(set(expected["claims"]) | set(expected["answer_claims"])),
                      "metric_ids": list(expected["metrics"]),
                      "source_ids": list(expected["sources"]), "card_ids": list(expected["a_cards"]),

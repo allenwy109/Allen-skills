@@ -2,6 +2,7 @@
 'use strict';
 
 const fs = require('fs');
+const path = require('path');
 const crypto = require('crypto');
 
 const COVERAGE_SETS = Object.freeze(['claims', 'a_cards', 'panels', 'relations', 'metrics', 'sources']);
@@ -10,11 +11,64 @@ const MEDIA_TOLERANCE_MM = 0.2;
 const PAGE_ID = /^page-\d{3,}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const ISO8601_TZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+const LAYOUT_CATALOG = JSON.parse(fs.readFileSync(path.join(__dirname, '../../assets/a4-layout-catalog.json'), 'utf8'));
+const EXHIBIT_LAYOUTS = new Map(LAYOUT_CATALOG.exhibits.map(item => [item.kind, item]));
+const SEMANTIC_LAYOUTS = new Map(LAYOUT_CATALOG.exhibits.flatMap(item => item.semantic_types.map(semantic => [semantic, item])));
+const FAMILY_FORMS = new Map(LAYOUT_CATALOG.exhibits.map(item => [item.family, item.forms]));
+
+function validateExhibitDeclaration(declaration) {
+  const family = declaration && declaration.family;
+  if (!FAMILY_FORMS.has(family)) return declaration;
+  if (!declaration.form) {
+    const error = new Error(`${family} exhibit requires a native form`);
+    error.code = 'REPORT_EXHIBIT_MISSING';
+    throw error;
+  }
+  if (!FAMILY_FORMS.get(family).includes(declaration.form)) {
+    const error = new Error(`${family} exhibit cannot use ${declaration.form}`);
+    error.code = 'REPORT_EXHIBIT_MISMATCH';
+    throw error;
+  }
+  return declaration;
+}
+
+function attribute(tag, name) {
+  const match = String(tag).match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`, 'i'));
+  return match && match[1];
+}
+
+function renderedExhibitIssues(html, location) {
+  const errors = [];
+  for (const match of String(html).matchAll(/<article\b([^>]*)>([\s\S]*?)<\/article>/gi)) {
+    const article = match[1];
+    const body = match[2];
+    const semantic = attribute(article, 'data-semantic-type');
+    if (semantic === 'point_evidence') continue;
+    const layout = SEMANTIC_LAYOUTS.get(semantic);
+    const exhibit = body.match(/<[^>]+\bdata-exhibit-kind\s*=\s*["']([^"']+)["'][^>]*>/i);
+    if (!layout || !exhibit) {
+      errors.push(issue('REPORT_EXHIBIT_MISSING', location, `${semantic || '<missing>'} has no native rendered exhibit`));
+      continue;
+    }
+    const tag = exhibit[0];
+    const kind = exhibit[1];
+    const family = attribute(tag, 'data-exhibit-family');
+    const exhibitForm = attribute(tag, 'data-exhibit-form');
+    const panelForm = attribute(article, 'data-form');
+    const structure = attribute(tag, 'data-structure');
+    if (kind !== layout.kind || family !== layout.family || exhibitForm !== panelForm || !layout.forms.includes(exhibitForm) || !structure) {
+      errors.push(issue('REPORT_EXHIBIT_MISMATCH', location, `${semantic} DOM kind/family/form/structure does not match catalog`, { kind, family, exhibitForm, panelForm, structure }));
+    }
+  }
+  return errors;
+}
 
 function normalizedText(value) {
-  return String(value || '').normalize('NFKC').replaceAll('戶', '户').replaceAll('⻓', '长').replaceAll('⻅', '见')
+  return String(value || '').normalize('NFKC').replaceAll('戶', '户').replaceAll('⻩', '黄').replaceAll('⺠', '民').replaceAll('⻓', '长').replaceAll('⻅', '见')
     .replaceAll('⻚', '页').replaceAll('⻆', '角').replaceAll('⻔', '门').replaceAll('⻛', '风').replaceAll('⻬', '齐')
-    .replace(/‒/g, '–').replace(/[，,]/g, ',').replace(/[；;]/g, ';').replace(/[：:]/g, ':').replace(/[｜|]/g, '|').replace(/\s+/g, ' ').trim()
+    .replaceAll('⻜', '飞').replaceAll('⻢', '马').replaceAll('客戶', '客户').replace(/[‒–—―]/g, '–').replace(/[，,]/g, ',').replace(/[；;]/g, ';').replace(/[：:]/g, ':').replace(/[｜|]/g, '|')
+    .replace(/[。．]/g, '.').replace(/[？?]/g, '?').replace(/[！!]/g, '!').replace(/[（(]/g, '(').replace(/[）)]/g, ')')
+    .replace(/[“”„]/g, '"').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim()
     .replace(/(?<=\p{Script=Han})\s+(?=[\p{Script=Han}\d])|(?<=\d)\s+(?=\p{Script=Han})/gu, '')
     .replace(/-\s+(?=[A-Za-z0-9])/g, '-');
 }
@@ -24,7 +78,17 @@ function digest(value) {
 }
 
 function textFingerprint(value) {
-  return [...normalizedText(value).replace(/\s+/g, '')].sort().join('');
+  const text = normalizedText(value);
+  const marker = /(?<![A-Za-z0-9])(\d+)[.)]\s+(?=\p{L})/gu;
+  const numbers = [...text.matchAll(marker)].map(match => Number(match[1]));
+  const groups = [];
+  for (const number of numbers) {
+    if (number === 1) groups.push([number]);
+    else if (groups.length) groups[groups.length - 1].push(number);
+  }
+  const orderedMarkers = groups.length > 0 && groups.every(group =>
+    group.length >= 2 && group.every((number, index) => number === index + 1));
+  return (orderedMarkers ? text.replace(marker, '') : text).replace(/\s+/g, '');
 }
 
 function canonicalJson(value) {
@@ -205,9 +269,21 @@ function evaluate(evidence) {
   const geometryPages = Array.isArray(evidence.geometry && evidence.geometry.pages) ? evidence.geometry.pages : [];
   blocking.push(...evidenceErrors(evidence));
 
+  const maximumUnusedRatio = finiteNumber(pagination.maximumUnusedRatio) ? pagination.maximumUnusedRatio : 0.56;
+  const whitespaceJustifications = new Map([['cover', 'cover-identity'], ['cover-toc', 'cover-identity'], ['toc', 'toc-navigation'], ['section-divider', 'section-transition']]);
+  const mediaRoles = new Map(((evidence.media && evidence.media.htmlPages) || []).map(page => [page.id, page.role]));
+
   for (const page of paginationPages) {
     if (finiteNumber(page.usedHeightPx) && finiteNumber(page.contentHeightPx) && page.usedHeightPx > page.contentHeightPx + 1) {
       blocking.push(issue('REPORT_PAGE_OVERFLOW', page.id, `${page.usedHeightPx}px exceeds ${page.contentHeightPx}px`, { usedHeightPx: page.usedHeightPx, contentHeightPx: page.contentHeightPx }));
+    }
+    const unusedRatio = finiteNumber(page.usedHeightPx) && finiteNumber(page.contentHeightPx) && page.contentHeightPx > 0
+      ? Math.max(0, 1 - page.usedHeightPx / page.contentHeightPx) : 0;
+    const authoritativeRole = mediaRoles.get(page.id);
+    const roleMatches = typeof page.role === 'string' && page.role === authoritativeRole;
+    const justifiedWhitespace = roleMatches && whitespaceJustifications.has(page.role) && whitespaceJustifications.get(page.role) === page.whitespaceJustification && unusedRatio <= .8;
+    if (!page.intentionalBlank && unusedRatio > maximumUnusedRatio && !justifiedWhitespace) {
+      blocking.push(issue('REPORT_NONFUNCTIONAL_WHITESPACE', page.id, `${Math.round(unusedRatio * 100)}% unused exceeds ${Math.round(maximumUnusedRatio * 100)}%`, { unusedRatio, maximumUnusedRatio }));
     }
   }
   if (Number(pagination.pageCount) !== paginationPages.length) {
@@ -250,6 +326,7 @@ function evaluate(evidence) {
   const destinationCounts = appendixDestinations.reduce((counts, id) => counts.set(id, (counts.get(id) || 0) + 1), new Map());
   for (const page of htmlPages) {
     const html = visibleHtml(page.visibleHtml);
+    blocking.push(...renderedExhibitIssues(html, page.id));
     if (!html) continue;
     const isReference = page.role === 'references';
     if (!isReference && /https?:\/\//i.test(html.replace(/<[^>]+>/g, ' '))) {
@@ -271,7 +348,12 @@ function evaluate(evidence) {
   }
   const htmlText = htmlPages.map(page => ({ id: page.id, text: normalizedText(page.text), digest: digest(textFingerprint(page.text)) }));
   const pdfText = pdfPages.map(page => ({ id: page.id, text: normalizedText(page.text), digest: digest(textFingerprint(page.text)) }));
-  if (JSON.stringify(htmlText.map(({ id, digest: value }) => ({ id, digest: value }))) !== JSON.stringify(pdfText.map(({ id, digest: value }) => ({ id, digest: value })))) {
+  const orderedComparable = (value, exclusions) => {
+    let result = textFingerprint(value);
+    for (const exclusion of exclusions || []) result = result.split(textFingerprint(exclusion)).join('');
+    return result;
+  };
+  if (htmlText.length !== pdfText.length || htmlText.some((page, index) => page.id !== pdfText[index].id || orderedComparable(page.text, htmlPages[index].extractorOrderExclusions) !== orderedComparable(pdfText[index].text, htmlPages[index].extractorOrderExclusions))) {
     blocking.push(issue('REPORT_TEXT_MISMATCH', 'media', 'HTML and PDF page text manifests differ'));
   }
   if (htmlPages.length !== paginationPages.length || pdfPages.length !== paginationPages.length) {
@@ -304,6 +386,11 @@ function evaluate(evidence) {
   const sorter = (left, right) => left.code.localeCompare(right.code) || left.location.localeCompare(right.location) || left.detail.localeCompare(right.detail);
   blocking.sort(sorter);
   warnings.sort(sorter);
+  const pageScores = paginationPages.map(page => {
+    const issues = [...blocking, ...warnings].filter(item => item.location === page.id);
+    const measuredUnusedRatio = finiteNumber(page.usedHeightPx) && finiteNumber(page.contentHeightPx) && page.contentHeightPx > 0 ? Math.max(0, 1 - page.usedHeightPx / page.contentHeightPx) : 0;
+    return { id: page.id, score: issues.length * 100 + Math.round(measuredUnusedRatio * 1000) / 1000, issueCodes: issues.map(item => item.code).sort(), unusedRatio: Math.round(measuredUnusedRatio * 1000) / 1000 };
+  }).sort((left, right) => right.score - left.score || left.id.localeCompare(right.id));
   return {
     schemaVersion: '1.0',
     status: blocking.length ? 'failed' : warnings.length ? 'passed-with-disposition' : 'passed',
@@ -311,7 +398,7 @@ function evaluate(evidence) {
     warnings,
     pageManifest: { pageCount: paginationPages.length, pages: paginationPages.map(page => ({ id: page.id, number: page.number, intentionalBlank: Boolean(page.intentionalBlank), geometry: page.geometry })) },
     textManifest: { pages: htmlText.map((page, index) => ({ id: page.id, htmlDigest: page.digest, pdfDigest: pdfText[index] && pdfText[index].digest })) },
-    audit: { visualRegression: { baselineDigest: regression.baselineDigest || '', candidateDigest: regression.candidateDigest || '', differences: regression.differences || [], disposition: regression.disposition || null } },
+    audit: { worstPage: pageScores[0] || null, visualRegression: { baselineDigest: regression.baselineDigest || '', candidateDigest: regression.candidateDigest || '', differences: regression.differences || [], disposition: regression.disposition || null } },
   };
 }
 
@@ -327,4 +414,4 @@ if (require.main === module) {
   try { main(); } catch (error) { process.stderr.write(`${error.code || 'REPORT_QA_FAILED'}: ${error.message}\n`); process.exit(1); }
 }
 
-module.exports = { A4, COVERAGE_SETS, MEDIA_TOLERANCE_MM, evaluate, evidenceErrors, deriveDifferences };
+module.exports = { A4, COVERAGE_SETS, MEDIA_TOLERANCE_MM, evaluate, evidenceErrors, deriveDifferences, validateExhibitDeclaration, renderedExhibitIssues, normalizedText, textFingerprint };

@@ -330,9 +330,16 @@ def _panel(p):
     if p.get("alternative"):
         sel.update(alternative=p["alternative"], tradeoff=p.get("tradeoff") or "")
     out = {"purpose": p["purpose"], "claimRefs": list(p["claim_refs"]), "form": p["form"], "selection": sel}
-    for ours, theirs in (("capacity", "capacity"), ("semantic_type", "semanticType"), ("visual", "visual"), ("source_ids", "sourceKeys")):
+    for ours, theirs in (("capacity", "capacity"), ("visual", "visual"), ("source_ids", "sourceKeys")):
         if p.get(ours):
             out[theirs] = p[ours]
+    semantic_type = p.get("semantic_type")
+    if semantic_type and semantic_type != "point_evidence":
+        out["semanticType"] = semantic_type
+    elif p["form"] == "svg.custom":
+        out["semanticType"] = {"process": "flow", "decision": "flow", "exact": "qualitative",
+                               "boundary": "qualitative", "complement": "qualitative"}.get(
+                                   p["relationship"], p["relationship"])
     return out
 
 

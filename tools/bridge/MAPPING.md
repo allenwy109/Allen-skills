@@ -18,6 +18,11 @@
 `build(task, slides, sidecar=None)` 返回 `(report, coverage)`。`report` 遵守
 `report.schema.json` 1.0.0；它只表达内容、身份与引用关系，不含页宽、坐标或渲染器参数。
 
+报告默认写入 `metadata.bibliography_policy=evidence_package` 和
+`metadata.client_citations=compact`。客户版保留编号、source ID 和 locator
+锚点；URL、来源等级、抓取时间和完整来源记录进入独立证据包。只有调用方显式
+传入 `bibliography_policy=full` 时才生成完整客户版书目。
+
 | slides.json / 证据账 | report block | 规则 |
 |---|---|---|
 | 正文页的一个 panel | 一个 block | block ID 为 `p<两位页码>-<panel id>`；`purpose/form/relationship/reason/role/alternative/tradeoff/capacity/semantic_type/visual/slot/span`、relation 与 anchor 原值保留 |

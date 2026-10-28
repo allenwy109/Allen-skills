@@ -31,12 +31,11 @@
       "data-chart",
       "claim-evidence",
       "section-title",
-      "executive-summary",
       "claim-evidence",
-      "references-appendix"
+      "claim-evidence"
     ],
     "page_range": [
-      5,
+      4,
       12
     ],
     "expected_status": "passed",
@@ -75,12 +74,11 @@
       "section-title",
       "data-chart",
       "section-title",
-      "executive-summary",
       "claim-evidence",
-      "references-appendix"
+      "claim-evidence"
     ],
     "page_range": [
-      4,
+      3,
       11
     ],
     "expected_status": "passed",
@@ -115,11 +113,10 @@
       "section-title",
       "claim-evidence",
       "section-title",
-      "claim-evidence",
-      "references-appendix"
+      "claim-evidence"
     ],
     "page_range": [
-      4,
+      3,
       10
     ],
     "expected_status": "passed",
@@ -149,11 +146,10 @@
       "toc",
       "executive-summary",
       "section-title",
-      "data-chart",
-      "references-appendix"
+      "data-chart"
     ],
     "page_range": [
-      3,
+      2,
       8
     ],
     "expected_status": "passed",
@@ -191,11 +187,10 @@
       "data-chart",
       "data-chart",
       "section-title",
-      "executive-summary",
-      "references-appendix"
+      "claim-evidence"
     ],
     "page_range": [
-      4,
+      3,
       11
     ],
     "expected_status": "passed",
@@ -234,11 +229,10 @@
       "claim-evidence",
       "claim-evidence",
       "section-title",
-      "claim-evidence",
-      "references-appendix"
+      "claim-evidence"
     ],
     "page_range": [
-      4,
+      3,
       11
     ],
     "expected_status": "passed",

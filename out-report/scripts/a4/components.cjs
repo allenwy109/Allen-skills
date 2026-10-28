@@ -1,6 +1,10 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
 const { escapeHtml } = require('./escape.cjs');
+const EXHIBIT_LAYOUTS = new Map(JSON.parse(fs.readFileSync(path.join(__dirname, '../../assets/a4-layout-catalog.json'), 'utf8')).exhibits.map(item => [item.kind, item]));
+const SEMANTIC_LAYOUTS = new Map([...EXHIBIT_LAYOUTS.values()].flatMap(item => item.semantic_types.map(semantic => [semantic, item])));
 
 const APPROVED_BLOCK_KINDS = Object.freeze(['chart', 'text', 'metric', 'table']);
 const APPROVED_COMPONENT_KINDS = Object.freeze([
@@ -8,6 +12,7 @@ const APPROVED_COMPONENT_KINDS = Object.freeze([
   'toc',
   'executive-summary',
   'section-title',
+  'native-exhibit',
   'claim-evidence',
   'data-chart',
   'comparison',
@@ -45,12 +50,19 @@ const COMPONENT_CONTRACTS = Object.freeze({
   'executive-summary': componentContract(
     ['text', 'metric', 'chart'], ['answer', 'decisions', 'evidence chain'], ['overview-detail', 'small-multiples'],
     { soft: 3, hard: 4, unit: 'decisions or metrics', field: 'summary_items' }, 'Move supporting analysis to dedicated evidence pages.',
-    ['More than one governing answer', 'Metric without qualification'], ['answers', 'summary_items'], ['single_answer', 'qualified_summary_item'],
+    ['More than one governing answer', 'Metric without qualification'],
+    ['answers', 'summary_items', 'decision_level', 'decisive_reasons', 'largest_upside', 'largest_risk', 'immediate_actions', 'thresholds'],
+    ['single_answer', 'qualified_summary_item', 'complete_decision_summary'],
   ),
   'section-title': componentContract(
     ['text'], ['chapter number', 'chapter claim', 'reading cue'], ['overview-detail'],
     { soft: 1, hard: 1, unit: 'chapter claims', field: 'chapter_claims' }, 'Never split a chapter opener.',
     ['More than one chapter claim', 'Evidence table on a chapter opener'], ['title', 'chapter_claims'], ['single_chapter_claim'],
+  ),
+  'native-exhibit': componentContract(
+    ['text', 'table', 'chart', 'metric'], ['decision claim', 'native exhibit', 'qualification', 'compact sources'], ['full-evidence'],
+    { soft: 1, hard: 1, unit: 'native exhibits', field: 'exhibits' }, 'Keep the native exhibit intact; move supporting detail to another component.',
+    ['Missing structured exhibit', 'More than one exhibit in a component'], ['blocks', 'exhibits'], ['native_exhibit_block'],
   ),
   'claim-evidence': componentContract(
     ['text', 'table', 'chart'], ['claim', 'primary evidence', 'limitation', 'source'], ['full-evidence', 'prose-aside'],
@@ -225,6 +237,122 @@ function comparisonBody(comparison) {
   return `<table class="table-body competition-matrix"><thead><tr><th scope="col">层级 / 选项</th>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 
+function exhibitShell(block, exhibit, structure, body, tag = 'div') {
+  const id = `${block.id}-exhibit`;
+  return `<${tag} id="${escapeHtml(id)}" class="native-exhibit native-exhibit--${escapeHtml(exhibit.kind)}" data-exhibit-kind="${escapeHtml(exhibit.kind)}" data-exhibit-family="${escapeHtml(exhibit.family)}" data-exhibit-form="${escapeHtml(exhibit.form)}" data-structure="${escapeHtml(structure)}" aria-label="${escapeHtml(exhibit.kind)}">${body}</${tag}>`;
+}
+
+function itemList(values, className) {
+  return `<ol class="${className}">${list(values).map(value => `<li>${escapeHtml(typeof value === 'string' ? value : value.label)}</li>`).join('')}</ol>`;
+}
+
+function answerExhibit(block, exhibit) {
+  if (exhibit.kind === 'executive-summary') {
+    const reasons = list(exhibit.reasons).map(reason => `<div><dt>关键理由</dt><dd>${escapeHtml(reason)}</dd></div>`).join('');
+    return exhibitShell(block, exhibit, 'executive-answer-dl', `<p class="exhibit-answer">${escapeHtml(exhibit.answer)}</p><dl>${reasons}</dl>`, 'section');
+  }
+  return exhibitShell(block, exhibit, 'answer-reasons-list', `<h4>${escapeHtml(exhibit.answer)}</h4>${itemList(exhibit.reasons, 'exhibit-reasons')}`, 'section');
+}
+
+function matrixExhibit(block, exhibit) {
+  const columns = list(exhibit.columns);
+  const head = columns.map(column => `<th scope="col">${escapeHtml(column)}</th>`).join('');
+  const rows = list(exhibit.rows).map(row => `<tr><th scope="row">${escapeHtml(row.label)}</th>${columns.map((_, index) => `<td>${escapeHtml(list(row.values)[index])}</td>`).join('')}</tr>`).join('');
+  if (exhibit.kind === 'pain-comparison') {
+    const groups = list(exhibit.rows).map(row => `<section><h4>${escapeHtml(row.label)}</h4><dl>${columns.map((column, index) => `<div><dt>${escapeHtml(column)}</dt><dd>${escapeHtml(list(row.values)[index])}</dd></div>`).join('')}</dl></section>`).join('');
+    return exhibitShell(block, exhibit, 'pain-before-after-dl', groups, 'div');
+  }
+  return exhibitShell(block, exhibit, 'competitor-criteria-table', `<table><thead><tr><th scope="col">比较项</th>${head}</tr></thead><tbody>${rows}</tbody></table>`, 'figure');
+}
+
+function decisionTreeExhibit(block, exhibit) {
+  const nodes = list(exhibit.nodes);
+  const ids = nodes.map(node => node.id);
+  if (new Set(ids).size !== ids.length) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} has duplicate decision-tree node IDs`);
+  const nodeIds = new Set(nodes.map(node => node.id));
+  const invalid = list(exhibit.edges).find(edge => !nodeIds.has(edge.from) || !nodeIds.has(edge.to));
+  if (invalid) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} edge ${invalid.from} -> ${invalid.to} does not resolve`);
+  const incoming = new Map(ids.map(id => [id, 0]));
+  const outgoing = new Map(ids.map(id => [id, []]));
+  for (const edge of exhibit.edges) { incoming.set(edge.to, incoming.get(edge.to) + 1); outgoing.get(edge.from).push(edge.to); }
+  const roots = ids.filter(id => incoming.get(id) === 0);
+  if (roots.length !== 1) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} decision tree requires one root and no cycles`);
+  if (ids.some(id => id !== roots[0] && incoming.get(id) !== 1)) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} decision tree non-root nodes require exactly one incoming edge`);
+  const queue = [roots[0]];
+  const depth = new Map([[roots[0], 0]]);
+  const visited = [];
+  while (queue.length) {
+    const id = queue.shift(); visited.push(id);
+    for (const next of outgoing.get(id)) { depth.set(next, Math.max(depth.get(next) || 0, depth.get(id) + 1)); incoming.set(next, incoming.get(next) - 1); if (incoming.get(next) === 0) queue.push(next); }
+  }
+  if (visited.length !== nodes.length) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} decision tree contains a cycle or unreachable node`);
+  const lanes = new Map();
+  const positions = new Map(nodes.map(node => { const level = depth.get(node.id); const lane = lanes.get(level) || 0; lanes.set(level, lane + 1); return [node.id, { x: 8 + level * 110, y: 12 + lane * 55 }]; }));
+  const labels = nodes.map(node => { const point = positions.get(node.id); return `<g id="${escapeHtml(block.id)}-node-${escapeHtml(node.id)}"><rect x="${point.x}" y="${point.y}" width="90" height="30"></rect><text x="${point.x + 45}" y="${point.y + 19}">${escapeHtml(node.label)}</text></g>`; }).join('');
+  const edges = list(exhibit.edges).map((edge, index) => { const from = positions.get(edge.from); const to = positions.get(edge.to); const x1 = from.x + 90; const x2 = to.x; const y1 = from.y + 15; const y2 = to.y + 15; return `<line id="${escapeHtml(block.id)}-edge-${index + 1}" data-from="${escapeHtml(block.id)}-node-${escapeHtml(edge.from)}" data-to="${escapeHtml(block.id)}-node-${escapeHtml(edge.to)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line><text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 5}">${escapeHtml(edge.label)}</text>`; }).join('');
+  const width = Math.max(...[...positions.values()].map(point => point.x + 98));
+  const height = Math.max(...[...positions.values()].map(point => point.y + 42));
+  return exhibitShell(block, exhibit, 'decision-branch-svg', `<svg role="img" aria-labelledby="${escapeHtml(block.id)}-tree-title" viewBox="0 0 ${width} ${height}"><title id="${escapeHtml(block.id)}-tree-title">决策树</title>${edges}${labels}</svg>`, 'figure');
+}
+
+function processExhibit(block, exhibit) {
+  const steps = list(exhibit.steps);
+  const groups = steps.map((step, index) => `<g id="${escapeHtml(block.id)}-step-${index + 1}"><rect x="${6 + index * 105}" y="8" width="90" height="30"></rect><text x="${51 + index * 105}" y="27">${escapeHtml(step.label)}</text></g>`).join('');
+  const connectors = steps.slice(1).map((_, index) => `<line class="process-connector" x1="${96 + index * 105}" y1="23" x2="${111 + index * 105}" y2="23"></line>`).join('');
+  return exhibitShell(block, exhibit, 'mechanism-flow-svg', `<svg role="img" aria-labelledby="${escapeHtml(block.id)}-process-title" viewBox="0 0 ${Math.max(210, steps.length * 105 + 6)} 46"><title id="${escapeHtml(block.id)}-process-title">机制与流程</title>${connectors}${groups}</svg>`, 'figure');
+}
+
+function scenariosExhibit(block, exhibit) {
+  const scenarios = list(exhibit.scenarios).map((scenario, index) => `<section id="${escapeHtml(block.id)}-scenario-${index + 1}"><h4>${escapeHtml(scenario.label)}</h4><p>${escapeHtml(scenario.outcome)}</p></section>`).join('');
+  return exhibitShell(block, exhibit, 'paired-scenario-sections', scenarios, 'div');
+}
+
+function roadmapExhibit(block, exhibit) {
+  const stages = list(exhibit.stages).map((stage, index) => `<li id="${escapeHtml(block.id)}-stage-${index + 1}"><time>${escapeHtml(stage.label)}</time><span>${escapeHtml(stage.output)}</span></li>`).join('');
+  return exhibitShell(block, exhibit, 'thirty-sixty-ninety-list', `<ol class="roadmap-stages">${stages}</ol>`, 'section');
+}
+
+function methodsExhibit(block, exhibit) {
+  return exhibitShell(block, exhibit, 'methods-limitations-aside', `<section><h4>方法</h4>${itemList(exhibit.methods, 'methods-list')}</section><section><h4>限制</h4>${itemList(exhibit.limitations, 'limitations-list')}</section>`, 'aside');
+}
+
+const EXHIBIT_RENDERERS = Object.freeze({
+  'executive-summary': answerExhibit,
+  'answer-and-reasons': answerExhibit,
+  'pain-comparison': matrixExhibit,
+  'competitor-matrix': matrixExhibit,
+  'decision-tree': decisionTreeExhibit,
+  'mechanism-process': processExhibit,
+  'paired-scenarios': scenariosExhibit,
+  '30-60-90-roadmap': roadmapExhibit,
+  'methods-limitations': methodsExhibit,
+});
+
+function semanticBody(block) {
+  const content = block.content || {};
+  const semanticType = content.semantic_type;
+  const selectedLayout = SEMANTIC_LAYOUTS.get(semanticType);
+  const expectedKind = selectedLayout && selectedLayout.kind;
+  if (semanticType === 'point_evidence') return null;
+  if (!Object.hasOwn(EXHIBIT_RENDERERS, expectedKind)) throw reportError('REPORT_EXHIBIT_MISSING', `${block.id} requires explicit point_evidence or a supported exhibit`);
+  if (!content.exhibit) throw reportError('REPORT_EXHIBIT_MISSING', `${block.id} declares ${semanticType} without exhibit content`);
+  if (content.exhibit.kind !== expectedKind) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} declares ${semanticType} but provides ${content.exhibit.kind}`);
+  const layout = EXHIBIT_LAYOUTS.get(expectedKind);
+  const missing = layout.required_fields.filter(field => !content.exhibit[field] || content.exhibit[field].length === 0);
+  if (missing.length) throw reportError('REPORT_EXHIBIT_MISSING', `${block.id} missing ${missing.join(', ')}`);
+  if (content.exhibit.family !== layout.family || !layout.forms.includes(content.exhibit.form) || content.form !== content.exhibit.form) {
+    throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} kind/family/form does not match catalog`);
+  }
+  const count = content.exhibit[layout.capacity.field].length;
+  if (count > layout.capacity.hard) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} exceeds hard capacity`);
+  const capacityState = count > layout.capacity.soft ? 'soft-exceeded' : 'within-soft';
+  if (content.exhibit.capacity_state && content.exhibit.capacity_state !== capacityState) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} supplied capacity state is incorrect`);
+  if (layout.family === 'matrix' && content.exhibit.rows.some(row => list(row.values).length !== content.exhibit.columns.length)) {
+    throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} matrix row width does not match columns`);
+  }
+  return EXHIBIT_RENDERERS[expectedKind](block, content.exhibit);
+}
+
 const BLOCK_RENDERERS = Object.freeze({ chart: chartBody, text: textBody, metric: metricBody, table: tableBody });
 
 function present(value) {
@@ -247,8 +375,18 @@ const COMPONENT_PREDICATES = Object.freeze({
   qualified_summary_item(payload) {
     return Array.isArray(payload.summary_items) && payload.summary_items.length > 0 && payload.summary_items.every(item => item && present(item.text) && present(item.qualification));
   },
+  complete_decision_summary(payload) {
+    return present(payload.decision_level) && Array.isArray(payload.decisive_reasons) && payload.decisive_reasons.length === 3 && payload.decisive_reasons.every(present) &&
+      present(payload.largest_upside) && present(payload.largest_risk) && Array.isArray(payload.immediate_actions) && payload.immediate_actions.length > 0 && payload.immediate_actions.every(present) &&
+      payload.thresholds && present(payload.thresholds.continue) && present(payload.thresholds.stop);
+  },
   single_chapter_claim(payload) {
     return present(payload.title) && Array.isArray(payload.chapter_claims) && payload.chapter_claims.length === 1 && present(payload.chapter_claims[0]);
+  },
+  native_exhibit_block(payload) {
+    return Array.isArray(payload.blocks) && payload.blocks.length === 1 && Array.isArray(payload.exhibits) && payload.exhibits.length === 1 &&
+      payload.blocks.every(block => block && block.content && block.content.semantic_type !== 'point_evidence' && block.content.exhibit) &&
+      payload.blocks[0].content.exhibit.kind === payload.exhibits[0].kind;
   },
   evidence_source_locator(payload) {
     return present(payload.claim) && Array.isArray(payload.evidence_groups) && payload.evidence_groups.length > 0 && payload.evidence_groups.every(group =>
@@ -310,17 +448,26 @@ function renderBlock(block, context = {}) {
   }
   const content = block.content || {};
   const anchor = content.anchor ? ' data-anchor="true"' : '';
-  return `<article class="report-block report-block--${escapeHtml(block.kind)}" data-block-id="${escapeHtml(block.id)}" data-block-kind="${escapeHtml(block.kind)}" data-form="${escapeHtml(content.form)}" data-role="${escapeHtml(content.role)}" aria-labelledby="${escapeHtml(block.id)}-title"${anchor}>${blockHeader(block)}${BLOCK_RENDERERS[block.kind](block)}${citationMarkers(block, context)}${bindings(block, context)}</article>`;
+  const semantic = semanticBody(block);
+  return `<article class="report-block report-block--${escapeHtml(block.kind)}" data-block-id="${escapeHtml(block.id)}" data-block-kind="${escapeHtml(block.kind)}" data-form="${escapeHtml(content.form)}" data-role="${escapeHtml(content.role)}" data-semantic-type="${escapeHtml(content.semantic_type)}" data-exhibit-required="${content.semantic_type === 'point_evidence' ? 'false' : 'true'}" aria-labelledby="${escapeHtml(block.id)}-title"${anchor}>${blockHeader(block)}${semantic === null ? BLOCK_RENDERERS[block.kind](block) : semantic}${citationMarkers(block, context)}${bindings(block, context)}</article>`;
 }
 
 function executiveSummaryBody(payload) {
+  const chinese = String(payload.language || '').toLowerCase().startsWith('zh');
+  const labels = chinese ? {
+    upside: '最大上行', risk: '主要风险', continue: '继续门槛', stop: '停止门槛', actions: '立即行动',
+  } : {
+    upside: 'Largest upside', risk: 'Largest risk', continue: 'Continue threshold', stop: 'Stop threshold', actions: 'Immediate actions',
+  };
   const answer = `<p class="executive-answer">${escapeHtml(payload.answers[0])}</p>`;
   const items = list(payload.summary_items).map(item =>
     `<li class="summary-item"><strong>${escapeHtml(item.text)}</strong>` +
     `<span class="summary-meta">${escapeHtml(item.identity || 'claim')} · ${escapeHtml(item.confidence || 'unspecified')}</span>` +
     `<p>${escapeHtml(item.qualification)}</p></li>`
   ).join('');
-  return `${answer}<ol class="summary-list">${items}</ol>`;
+  const reasons = list(payload.decisive_reasons).map(reason => `<li>${escapeHtml(reason)}</li>`).join('');
+  const actions = list(payload.immediate_actions).map(action => `<li>${escapeHtml(action)}</li>`).join('');
+  return `${answer}<div class="executive-decision" data-decision-level="${escapeHtml(payload.decision_level)}"><strong>${escapeHtml(payload.decision_level)}</strong><ul class="decisive-reasons">${reasons}</ul><dl><div><dt>${labels.upside}</dt><dd>${escapeHtml(payload.largest_upside)}</dd></div><div><dt>${labels.risk}</dt><dd>${escapeHtml(payload.largest_risk)}</dd></div><div><dt>${labels.continue}</dt><dd>${escapeHtml(payload.thresholds.continue)}</dd></div><div><dt>${labels.stop}</dt><dd>${escapeHtml(payload.thresholds.stop)}</dd></div></dl><h3>${labels.actions}</h3><ul>${actions}</ul></div><ol class="summary-list">${items}</ol>`;
 }
 
 function renderComponent(kind, payload = {}, context = {}) {
