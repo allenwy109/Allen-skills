@@ -235,7 +235,8 @@ class A4OutReportPipelineTest(unittest.TestCase):
         valid_independent = json.loads(independent.read_text(encoding="utf-8"))
 
         minor = json.loads(independent.read_text(encoding="utf-8"))
-        minor["issues"] = [{"id": "RV-0001", "level": "minor", "text": "A minor wording preference remains open.", "resolved": False}]
+        minor["issues"] = [{"id": "RV-0001", "level": "minor", "text": "A minor wording preference remains open.",
+                            "reviewer": "Synthetic independent reviewer", "resolved": False}]
         minor["review_digest"] = review_digest(minor)
         independent.write_text(json.dumps(minor), encoding="utf-8")
         self.command("review", self.task, "independent", independent)

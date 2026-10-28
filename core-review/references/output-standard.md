@@ -68,7 +68,7 @@ core-review 的第 5 个角色，L2 起必开。
  "issues": [{"id": "RV-0001", "level": "major", "text": "第 3 页图注没有写统计口径", "resolved": false}]}
 ```
 
-- 阻塞或重要问题修复后重新出成品、重新登记，记录 remedy 和 remedy evidence，再交给原审查员复看一次；复审记录包含同一 reviewer 身份、时间、可定位 evidence 和规范摘要。一轮后仍未关闭则不通过。未关闭的轻微问题可以保留在记录中，不阻断正式报告验收。
+- 每条问题都记录实际提出问题的 `issue.reviewer`。阻塞或重要问题修复后重新出成品、重新登记，记录 remedy 和 remedy evidence，再交给该问题的原审查员复看一次；`re_review.reviewer` 必须与 `issue.reviewer` 相同，复审还包含时间、可定位 evidence 和规范摘要。一轮后仍未关闭则不通过。未关闭的轻微问题可以保留在记录中，不阻断正式报告验收。
 - 对正式报告，审查员还要提交 A4 成品独立审查记录，具体字段和步骤写在 out-report 的说明里。
 - 没有子代理时，作者按同一份清单自审，`type` 写 `self`；按状态规则，最高只能是"有条件通过"。
 

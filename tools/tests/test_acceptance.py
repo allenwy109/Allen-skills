@@ -23,7 +23,8 @@ def expected_digest(value):
 
 def review(*issues, kind="independent"):
     return {"type": kind, "reviewer": "成品审查员", "at": "2026-10-23T10:00:00+00:00", "conclusion": "看过全部页面",
-            "issues": [{"id": f"RV-{i:04d}", "level": lvl, "text": t, "resolved": res} for i, (lvl, t, res) in enumerate(issues, 1)]}
+            "issues": [{"id": f"RV-{i:04d}", "level": lvl, "text": t, "resolved": res,
+                        "reviewer": "Visual reviewer"} for i, (lvl, t, res) in enumerate(issues, 1)]}
 
 
 def entry(**over):
@@ -122,10 +123,10 @@ class StatusRuleTest(unittest.TestCase):
 
         complete = report_review(issue)
         complete["issues"][0].update({
-            "reviewer": "Visual reviewer",
+            "reviewer": "Decision reviewer",
             "remedy": "Rewrote the claim and added the missing comparison.",
             "remedy_evidence": ["page-003"],
-            "re_review": {"reviewer": "Visual reviewer", "at": "2026-10-23T11:00:00+00:00",
+            "re_review": {"reviewer": "Decision reviewer", "at": "2026-10-23T11:00:00+00:00",
                           "evidence": ["page-003"], "digest": ""},
         })
         complete["issues"][0]["re_review"]["digest"] = expected_digest(complete["issues"][0]["re_review"])
@@ -134,13 +135,19 @@ class StatusRuleTest(unittest.TestCase):
         self.assertEqual("passed", self.status(kind="report", reviewer=complete)[0])
 
         wrong_reviewer = json.loads(json.dumps(complete))
-        wrong_reviewer["issues"][0]["reviewer"] = "Replacement reviewer"
         wrong_reviewer["issues"][0]["re_review"]["reviewer"] = "Replacement reviewer"
         wrong_reviewer["issues"][0]["re_review"]["digest"] = expected_digest(wrong_reviewer["issues"][0]["re_review"])
         wrong_reviewer["review_digest"] = expected_digest(wrong_reviewer)
         status, failures, _ = self.status(kind="report", reviewer=wrong_reviewer)
         self.assertEqual("failed", status)
         self.assertIn("原审查者", "；".join(failures))
+
+        missing_owner = json.loads(json.dumps(complete))
+        missing_owner["issues"][0]["reviewer"] = ""
+        missing_owner["review_digest"] = expected_digest(missing_owner)
+        status, failures, _ = self.status(kind="report", reviewer=missing_owner)
+        self.assertEqual("failed", status)
+        self.assertIn("问题审查者", "；".join(failures))
 
     def test_digest_cli_uses_canonical_review_content(self):
         value = report_review()

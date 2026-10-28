@@ -42,7 +42,7 @@
       "id": {"type": "string", "pattern": "^RV-[0-9]{4,}$", "required": true},
       "level": {"type": "string", "enum": "issue_level", "required": true},
       "text": {"type": "string", "required": true},
-      "reviewer": {"type": "string"},
+      "reviewer": {"type": "string", "required": true},
       "resolved": {"type": "boolean", "required": true},
       "remedy": {"type": "string"},
       "remedy_evidence": {"type": "array", "items": {"type": "string"}},
