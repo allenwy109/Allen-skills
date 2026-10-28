@@ -5,7 +5,7 @@ const crypto = require("crypto");
 const cp = require("child_process");
 
 const here = path.resolve(process.env.GOLDEN_DIR || __dirname);
-const runtime = path.resolve(process.env.ALLEN_RUNTIME || path.join(here, "../.."));
+const runtime = path.resolve(process.env.ALLEN_DEPENDENCY_RUNTIME || process.env.ALLEN_RUNTIME || path.join(here, "../.."));
 const build = path.join(here, "build");
 const files = {html: path.join(here, "golden.html"), css: path.join(here, "golden.css"), report: path.join(here, "golden-report.json"), baseline: path.join(here, "visual-baseline.json")};
 const fontDir = path.join(runtime, "vendor/report-forge/assets/fonts");
@@ -58,6 +58,7 @@ fs.writeFileSync(compiledHtml, html);
   const requests = [];
   page.on("request", req => { if (/^https?:/.test(req.url())) requests.push(req.url()); });
   await page.goto(`file://${compiledHtml}`, {waitUntil: "networkidle"});
+  await page.evaluate(() => document.fonts.ready);
   await page.emulateMedia({media: "print"});
   const layoutQa = await page.evaluate(() => {
     const pages = [...document.querySelectorAll("section.page[data-page-id]")];
@@ -110,7 +111,7 @@ fs.writeFileSync(compiledHtml, html);
   };
   candidate.candidateDigest = shaBuffer(JSON.stringify(digestInput));
   if (baseline.status === "approved" && baseline.candidateDigest !== candidate.candidateDigest) {
-    console.error("approved baseline does not match the rendered candidate; approval was not overwritten");
+    console.error(`approved baseline does not match the rendered candidate (approved=${baseline.candidateDigest}; rendered=${candidate.candidateDigest}); approval was not overwritten`);
     process.exit(2);
   }
 

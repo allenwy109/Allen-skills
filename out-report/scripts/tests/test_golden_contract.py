@@ -17,9 +17,19 @@ FONT_FILES = {"__FONT_NOTO_SANS_SC_400__": "noto-sans-sc-400.woff2", "__FONT_NOT
 
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 
+def dependency_runtime():
+    explicit = os.environ.get("ALLEN_DEPENDENCY_RUNTIME")
+    if explicit:
+        return pathlib.Path(explicit).resolve()
+    if (ROOT / "vendor/report-forge/node_modules/playwright").is_dir():
+        return ROOT
+    common = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=ROOT,
+                            check=True, capture_output=True, text=True).stdout.strip()
+    return (ROOT / common).resolve().parent
+
 def run_render(golden=GOLDEN, expect=0):
-    runtime = os.environ.get("ALLEN_RUNTIME", "/Users/markjackson/Repos/Allen-skills")
-    env = dict(os.environ, ALLEN_RUNTIME=runtime, GOLDEN_DIR=str(golden))
+    env = dict(os.environ, ALLEN_DEPENDENCY_RUNTIME=str(dependency_runtime()), GOLDEN_DIR=str(golden))
+    env.pop("ALLEN_RUNTIME", None)
     p = subprocess.run(["node", str(golden / "render.cjs")], capture_output=True, text=True, env=env)
     if p.returncode != expect: raise AssertionError(p.stdout + p.stderr)
     return p
@@ -110,6 +120,14 @@ class GoldenReportContractTest(unittest.TestCase):
         self.assertNotRegex(self.source_css, r'url\(["\']?https?://|@import')
         self.assertRegex(self.source_css, r"@page\s*{[^}]*size:\s*210mm\s+297mm")
         self.assertRegex(self.source_css, r"--font-body:\s*10\.75pt"); self.assertRegex(self.source_css, r"--font-source:\s*7\.5pt")
+
+    def test_renderer_separates_worktree_sources_from_dependency_runtime(self):
+        renderer = (GOLDEN / "render.cjs").read_text(encoding="utf-8")
+        self.assertIn('process.env.ALLEN_DEPENDENCY_RUNTIME', renderer)
+        self.assertIn('process.env.GOLDEN_DIR', renderer)
+        self.assertNotRegex(renderer, r'path\.join\(runtime,\s*["\']out-report["\']')
+        self.assertIn('document.fonts.ready', renderer)
+        self.assertEqual(ROOT, GOLDEN.parents[1])
 
     def test_body_pages_use_compact_markers_and_full_references_stay_in_appendix(self):
         self.assertEqual("full", self.manifest["metadata"]["bibliography_policy"])
