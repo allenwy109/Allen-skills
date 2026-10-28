@@ -1,4 +1,5 @@
 import json
+import hashlib
 import pathlib
 import subprocess
 import tempfile
@@ -7,6 +8,17 @@ import unittest
 from tools import acceptance as A
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+
+def expected_digest(value):
+    def clean(item):
+        if isinstance(item, dict):
+            return {key: clean(child) for key, child in item.items() if key not in ("review_digest", "digest")}
+        if isinstance(item, list):
+            return [clean(child) for child in item]
+        return item
+    payload = json.dumps(clean(value), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(payload).hexdigest()
 
 
 def review(*issues, kind="independent"):
@@ -27,16 +39,16 @@ def report_review(*issues, author="Report author", visual_reviewer="Visual revie
         "author": author,
         "reviewer": visual_reviewer,
         "role": "visual-design-reviewer",
-        "review_digest": "a" * 64,
         "worst_page": {"page_id": "page-004", "finding": "The dense matrix is still readable, but has the weakest hierarchy in the report."},
         "decision_review": {
             "reviewer": decision_reviewer,
             "role": "decision-maker-reviewer",
-            "review_digest": "b" * 64,
             "answers": {key: "Page-specific answer with enough detail for an executive decision."
                         for key in ("answer_visibility", "executive_summary", "argument_sufficiency", "actions", "ownership", "continue_stop_thresholds")},
         },
     })
+    value["decision_review"]["review_digest"] = expected_digest(value["decision_review"])
+    value["review_digest"] = expected_digest(value)
     return value
 
 
@@ -92,6 +104,8 @@ class StatusRuleTest(unittest.TestCase):
             "六个高管问题": {**report_review(), "decision_review": {**report_review()["decision_review"], "answers": {}}},
             "独立审查者与作者不能相同": report_review(author="Same person", visual_reviewer="Same person"),
             "视觉与决策审查者必须独立": report_review(visual_reviewer="Same reviewer", decision_reviewer="Same reviewer"),
+            "报告作者身份不能为空": report_review(author=""),
+            "审查摘要与内容不匹配": {**report_review(), "review_digest": "a" * 64},
         }
         for message, reviewer in cases.items():
             with self.subTest(message):
@@ -108,11 +122,34 @@ class StatusRuleTest(unittest.TestCase):
 
         complete = report_review(issue)
         complete["issues"][0].update({
+            "reviewer": "Visual reviewer",
             "remedy": "Rewrote the claim and added the missing comparison.",
             "remedy_evidence": ["page-003"],
-            "re_review": {"reviewer": "Visual reviewer", "at": "2026-10-23T11:00:00+00:00", "digest": "c" * 64},
+            "re_review": {"reviewer": "Visual reviewer", "at": "2026-10-23T11:00:00+00:00",
+                          "evidence": ["page-003"], "digest": ""},
         })
+        complete["issues"][0]["re_review"]["digest"] = expected_digest(complete["issues"][0]["re_review"])
+        complete["decision_review"]["review_digest"] = expected_digest(complete["decision_review"])
+        complete["review_digest"] = expected_digest(complete)
         self.assertEqual("passed", self.status(kind="report", reviewer=complete)[0])
+
+        wrong_reviewer = json.loads(json.dumps(complete))
+        wrong_reviewer["issues"][0]["reviewer"] = "Replacement reviewer"
+        wrong_reviewer["issues"][0]["re_review"]["reviewer"] = "Replacement reviewer"
+        wrong_reviewer["issues"][0]["re_review"]["digest"] = expected_digest(wrong_reviewer["issues"][0]["re_review"])
+        wrong_reviewer["review_digest"] = expected_digest(wrong_reviewer)
+        status, failures, _ = self.status(kind="report", reviewer=wrong_reviewer)
+        self.assertEqual("failed", status)
+        self.assertIn("原审查者", "；".join(failures))
+
+    def test_digest_cli_uses_canonical_review_content(self):
+        value = report_review()
+        with tempfile.TemporaryDirectory() as temporary:
+            source = pathlib.Path(temporary) / "review.json"
+            source.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
+            result = subprocess.run(["python3", str(ROOT / "tools/acceptance.py"), "digest", str(source)], capture_output=True, text=True)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(expected_digest(value), result.stdout.strip())
 
 
 class RecordTest(unittest.TestCase):

@@ -15,7 +15,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(SCRIPTS))
 import out_report  # noqa: E402
-from tools.acceptance import Acceptance  # noqa: E402
+from tools.acceptance import Acceptance, review_digest  # noqa: E402
 from tools.tests import fixtures as F  # noqa: E402
 
 
@@ -201,7 +201,7 @@ class A4OutReportPipelineTest(unittest.TestCase):
         independent = self.work / "independent-review.json"
         independent.write_text(json.dumps({
             "type": "independent", "reviewer": "Synthetic independent reviewer",
-            "role": "visual-design-reviewer", "review_digest": "a" * 64,
+            "role": "visual-design-reviewer",
             "at": "2026-10-27T12:05:00+10:30", "conclusion": "Synthetic fixture accepted", "issues": [],
             "artifactDigest": artifact_digest, "paginationDigest": pagination_digest,
             "page_ids": [page["id"] for page in json.loads((self.work / "build/pagination-manifest.json").read_text())["pages"]],
@@ -211,7 +211,6 @@ class A4OutReportPipelineTest(unittest.TestCase):
             "headline_chain": {"status": "reviewed", "observation": "The headline sequence forms a coherent evidence-to-decision argument."},
             "worst_page": {"page_id": "page-004", "finding": "The comparison matrix is the densest page and its hierarchy remains legible in both final media."},
             "decision_review": {"reviewer": "Synthetic decision maker", "role": "decision-maker-reviewer",
-                                "review_digest": "b" * 64,
                                 "answers": {key: "The PDF gives a concrete, page-specific answer that supports an executive decision."
                                             for key in ("answer_visibility", "executive_summary", "argument_sufficiency", "actions", "ownership", "continue_stop_thresholds")}},
             "observations": [{"page_id": page["id"], "media": ["html", "pdf"], "scale": ["100%", "contact-sheet"],
@@ -219,6 +218,10 @@ class A4OutReportPipelineTest(unittest.TestCase):
                               "reason": "No clipping, semantic omission or misleading emphasis was observed."}
                              for page in json.loads((self.work / "build/pagination-manifest.json").read_text())["pages"]],
         }), encoding="utf-8")
+        independent_value = json.loads(independent.read_text(encoding="utf-8"))
+        independent_value["decision_review"]["review_digest"] = review_digest(independent_value["decision_review"])
+        independent_value["review_digest"] = review_digest(independent_value)
+        independent.write_text(json.dumps(independent_value), encoding="utf-8")
         invalid = self.work / "invalid-independent.json"
         invalid.write_text(json.dumps({"type": "independent", "reviewer": "Reviewer", "at": "2026-10-27T12:05:00+10:30",
                                        "conclusion": "PASS", "issues": [], "artifactDigest": artifact_digest,
@@ -229,8 +232,15 @@ class A4OutReportPipelineTest(unittest.TestCase):
         self.assertEqual(1, invalid_result.returncode)
         self.assertIn("REPORT_REVIEW_INVALID", invalid_result.stderr)
         self.command("review", self.task, "independent", independent)
-
         valid_independent = json.loads(independent.read_text(encoding="utf-8"))
+
+        minor = json.loads(independent.read_text(encoding="utf-8"))
+        minor["issues"] = [{"id": "RV-0001", "level": "minor", "text": "A minor wording preference remains open.", "resolved": False}]
+        minor["review_digest"] = review_digest(minor)
+        independent.write_text(json.dumps(minor), encoding="utf-8")
+        self.command("review", self.task, "independent", independent)
+        independent.write_text(json.dumps(valid_independent), encoding="utf-8")
+
         for message, mutation in (
             ("worst page", lambda value: value.pop("worst_page")),
             ("six executive questions", lambda value: value["decision_review"].update(answers={})),

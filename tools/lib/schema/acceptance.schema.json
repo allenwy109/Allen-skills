@@ -42,12 +42,14 @@
       "id": {"type": "string", "pattern": "^RV-[0-9]{4,}$", "required": true},
       "level": {"type": "string", "enum": "issue_level", "required": true},
       "text": {"type": "string", "required": true},
+      "reviewer": {"type": "string"},
       "resolved": {"type": "boolean", "required": true},
       "remedy": {"type": "string"},
       "remedy_evidence": {"type": "array", "items": {"type": "string"}},
       "re_review": {"type": "object", "fields": {
        "reviewer": {"type": "string", "required": true},
        "at": {"type": "datetime", "required": true},
+       "evidence": {"type": "array", "required": true, "items": {"type": "string"}},
        "digest": {"type": "string", "required": true}}}}}},
      "worst_page": {"type": "object", "fields": {
       "page_id": {"type": "string", "required": true},

@@ -33,7 +33,7 @@ def _bootstrap():
 
 
 _bootstrap()
-from tools.acceptance import Acceptance  # noqa: E402
+from tools.acceptance import Acceptance, review_closure_failures, review_digest  # noqa: E402
 from tools import package_support  # noqa: E402
 from tools.bridge import to_forge, to_report  # noqa: E402
 from tools.lib import runtime  # noqa: E402
@@ -431,7 +431,7 @@ def _validate_independent(review, work, artifacts, author_reviewer=None):
     sheet_ids = [page for sheet in sheets for page in sheet.get("page_ids", [])] if isinstance(sheets, list) else []
     required = (
         review.get("type") == "independent" and isinstance(review.get("reviewer"), str) and review["reviewer"].strip()
-        and review.get("role") == "visual-design-reviewer" and _valid_digest(review.get("review_digest"))
+        and review.get("role") == "visual-design-reviewer" and review.get("review_digest") == review_digest(review)
         and review.get("reviewer") != author_reviewer
         and reviewed_at is not None and reviewed_at.tzinfo is not None and useful_observation(review.get("conclusion"))
         and review.get("artifactDigest") == artifacts["artifactDigest"]
@@ -442,7 +442,7 @@ def _validate_independent(review, work, artifacts, author_reviewer=None):
         and all(useful_observation(sheet.get("observation")) for sheet in sheets)
         and headline.get("status") == "reviewed" and useful_observation(headline.get("observation"))
         and worst.get("page_id") in page_ids and useful_observation(worst.get("finding"))
-        and decision.get("role") == "decision-maker-reviewer" and _valid_digest(decision.get("review_digest"))
+        and decision.get("role") == "decision-maker-reviewer" and decision.get("review_digest") == review_digest(decision)
         and isinstance(decision.get("reviewer"), str) and decision["reviewer"].strip()
         and decision.get("reviewer") != author_reviewer
         and decision.get("reviewer") != review.get("reviewer")
@@ -451,14 +451,12 @@ def _validate_independent(review, work, artifacts, author_reviewer=None):
         and all(set(item.get("media") or []) == {"html", "pdf"} and "100%" in (item.get("scale") or [])
                 and bool({"contact-sheet", "thumbnail"} & set(item.get("scale") or []))
                 and useful_observation(item.get("observation")) and useful_observation(item.get("reason")) for item in observations)
-        and isinstance(review.get("issues"), list) and not any(not issue.get("resolved", False) for issue in review["issues"])
+        and isinstance(review.get("issues"), list)
+        and not any(not issue.get("resolved", False) and issue.get("level") in ("blocking", "major") for issue in review["issues"])
+        and not review_closure_failures(review)
     )
     if not required:
         raise StepError("REPORT_REVIEW_INVALID: independent reviewer must differ from the author; visual review must bind review digests, cover every page and the worst page with concrete aesthetic findings; decision review must answer all six executive questions; blocking/major issues require remedy evidence and one re-review")
-
-
-def _valid_digest(value):
-    return isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
 
 
 def cmd_review(args):
@@ -587,6 +585,7 @@ def cmd_package(args):
     independent = read_json(work / "independent-review.json")
     acceptance_reviewer = {key: independent[key] for key in ("type", "reviewer", "role", "review_digest", "at", "conclusion", "issues", "worst_page", "decision_review")}
     acceptance_reviewer["author"] = read_json(work / "author-review.json")["reviewer"]
+    acceptance_reviewer["review_digest"] = review_digest(acceptance_reviewer)
     entry = Acceptance(task).record({
         "id": f"report-{args.slug}", "kind": "report", "title": read_json(story_dir(task) / "report.json")["metadata"]["title"],
         "files": [str((out / name).relative_to(task)) for name in sources], "upstream_checks": checks, "reviewer": acceptance_reviewer,

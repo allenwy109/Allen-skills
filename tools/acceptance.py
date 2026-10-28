@@ -6,6 +6,7 @@
   python3 tools/acceptance.py <任务文件夹> review <交付物ID> <审查.json>   写入成品审查员的结论
   python3 tools/acceptance.py <任务文件夹> fixture true|false    标记是否为测试夹具（只有夹具允许 skipped）
   python3 tools/acceptance.py <任务文件夹> check [--json]        重新计算全部状态（含文件是否被改动）
+  python3 tools/acceptance.py digest <审查.json>                 计算绑定审查内容的规范摘要
 check：有任何交付物为 failed 时以 1 退出；conditional 以 0 退出，但必须把条件告诉用户。
 
 状态规则（全文只有这一套）：
@@ -42,6 +43,18 @@ def sha256(path):
     return h.hexdigest()
 
 
+def review_digest(value):
+    """Hash canonical review JSON, excluding self-referential digest fields."""
+    def canonical(item):
+        if isinstance(item, dict):
+            return {key: canonical(child) for key, child in item.items() if key not in ("review_digest", "digest")}
+        if isinstance(item, list):
+            return [canonical(child) for child in item]
+        return item
+    payload = json.dumps(canonical(value), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
 def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -69,13 +82,6 @@ def compute_status(entry, fixture, task=None):
     else:
         for i in reviewer.get("issues") or []:
             if i["resolved"]:
-                if entry.get("kind") == "report" and i["level"] in ("blocking", "major"):
-                    re_review = i.get("re_review") or {}
-                    if (not str(i.get("remedy") or "").strip() or not i.get("remedy_evidence")
-                            or not str(re_review.get("reviewer") or "").strip()
-                            or not str(re_review.get("at") or "").strip()
-                            or not _digest(re_review.get("digest"))):
-                        failures.append(f"已解决的{i['level']}问题 {i['id']} 缺少补救证据和一次复审")
                 continue
             if i["level"] == "blocking":
                 failures.append(f"未解决的阻塞问题 {i['id']}：{i['text']}")
@@ -85,6 +91,7 @@ def compute_status(entry, fixture, task=None):
         if reviewer["type"] == "self":
             conditions.append("未经独立审查（只有作者按清单自审）")
         elif entry.get("kind") == "report":
+            failures.extend(review_closure_failures(reviewer))
             failures.extend(_report_review_failures(reviewer))
     if entry.get("downgraded"):
         conditions.append("未出正式成品，降级为 Markdown 交付")
@@ -109,23 +116,44 @@ def _digest(value):
     return isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
 
 
+def review_closure_failures(reviewer):
+    failures = []
+    for issue in reviewer.get("issues") or []:
+        if not issue.get("resolved") or issue.get("level") not in ("blocking", "major"):
+            continue
+        re_review = issue.get("re_review") or {}
+        original = str(reviewer.get("reviewer") or "").strip()
+        if str(re_review.get("reviewer") or "").strip() != original:
+            failures.append(f"已解决的{issue['level']}问题 {issue['id']} 必须由原审查者复审")
+        if (not str(issue.get("remedy") or "").strip() or not issue.get("remedy_evidence")
+                or not str(re_review.get("at") or "").strip() or not re_review.get("evidence")
+                or re_review.get("digest") != review_digest(re_review)):
+            failures.append(f"已解决的{issue['level']}问题 {issue['id']} 缺少补救证据和一次复审")
+    return failures
+
+
 def _report_review_failures(reviewer):
     failures = []
     author = str(reviewer.get("author") or "").strip()
     visual = str(reviewer.get("reviewer") or "").strip()
-    if reviewer.get("role") != "visual-design-reviewer" or not _digest(reviewer.get("review_digest")):
+    if reviewer.get("role") != "visual-design-reviewer":
         failures.append("视觉审查缺少独立角色身份或审查摘要")
+    elif reviewer.get("review_digest") != review_digest(reviewer):
+        failures.append("审查摘要与内容不匹配")
     worst = reviewer.get("worst_page") or {}
     if not str(worst.get("page_id") or "").strip() or not str(worst.get("finding") or "").strip():
         failures.append("视觉审查缺少最差页评估")
     decision = reviewer.get("decision_review") or {}
     decision_name = str(decision.get("reviewer") or "").strip()
     answers = decision.get("answers") or {}
-    if (decision.get("role") != "decision-maker-reviewer" or not _digest(decision.get("review_digest"))
+    if (decision.get("role") != "decision-maker-reviewer"
+            or decision.get("review_digest") != review_digest(decision)
             or set(answers) != EXECUTIVE_QUESTIONS
             or any(not str(answers[key]).strip() for key in EXECUTIVE_QUESTIONS)):
         failures.append("决策者审查未回答六个高管问题或缺少独立角色身份和审查摘要")
-    if author and author in {visual, decision_name}:
+    if not author:
+        failures.append("报告作者身份不能为空")
+    elif author in {visual, decision_name}:
         failures.append("独立审查者与作者不能相同")
     if visual and visual == decision_name:
         failures.append("视觉与决策审查者必须独立")
@@ -205,6 +233,17 @@ class Acceptance:
 
 
 def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "digest":
+        if len(argv) != 2:
+            print("用法：acceptance.py digest <审查.json>", file=sys.stderr)
+            return 2
+        try:
+            print(review_digest(json.loads(pathlib.Path(argv[1]).read_text(encoding="utf-8"))))
+        except (ValueError, OSError) as err:
+            print(f"错误：{err}", file=sys.stderr)
+            return 2
+        return 0
     ap = argparse.ArgumentParser(description="交付物验收记录")
     ap.add_argument("task")
     sub = ap.add_subparsers(dest="cmd", required=True)

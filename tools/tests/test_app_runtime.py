@@ -6,7 +6,7 @@ import unittest
 from unittest import mock
 
 from tools import app_runtime as R
-from tools.acceptance import Acceptance
+from tools.acceptance import Acceptance, review_digest
 
 
 def reviewer():
@@ -17,6 +17,22 @@ def reviewer():
         "conclusion": "文件完整",
         "issues": [],
     }
+
+
+def report_reviewer():
+    value = {
+        **reviewer(), "author": "test-author", "reviewer": "test-visual-reviewer",
+        "role": "visual-design-reviewer",
+        "worst_page": {"page_id": "page-001", "finding": "The only synthetic page is also the weakest page, and remains legible."},
+        "decision_review": {
+            "reviewer": "test-decision-reviewer", "role": "decision-maker-reviewer",
+            "answers": {key: "The synthetic report provides a specific answer for this executive question."
+                        for key in ("answer_visibility", "executive_summary", "argument_sufficiency", "actions", "ownership", "continue_stop_thresholds")},
+        },
+    }
+    value["decision_review"]["review_digest"] = review_digest(value["decision_review"])
+    value["review_digest"] = review_digest(value)
+    return value
 
 
 def confirm_file(task, rel):
@@ -195,7 +211,7 @@ class AppRuntimeTest(unittest.TestCase):
         self.assertEqual(support["status"], "failed")
         failed = R.advance(self.task)
         self.assertEqual(failed["validation"], "failed")
-        acc.review("report-main", reviewer())
+        acc.review("report-main", report_reviewer())
         acc.review("support-company", reviewer())
         self.assertEqual(R.advance(self.task)["advanced"], "acceptance")
         self.assertEqual(R.finish(self.task)["status"], "completed")
