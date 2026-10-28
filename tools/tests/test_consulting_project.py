@@ -175,6 +175,30 @@ class ConsultingProjectTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("WORKSTREAM_METADATA_MISSING", result.stdout)
 
+    def test_non_object_handoff_roots_fail_closed_without_traceback(self):
+        for value in ([], "bad", None):
+            with self.subTest(value=value):
+                temp, task = self.mutate_project(lambda task: write_json(
+                    task / "research-handoffs" / "pain.json", value,
+                ))
+                with temp:
+                    result = self.run_cli("validate", task)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("HANDOFF_INVALID", result.stdout)
+                    self.assertNotIn("Traceback", result.stderr)
+
+    def test_non_object_workstream_metadata_roots_fail_closed_without_traceback(self):
+        for value in ([], "bad", None):
+            with self.subTest(value=value):
+                def mutate(task):
+                    write_json(task / "03r_research" / "tasks" / "A.json", value)
+                temp, task = self.mutate_project(mutate)
+                with temp:
+                    result = self.run_cli("validate", task)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("WORKSTREAM_INVALID", result.stdout)
+                    self.assertNotIn("Traceback", result.stderr)
+
     def test_l3_minimum_counts_only_accepted_reconciled_workstreams(self):
         def mutate(task):
             for old in (task / "research-handoffs").glob("*.json"):

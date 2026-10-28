@@ -72,8 +72,12 @@ def validate_project(task):
     handoffs_by_line = {}
     handoff_dir = task / "research-handoffs"
     for path in sorted(handoff_dir.glob("*.json")) if handoff_dir.is_dir() else []:
+        error_count = len(errors)
         handoff = load_document(path, "HANDOFF_INVALID", errors)
-        if handoff is None:
+        if handoff is None and len(errors) > error_count:
+            continue
+        if not isinstance(handoff, dict):
+            errors.append(("HANDOFF_INVALID", f"{path.name}: root must be an object"))
             continue
         handoffs.append(handoff)
         if handoff.get("line_id"):
@@ -91,6 +95,10 @@ def validate_project(task):
         except (OSError, json.JSONDecodeError) as exc:
             if re.fullmatch(r"[A-Z]", path.stem):
                 errors.append(("WORKSTREAM_INVALID", f"cannot read {path.name}: {exc}"))
+            continue
+        if not isinstance(candidate, dict):
+            if re.fullmatch(r"[A-Z]", path.stem):
+                errors.append(("WORKSTREAM_INVALID", f"{path.name}: root must be an object"))
             continue
         if candidate.get("kind") != "research_workstream" and not re.fullmatch(r"[A-Z]", path.stem):
             continue
