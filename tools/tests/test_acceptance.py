@@ -21,6 +21,25 @@ def entry(**over):
     return e
 
 
+def report_review(*issues, author="Report author", visual_reviewer="Visual reviewer", decision_reviewer="Decision reviewer"):
+    value = review(*issues)
+    value.update({
+        "author": author,
+        "reviewer": visual_reviewer,
+        "role": "visual-design-reviewer",
+        "review_digest": "a" * 64,
+        "worst_page": {"page_id": "page-004", "finding": "The dense matrix is still readable, but has the weakest hierarchy in the report."},
+        "decision_review": {
+            "reviewer": decision_reviewer,
+            "role": "decision-maker-reviewer",
+            "review_digest": "b" * 64,
+            "answers": {key: "Page-specific answer with enough detail for an executive decision."
+                        for key in ("answer_visibility", "executive_summary", "argument_sufficiency", "actions", "ownership", "continue_stop_thresholds")},
+        },
+    })
+    return value
+
+
 class StatusRuleTest(unittest.TestCase):
     """设计 §8.3 状态规则：每个 failed / conditional 条件都有用例。"""
 
@@ -64,6 +83,36 @@ class StatusRuleTest(unittest.TestCase):
                         dispositions=[{"source": "tc_validate", "warning": "类别太多", "decision": "保留", "reason": "用户要看全部类别"}])
         self.assertEqual(self.status(**disposed)[0], "passed")
         self.assertEqual(self.status(fixture=True, upstream_checks=[{"name": "storyline check", "result": "skipped"}])[0], "passed")
+
+    def test_report_rejects_open_major_and_incomplete_final_reviews(self):
+        base = dict(kind="report", reviewer=report_review())
+        cases = {
+            "未解决的重要问题": report_review(("major", "第 3 页论据不足", False)),
+            "最差页": {**report_review(), "worst_page": None},
+            "六个高管问题": {**report_review(), "decision_review": {**report_review()["decision_review"], "answers": {}}},
+            "独立审查者与作者不能相同": report_review(author="Same person", visual_reviewer="Same person"),
+            "视觉与决策审查者必须独立": report_review(visual_reviewer="Same reviewer", decision_reviewer="Same reviewer"),
+        }
+        for message, reviewer in cases.items():
+            with self.subTest(message):
+                status, failures, _ = self.status(**{**base, "reviewer": reviewer})
+                self.assertEqual("failed", status)
+                self.assertIn(message, "；".join(failures))
+
+    def test_report_requires_digest_and_closure_evidence_for_resolved_major_issue(self):
+        issue = ("major", "第 3 页论据不足", True)
+        incomplete = report_review(issue)
+        status, failures, _ = self.status(kind="report", reviewer=incomplete)
+        self.assertEqual("failed", status)
+        self.assertIn("补救证据和一次复审", "；".join(failures))
+
+        complete = report_review(issue)
+        complete["issues"][0].update({
+            "remedy": "Rewrote the claim and added the missing comparison.",
+            "remedy_evidence": ["page-003"],
+            "re_review": {"reviewer": "Visual reviewer", "at": "2026-10-23T11:00:00+00:00", "digest": "c" * 64},
+        })
+        self.assertEqual("passed", self.status(kind="report", reviewer=complete)[0])
 
 
 class RecordTest(unittest.TestCase):

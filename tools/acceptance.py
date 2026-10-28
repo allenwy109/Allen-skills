@@ -69,13 +69,23 @@ def compute_status(entry, fixture, task=None):
     else:
         for i in reviewer.get("issues") or []:
             if i["resolved"]:
+                if entry.get("kind") == "report" and i["level"] in ("blocking", "major"):
+                    re_review = i.get("re_review") or {}
+                    if (not str(i.get("remedy") or "").strip() or not i.get("remedy_evidence")
+                            or not str(re_review.get("reviewer") or "").strip()
+                            or not str(re_review.get("at") or "").strip()
+                            or not _digest(re_review.get("digest"))):
+                        failures.append(f"已解决的{i['level']}问题 {i['id']} 缺少补救证据和一次复审")
                 continue
             if i["level"] == "blocking":
                 failures.append(f"未解决的阻塞问题 {i['id']}：{i['text']}")
             elif i["level"] == "major":
-                conditions.append(f"未解决的重要问题 {i['id']}：{i['text']}")
+                target = failures if entry.get("kind") == "report" else conditions
+                target.append(f"未解决的重要问题 {i['id']}：{i['text']}")
         if reviewer["type"] == "self":
             conditions.append("未经独立审查（只有作者按清单自审）")
+        elif entry.get("kind") == "report":
+            failures.extend(_report_review_failures(reviewer))
     if entry.get("downgraded"):
         conditions.append("未出正式成品，降级为 Markdown 交付")
     if task is not None:
@@ -87,6 +97,39 @@ def compute_status(entry, fixture, task=None):
                 failures.append(f"验收后文件被改动：{f['path']}")
     status = "failed" if failures else ("conditional" if conditions else "passed")
     return status, failures, conditions
+
+
+EXECUTIVE_QUESTIONS = {
+    "answer_visibility", "executive_summary", "argument_sufficiency",
+    "actions", "ownership", "continue_stop_thresholds",
+}
+
+
+def _digest(value):
+    return isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
+
+
+def _report_review_failures(reviewer):
+    failures = []
+    author = str(reviewer.get("author") or "").strip()
+    visual = str(reviewer.get("reviewer") or "").strip()
+    if reviewer.get("role") != "visual-design-reviewer" or not _digest(reviewer.get("review_digest")):
+        failures.append("视觉审查缺少独立角色身份或审查摘要")
+    worst = reviewer.get("worst_page") or {}
+    if not str(worst.get("page_id") or "").strip() or not str(worst.get("finding") or "").strip():
+        failures.append("视觉审查缺少最差页评估")
+    decision = reviewer.get("decision_review") or {}
+    decision_name = str(decision.get("reviewer") or "").strip()
+    answers = decision.get("answers") or {}
+    if (decision.get("role") != "decision-maker-reviewer" or not _digest(decision.get("review_digest"))
+            or set(answers) != EXECUTIVE_QUESTIONS
+            or any(not str(answers[key]).strip() for key in EXECUTIVE_QUESTIONS)):
+        failures.append("决策者审查未回答六个高管问题或缺少独立角色身份和审查摘要")
+    if author and author in {visual, decision_name}:
+        failures.append("独立审查者与作者不能相同")
+    if visual and visual == decision_name:
+        failures.append("视觉与决策审查者必须独立")
+    return failures
 
 
 class Acceptance:

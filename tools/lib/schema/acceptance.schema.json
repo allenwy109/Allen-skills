@@ -33,13 +33,36 @@
     "reviewer": {"type": "object", "fields": {
      "type": {"type": "string", "enum": "reviewer_type", "required": true},
      "reviewer": {"type": "string", "required": true},
+     "author": {"type": "string"},
+     "role": {"type": "string"},
+     "review_digest": {"type": "string"},
      "at": {"type": "datetime", "required": true},
      "conclusion": {"type": "string", "required": true},
      "issues": {"type": "array", "required": true, "items": {"type": "object", "fields": {
       "id": {"type": "string", "pattern": "^RV-[0-9]{4,}$", "required": true},
       "level": {"type": "string", "enum": "issue_level", "required": true},
       "text": {"type": "string", "required": true},
-      "resolved": {"type": "boolean", "required": true}}}}}},
+      "resolved": {"type": "boolean", "required": true},
+      "remedy": {"type": "string"},
+      "remedy_evidence": {"type": "array", "items": {"type": "string"}},
+      "re_review": {"type": "object", "fields": {
+       "reviewer": {"type": "string", "required": true},
+       "at": {"type": "datetime", "required": true},
+       "digest": {"type": "string", "required": true}}}}}},
+     "worst_page": {"type": "object", "fields": {
+      "page_id": {"type": "string", "required": true},
+      "finding": {"type": "string", "required": true}}},
+     "decision_review": {"type": "object", "fields": {
+      "reviewer": {"type": "string", "required": true},
+      "role": {"type": "string", "required": true},
+      "review_digest": {"type": "string", "required": true},
+      "answers": {"type": "object", "required": true, "fields": {
+       "answer_visibility": {"type": "string", "required": true},
+       "executive_summary": {"type": "string", "required": true},
+       "argument_sufficiency": {"type": "string", "required": true},
+       "actions": {"type": "string", "required": true},
+       "ownership": {"type": "string", "required": true},
+       "continue_stop_thresholds": {"type": "string", "required": true}}}}}}},
     "dispositions": {"type": "array", "items": {"type": "object", "fields": {
      "source": {"type": "string", "required": true},
      "warning": {"type": "string", "required": true},

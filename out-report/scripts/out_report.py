@@ -410,7 +410,7 @@ def _validate_author(review, regression, artifacts):
         raise StepError("REPORT_REVIEW_INVALID: author review must have a timezone-aware timestamp, accepted disposition with a specific reason, and bind the current artifact, pagination, baseline, candidate, and difference digests")
 
 
-def _validate_independent(review, work, artifacts):
+def _validate_independent(review, work, artifacts, author_reviewer=None):
     pagination = read_json(work / "build/pagination-manifest.json")
     page_ids = [page["id"] for page in pagination["pages"]]
     try:
@@ -420,10 +420,19 @@ def _validate_independent(review, work, artifacts):
     observations = review.get("observations")
     sheets = review.get("chapter_contact_sheets")
     headline = review.get("headline_chain") or {}
+    worst = review.get("worst_page") or {}
+    decision = review.get("decision_review") or {}
+    executive_questions = {
+        "answer_visibility", "executive_summary", "argument_sufficiency",
+        "actions", "ownership", "continue_stop_thresholds",
+    }
+    answers = decision.get("answers") or {}
     observed_ids = [item.get("page_id") for item in observations] if isinstance(observations, list) else []
     sheet_ids = [page for sheet in sheets for page in sheet.get("page_ids", [])] if isinstance(sheets, list) else []
     required = (
         review.get("type") == "independent" and isinstance(review.get("reviewer"), str) and review["reviewer"].strip()
+        and review.get("role") == "visual-design-reviewer" and _valid_digest(review.get("review_digest"))
+        and review.get("reviewer") != author_reviewer
         and reviewed_at is not None and reviewed_at.tzinfo is not None and useful_observation(review.get("conclusion"))
         and review.get("artifactDigest") == artifacts["artifactDigest"]
         and review.get("paginationDigest") == artifacts["paginationDigest"]
@@ -432,6 +441,12 @@ def _validate_independent(review, work, artifacts):
         and isinstance(sheets, list) and sheets and len(sheet_ids) == len(page_ids) and set(sheet_ids) == set(page_ids)
         and all(useful_observation(sheet.get("observation")) for sheet in sheets)
         and headline.get("status") == "reviewed" and useful_observation(headline.get("observation"))
+        and worst.get("page_id") in page_ids and useful_observation(worst.get("finding"))
+        and decision.get("role") == "decision-maker-reviewer" and _valid_digest(decision.get("review_digest"))
+        and isinstance(decision.get("reviewer"), str) and decision["reviewer"].strip()
+        and decision.get("reviewer") != author_reviewer
+        and decision.get("reviewer") != review.get("reviewer")
+        and set(answers) == executive_questions and all(useful_observation(answers[key]) for key in executive_questions)
         and isinstance(observations, list) and observed_ids == page_ids
         and all(set(item.get("media") or []) == {"html", "pdf"} and "100%" in (item.get("scale") or [])
                 and bool({"contact-sheet", "thumbnail"} & set(item.get("scale") or []))
@@ -439,7 +454,11 @@ def _validate_independent(review, work, artifacts):
         and isinstance(review.get("issues"), list) and not any(not issue.get("resolved", False) for issue in review["issues"])
     )
     if not required:
-        raise StepError("REPORT_REVIEW_INVALID: independent review must bind artifacts and pagination, cover every page in HTML/PDF at 100% and contact-sheet/thumbnail scales, review chapter sheets and headline chain, and record specific observations/reasons with no unresolved issues")
+        raise StepError("REPORT_REVIEW_INVALID: independent reviewer must differ from the author; visual review must bind review digests, cover every page and the worst page with concrete aesthetic findings; decision review must answer all six executive questions; blocking/major issues require remedy evidence and one re-review")
+
+
+def _valid_digest(value):
+    return isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
 
 
 def cmd_review(args):
@@ -470,7 +489,8 @@ def cmd_review(args):
             return 1
     else:
         try:
-            _validate_independent(review, work, artifacts)
+            author = read_json(work / "author-review.json") if (work / "author-review.json").is_file() else {}
+            _validate_independent(review, work, artifacts, author.get("reviewer"))
         except StepError as error:
             print(str(error), file=sys.stderr)
             return 1
@@ -531,7 +551,8 @@ def cmd_package(args):
     try:
         artifacts = verify_artifacts(work)
         _validate_author(read_json(work / "author-review.json"), read_json(work / "visual-regression.json"), artifacts)
-        _validate_independent(read_json(work / "independent-review.json"), work, artifacts)
+        _validate_independent(read_json(work / "independent-review.json"), work, artifacts,
+                              read_json(work / "author-review.json").get("reviewer"))
         qa = _qa(work)
     except StepError as error:
         print(str(error), file=sys.stderr)
@@ -564,7 +585,8 @@ def cmd_package(args):
         {"name": "independent-review", "result": "passed", "detail": read_json(work / "independent-review.json")["reviewer"]},
     ]
     independent = read_json(work / "independent-review.json")
-    acceptance_reviewer = {key: independent[key] for key in ("type", "reviewer", "at", "conclusion", "issues")}
+    acceptance_reviewer = {key: independent[key] for key in ("type", "reviewer", "role", "review_digest", "at", "conclusion", "issues", "worst_page", "decision_review")}
+    acceptance_reviewer["author"] = read_json(work / "author-review.json")["reviewer"]
     entry = Acceptance(task).record({
         "id": f"report-{args.slug}", "kind": "report", "title": read_json(story_dir(task) / "report.json")["metadata"]["title"],
         "files": [str((out / name).relative_to(task)) for name in sources], "upstream_checks": checks, "reviewer": acceptance_reviewer,

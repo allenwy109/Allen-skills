@@ -201,6 +201,7 @@ class A4OutReportPipelineTest(unittest.TestCase):
         independent = self.work / "independent-review.json"
         independent.write_text(json.dumps({
             "type": "independent", "reviewer": "Synthetic independent reviewer",
+            "role": "visual-design-reviewer", "review_digest": "a" * 64,
             "at": "2026-10-27T12:05:00+10:30", "conclusion": "Synthetic fixture accepted", "issues": [],
             "artifactDigest": artifact_digest, "paginationDigest": pagination_digest,
             "page_ids": [page["id"] for page in json.loads((self.work / "build/pagination-manifest.json").read_text())["pages"]],
@@ -208,6 +209,11 @@ class A4OutReportPipelineTest(unittest.TestCase):
             "chapter_contact_sheets": [{"chapter": "whole-book", "page_ids": [page["id"] for page in json.loads((self.work / "build/pagination-manifest.json").read_text())["pages"]],
                                          "observation": "The booklet rhythm and chapter transitions were inspected as a complete sequence."}],
             "headline_chain": {"status": "reviewed", "observation": "The headline sequence forms a coherent evidence-to-decision argument."},
+            "worst_page": {"page_id": "page-004", "finding": "The comparison matrix is the densest page and its hierarchy remains legible in both final media."},
+            "decision_review": {"reviewer": "Synthetic decision maker", "role": "decision-maker-reviewer",
+                                "review_digest": "b" * 64,
+                                "answers": {key: "The PDF gives a concrete, page-specific answer that supports an executive decision."
+                                            for key in ("answer_visibility", "executive_summary", "argument_sufficiency", "actions", "ownership", "continue_stop_thresholds")}},
             "observations": [{"page_id": page["id"], "media": ["html", "pdf"], "scale": ["100%", "contact-sheet"],
                               "observation": f"Page {page['id']} hierarchy, evidence and footer were inspected in both media.",
                               "reason": "No clipping, semantic omission or misleading emphasis was observed."}
@@ -222,6 +228,21 @@ class A4OutReportPipelineTest(unittest.TestCase):
         invalid_result = run("review", self.task, "independent", invalid)
         self.assertEqual(1, invalid_result.returncode)
         self.assertIn("REPORT_REVIEW_INVALID", invalid_result.stderr)
+        self.command("review", self.task, "independent", independent)
+
+        valid_independent = json.loads(independent.read_text(encoding="utf-8"))
+        for message, mutation in (
+            ("worst page", lambda value: value.pop("worst_page")),
+            ("six executive questions", lambda value: value["decision_review"].update(answers={})),
+            ("independent reviewer", lambda value: value.update(reviewer="Synthetic author")),
+        ):
+            changed = json.loads(json.dumps(valid_independent))
+            mutation(changed)
+            independent.write_text(json.dumps(changed), encoding="utf-8")
+            rejected = run("review", self.task, "independent", independent)
+            self.assertEqual(1, rejected.returncode)
+            self.assertIn(message, rejected.stderr)
+        independent.write_text(json.dumps(valid_independent), encoding="utf-8")
         self.command("review", self.task, "independent", independent)
 
         valid_author = json.loads(author.read_text(encoding="utf-8"))
