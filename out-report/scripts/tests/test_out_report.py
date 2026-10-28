@@ -113,6 +113,79 @@ class A4OutReportPipelineTest(unittest.TestCase):
             self.assertEqual("专业 GPU 云", comparison["payload"]["alternatives"][0]["name"])
             self.assertEqual([], references["payload"]["blocks"])
 
+    def test_render_document_routes_native_exhibits_and_ignores_hidden_package_bindings_for_capacity(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            task = make_task(temporary)
+            slides = json.loads((task / "07_storyline/slides.json").read_text(encoding="utf-8"))
+            report, _ = out_report.to_report.build(task, slides)
+            block = report["sections"][0]["blocks"][0]
+            block["content"].update({
+                "semantic_type": "competitor-matrix",
+                "form": "html.table",
+                "exhibit": {
+                    "kind": "competitor-matrix", "family": "matrix", "form": "html.table",
+                    "selected_layout": "competitor-matrix", "capacity_state": "within-soft",
+                    "columns": ["价格", "可靠性"],
+                    "rows": [{"label": "GPU 市场", "values": ["按小时", "待验证"]}],
+                },
+            })
+            block["source_ids"] = [f"M{index:03d}" for index in range(1, 8)]
+            block["source_bindings"] = [
+                {"source_id": source_id, "locators": [f"§{index}"]}
+                for index, source_id in enumerate(block["source_ids"], 1)
+            ]
+
+            document = out_report.render_document(report, task)
+            component = next(item for item in document["components"]
+                             if any(candidate["id"] == block["id"] for candidate in item["payload"].get("blocks", [])))
+            self.assertEqual("native-exhibit", component["kind"])
+            self.assertNotIn("evidence_groups", component["payload"])
+
+            report["metadata"]["bibliography_policy"] = "full"
+            full = out_report.render_document(report, task)
+            self.assertTrue(any(item["kind"] == "references-appendix" for item in full["components"]))
+
+    def test_render_document_rejects_unknown_or_incomplete_semantic_exhibits(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            task = make_task(temporary)
+            slides = json.loads((task / "07_storyline/slides.json").read_text(encoding="utf-8"))
+            report, _ = out_report.to_report.build(task, slides)
+            block = report["sections"][0]["blocks"][0]
+            block["content"]["semantic_type"] = "unknown-exhibit"
+            with self.assertRaises(out_report.to_report.ReportError) as unknown:
+                out_report.render_document(report, task)
+            self.assertEqual("REPORT_EXHIBIT_MISSING", unknown.exception.code)
+
+            block["content"]["semantic_type"] = "decision-tree"
+            block["content"].pop("exhibit", None)
+            with self.assertRaises(out_report.to_report.ReportError) as incomplete:
+                out_report.render_document(report, task)
+            self.assertEqual("REPORT_EXHIBIT_MISSING", incomplete.exception.code)
+
+    def test_evidence_package_point_evidence_capacity_uses_compact_client_projection(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            task = make_task(temporary)
+            slides = json.loads((task / "07_storyline/slides.json").read_text(encoding="utf-8"))
+            report, _ = out_report.to_report.build(task, slides)
+            block = next(candidate for section in report["sections"] for candidate in section["blocks"]
+                         if candidate["content"].get("semantic_type") == "point_evidence" and candidate["kind"] != "chart")
+            block["source_bindings"] = [
+                {"source_id": f"M{index:03d}", "locators": [f"§{index}"]}
+                for index in range(1, 8)
+            ]
+            block["source_ids"] = [item["source_id"] for item in block["source_bindings"]]
+
+            compact = out_report.render_document(report, task)
+            component = next(item for item in compact["components"]
+                             if any(candidate["id"] == block["id"] for candidate in item["payload"].get("blocks", [])))
+            self.assertEqual(1, len(component["payload"]["evidence_groups"]))
+
+            report["metadata"]["bibliography_policy"] = "full"
+            full = out_report.render_document(report, task)
+            component = next(item for item in full["components"]
+                             if any(candidate["id"] == block["id"] for candidate in item["payload"].get("blocks", [])))
+            self.assertEqual(7, len(component["payload"]["evidence_groups"]))
+
     def test_render_document_allows_executive_summary_without_answer_claims(self):
         with tempfile.TemporaryDirectory() as temporary:
             task = make_task(temporary)

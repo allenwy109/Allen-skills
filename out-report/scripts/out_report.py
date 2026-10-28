@@ -16,6 +16,12 @@ import zipfile
 
 SKILL_DIR = pathlib.Path(__file__).resolve().parents[1]
 A4_DIR = SKILL_DIR / "scripts" / "a4"
+A4_LAYOUT_CATALOG = json.loads((SKILL_DIR / "assets" / "a4-layout-catalog.json").read_text(encoding="utf-8"))
+NATIVE_EXHIBIT_KINDS = {
+    semantic: item["kind"]
+    for item in A4_LAYOUT_CATALOG["exhibits"]
+    for semantic in item["semantic_types"]
+}
 
 
 def _bootstrap():
@@ -128,6 +134,14 @@ def _component_for_block(block, section, index, report, metrics):
     source_groups = [{"source_id": binding["source_id"], "locators": binding["locators"]}
                      for binding in block["source_bindings"]]
     semantic_type = block["content"].get("semantic_type")
+    exhibit = block["content"].get("exhibit")
+    if exhibit:
+        expected_kind = NATIVE_EXHIBIT_KINDS.get(semantic_type)
+        if not expected_kind:
+            raise to_report.ReportError("REPORT_EXHIBIT_MISSING", f"block {block['id']} 的 {semantic_type} 无法路由")
+        if exhibit.get("kind") != expected_kind:
+            raise to_report.ReportError("REPORT_EXHIBIT_MISMATCH", f"block {block['id']} 声明 {semantic_type} 但提供 {exhibit.get('kind')}")
+        return {"kind": "native-exhibit", "payload": {**base, "layout_id": "full-evidence", "exhibits": [exhibit]}}
     if semantic_type == "pain-demand" and block["content"].get("pain_groups"):
         return {"kind": "pain-demand", "payload": {**base, "layout_id": "full-evidence",
                                                           "pain_groups": block["content"]["pain_groups"]}}
@@ -136,6 +150,9 @@ def _component_for_block(block, section, index, report, metrics):
         return {"kind": "comparison", "payload": {**base, "layout_id": "comparison-columns",
                                                          "criteria": comparison["criteria"],
                                                          "alternatives": comparison["alternatives"]}}
+    if semantic_type != "point_evidence":
+        raise to_report.ReportError("REPORT_EXHIBIT_MISSING", f"block {block['id']} 的 {semantic_type or '<missing>'} 缺少结构化 exhibit")
+    client_source_groups = source_groups if report["metadata"].get("bibliography_policy") == "full" else source_groups[:1]
     if block["kind"] == "chart":
         return {"kind": "data-chart", "payload": {**base, "layout_id": "full-evidence", "unit": block["content"].get("subtitle") or "见来源口径",
                                                         "period": report["metadata"].get("date") or "报告期", "items": [block["id"]]}}
@@ -143,9 +160,9 @@ def _component_for_block(block, section, index, report, metrics):
         block["kind"] = "text"
         base["blocks"] = [block]
         return {"kind": "claim-evidence", "payload": {**base, "layout_id": "full-evidence", "claim": block["content"]["purpose"],
-                                                          "evidence_groups": source_groups}}
+                                                          "evidence_groups": client_source_groups}}
     return {"kind": "claim-evidence", "payload": {**base, "layout_id": "full-evidence", "claim": block["content"]["purpose"],
-                                                          "evidence_groups": source_groups}}
+                                                          "evidence_groups": client_source_groups}}
 
 
 def render_document(report, task):

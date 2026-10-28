@@ -63,6 +63,13 @@ def component_payload(kind, contract):
         "layout_id": contract["allowed_layouts"][0],
         "blocks": [block(permitted_kind)],
     }
+    if kind == "native-exhibit":
+        payload["blocks"][0]["content"].update({
+            "semantic_type": "answer-and-reasons",
+            "exhibit": {"kind": "answer-and-reasons", "family": "point_evidence", "form": "html.text",
+                        "answer": "先验证", "reasons": ["购买信号"]},
+        })
+        payload["exhibits"] = [payload["blocks"][0]["content"]["exhibit"]]
     required = {
         "cover": {"title_groups": [{"title": "标题"}]},
         "toc": {"entries": [{"title": "第一章", "destination": "section-1"}]},
@@ -344,13 +351,13 @@ class A4ComponentTest(unittest.TestCase):
         self.assertNotIn("https://", html)
         self.assertNotIn("source-strip", html)
 
-    def test_twelve_semantic_components_are_frozen_and_render(self):
+    def test_semantic_components_are_frozen_and_render(self):
         result = run_node("component.APPROVED_COMPONENT_KINDS")
         self.assertTrue(result["ok"])
         kinds = result["value"]
         self.assertEqual([
             "cover", "toc", "executive-summary", "section-title",
-            "claim-evidence", "data-chart", "comparison", "pain-demand",
+            "native-exhibit", "claim-evidence", "data-chart", "comparison", "pain-demand",
             "market-trend", "risk-boundary", "recommendation-roadmap",
             "references-appendix",
         ], kinds)

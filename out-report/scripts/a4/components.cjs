@@ -12,6 +12,7 @@ const APPROVED_COMPONENT_KINDS = Object.freeze([
   'toc',
   'executive-summary',
   'section-title',
+  'native-exhibit',
   'claim-evidence',
   'data-chart',
   'comparison',
@@ -57,6 +58,11 @@ const COMPONENT_CONTRACTS = Object.freeze({
     ['text'], ['chapter number', 'chapter claim', 'reading cue'], ['overview-detail'],
     { soft: 1, hard: 1, unit: 'chapter claims', field: 'chapter_claims' }, 'Never split a chapter opener.',
     ['More than one chapter claim', 'Evidence table on a chapter opener'], ['title', 'chapter_claims'], ['single_chapter_claim'],
+  ),
+  'native-exhibit': componentContract(
+    ['text', 'table', 'chart', 'metric'], ['decision claim', 'native exhibit', 'qualification', 'compact sources'], ['full-evidence'],
+    { soft: 1, hard: 1, unit: 'native exhibits', field: 'exhibits' }, 'Keep the native exhibit intact; move supporting detail to another component.',
+    ['Missing structured exhibit', 'More than one exhibit in a component'], ['blocks', 'exhibits'], ['native_exhibit_block'],
   ),
   'claim-evidence': componentContract(
     ['text', 'table', 'chart'], ['claim', 'primary evidence', 'limitation', 'source'], ['full-evidence', 'prose-aside'],
@@ -376,6 +382,11 @@ const COMPONENT_PREDICATES = Object.freeze({
   },
   single_chapter_claim(payload) {
     return present(payload.title) && Array.isArray(payload.chapter_claims) && payload.chapter_claims.length === 1 && present(payload.chapter_claims[0]);
+  },
+  native_exhibit_block(payload) {
+    return Array.isArray(payload.blocks) && payload.blocks.length === 1 && Array.isArray(payload.exhibits) && payload.exhibits.length === 1 &&
+      payload.blocks.every(block => block && block.content && block.content.semantic_type !== 'point_evidence' && block.content.exhibit) &&
+      payload.blocks[0].content.exhibit.kind === payload.exhibits[0].kind;
   },
   evidence_source_locator(payload) {
     return present(payload.claim) && Array.isArray(payload.evidence_groups) && payload.evidence_groups.length > 0 && payload.evidence_groups.every(group =>
