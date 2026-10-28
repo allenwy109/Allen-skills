@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "scenarioManifest": {
     "path": "tests/report-output-cases.json",
-    "sha256": "7338683c34096718e70119d30a14e2de8b4e935958a7597d2ea6a676fee8ae88"
+    "sha256": "eddb75f08a294dbc61b2e8ce8b6f40d43ab91c4230185734fc58fc0e37d2d9ce"
   },
   "scenes": [
     "创业点子评估",
@@ -16,9 +16,9 @@
   "negativeCases": 6,
   "missingReviewFailureClosed": true,
   "verification": {
-    "scenarioE2e": {"result": "passed", "tests": 8},
-    "outDeck": {"result": "passed", "tests": 24},
-    "outReport": {"result": "passed", "tests": 72},
+    "scenarioE2e": {"result": "passed", "tests": 10},
+    "outDeck": {"result": "passed", "tests": 25},
+    "outReport": {"result": "passed", "tests": 133},
     "fullSelftest": {"result": "passed"},
     "repositoryValidate": {"result": "passed", "errors": 0, "preExistingHints": 3}
   }

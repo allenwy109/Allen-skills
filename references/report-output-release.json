@@ -3,7 +3,7 @@
   "schema": "references/report-output-release.schema.json",
   "status": "approved",
   "releasedAt": "2026-10-27T15:28:08+10:30",
-  "implementationHead": "79e90cad0abeb7042ba1d0b27efa1d78d35cd4b7",
+  "implementationHead": "188627cafc44ace4badc44d8f236cf1c36bafad5",
   "provenance": {
     "upstreamRepository": "https://github.com/ZeroxZhang/zerox-skills.git",
     "upstreamCommit": "ee1f980c8dd7c53408e1a05a084229e6ec03c660",
@@ -44,7 +44,7 @@
     },
     "scenarioTests": {
       "path": "references/release-evidence/scenario-tests.json",
-      "sha256": "70a28d5207a1665842a5342af15501cc5c52722142f70ee7ae4050f4f33a8ab7"
+      "sha256": "0f1dbbf5869144acbd7029b2d66c60a9944a6fdf9b0e88ffe264bb75c4a6deff"
     }
   },
   "a4": {
@@ -139,7 +139,7 @@
   },
   "scenarios": {
     "manifest": "tests/report-output-cases.json",
-    "manifestSha256": "7338683c34096718e70119d30a14e2de8b4e935958a7597d2ea6a676fee8ae88",
+    "manifestSha256": "eddb75f08a294dbc61b2e8ce8b6f40d43ab91c4230185734fc58fc0e37d2d9ce",
     "positiveCases": 6,
     "negativeCases": 6,
     "missingReviewFailureClosed": true,
@@ -163,14 +163,14 @@
         "summary": "133/133"
       },
       {
-        "command": "ALLEN_RUNTIME=${ALLEN_RUNTIME:?set installed runtime} python3 -m unittest discover -s tools/tests/e2e -t tools/tests/e2e",
+        "command": "ALLEN_RUNTIME=${ALLEN_RUNTIME:?set installed runtime} python3 -m unittest discover -s tools/e2e -t .",
         "result": "passed",
-        "summary": "7/7 smoke and consulting paths"
+        "summary": "10/10 fixed report-output, smoke, and consulting paths"
       },
       {
         "command": "ALLEN_RUNTIME=${ALLEN_RUNTIME:?set installed runtime} ./tools/selftest.sh --quick",
         "result": "passed",
-        "summary": "tools 299; core-diligence 44; core-intake 16; core-research 48; core-storyline 32; out-chart 5; out-deck 25; out-poster 4; out-report 133"
+        "summary": "tools 302; core-diligence 44; core-intake 16; core-research 48; core-storyline 32; out-chart 5; out-deck 25; out-poster 4; out-report 133"
       },
       {
         "command": "python3 tools/validate.py",
