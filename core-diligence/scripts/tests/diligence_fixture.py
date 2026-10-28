@@ -248,11 +248,14 @@ def write_split(task):
                 "density": {"profile": "balanced", "space_intent": "主展品占主要区域，辅助文字写清口径和限制",
                             "evidence_units": [{"role": p["role"], "purpose": p["purpose"]} for p in panels]},
                 "visual_intent": {"relationship": panels[0]["relationship"], "form": panels[0]["form"], "layout": "custom",
-                                  "reading_path": "标题 → 主展品 → 辅助说明", "layout_reason": "主展品在左，辅助说明在右"},
+                                  "reading_path": "标题 → 主展品 → 辅助说明", "layout_reason": "主展品在左，辅助说明在右",
+                                  "repetition_approved": True,
+                                  "repetition_reason": "虚构尽调夹具按主题逐页保留主证据加边界说明的共同结构，以验证跨主题阅读复述的一致性"},
                 "panels": panels, "relations": [{"id": f"pair-{n}", "kind": relation, "panel_refs": [panels[0]["id"], panels[1]["id"]],
                                                  "reason": "辅助说明限定主展品能支持的结论范围"}], "block_ids": blocks}
 
     def panel(pid, role, slot, purpose, claims, form, rel, reason, **kw):
+        kw.setdefault("semantic_type", "point_evidence")
         return {"id": pid, "role": role, "slot": slot, "span": 2 if role == "primary" else 1, "purpose": purpose, "claim_refs": claims,
                 "form": form, "relationship": rel, "reason": reason, **kw}
     doc = {"deck": {"title": "云帆智造公司研究", "kind": "reading", "language": "zh-CN", "audience": "需要了解这家公司的决策者", "decision": "是否继续深入研究",
@@ -260,12 +263,19 @@ def write_split(task):
                     "brief": {"question": "云帆智造是一家什么公司、经营得怎样？", "purpose": "research", "scope": "云帆智造合并口径", "period": "2019–2026",
                               "baseline": "2024 年收入", "constraints": "没有访谈和现场核查", "success_criteria": "读者能回答 11 个主题问题并看到补齐路径"},
                     "answer_claim_refs": ["cl-0002"],
+                    "decision_structure": {
+                        "decision_level": "有条件继续深入研究",
+                        "decisive_reasons": ["收入增长已有披露", "产品与收费模式可以描述", "客户续约和集中度仍待核实"],
+                        "largest_upside": "设备销售叠加软件订阅可能形成持续收入",
+                        "largest_risk": "客户与续约数据缺失，增长质量无法判断",
+                        "immediate_actions": ["取得客户名单、续约记录和收入集中度"],
+                        "thresholds": {"continue": "客户与续约记录支持收入可持续性", "stop": "关键客户或续约证据无法取得"}},
                     "cover": {"subtitle": "公司研究 · 虚构样稿", "producer": "Allen 分析系统", "date": "2026-10-20", "version": "v1", "project": "云帆智造", "closing_text": "谢谢"}},
            "slides": [
                {"page": 1, "type": "cover", "action_title": "云帆智造公司研究", "page_role": "cover", "story_beat": "context"},
                page(2, "2019 年在上海成立的视觉质检设备商", "01 公司身份", "analysis", "context", "timeline", ["cl-0001"], [],
                     [panel("timeline", "primary", "main", "公司成立和第一代产品的时间顺序", ["cl-0001"], "svg.custom", "process", "时间线按日期排开成立和首款产品，最能表达先后顺序",
-                           visual="公司时间线", semantic_type="flow"),
+                           visual="公司时间线"),
                      panel("identity", "support", "aside", "说明研究对象就是这家法人", ["cl-0001"], "html.text", "text", "主体边界是文字判断，用短段落说明法人与品牌的关系")],
                     "公司 2019 年注册成立，品牌与法人一致", "读者知道研究对象是谁、从哪里来",
                     ["company-profile-1", "company-profile-2", "company-profile-3"], "boundary"),
@@ -277,7 +287,7 @@ def write_split(task):
                page(4, "一次性卖设备、按年收软件费，收入两年增长过半", "03 商业模式与财务", "analysis", "diagnosis", "data_chart",
                     ["cl-0007", "cl-0002", "cl-0003"], ["m-0001", "m-0002", "m-0003"],
                     [panel("bars", "primary", "main", "两年营业收入同量尺比较", ["cl-0002"], "svg.custom", "comparison", "两期收入共用零基线，柱形最直接比较绝对规模",
-                           visual="两年收入柱形", semantic_type="comparison"),
+                           visual="两年收入柱形"),
                      panel("model", "support", "aside", "收费方式、毛利水平和未披露的拆分", ["cl-0007", "cl-0003"], "html.text", "text", "收费机制和毛利口径是文字判断，用短段落说明边界")],
                     "收入从 3600 万元增至 5600 万元", "读者知道公司怎样赚钱、规模多大",
                     ["business-model-1", "business-model-2", "business-model-3", "business-model-4", "financial-performance-1", "financial-performance-2"], "boundary"),

@@ -17,7 +17,7 @@ sys.path.insert(0, str(HERE))
 import diligence_fixture as F  # noqa: E402
 import dcontent  # noqa: E402
 import diligence  # noqa: E402
-from tools.acceptance import Acceptance  # noqa: E402
+from tools.acceptance import Acceptance, review_digest  # noqa: E402
 from tools.bridge import diligence_to_manuscript as B  # noqa: E402
 from tools.lib.ledger import Ledger  # noqa: E402
 from tools.tests import fixtures as TF  # noqa: E402
@@ -145,16 +145,25 @@ class DiligenceReportPipelineTest(unittest.TestCase):
                                       "paginationDigest": artifacts["paginationDigest"]}, ensure_ascii=False), encoding="utf-8")
         run("review", task, "author", author)
         independent = d / "independent-review.json"
-        independent.write_text(json.dumps({"type": "independent", "reviewer": "成品审查员（合成）", "at": "2026-10-21T10:00:00+08:00",
-                                           "conclusion": "合成夹具的整册证据、层级和阅读顺序已经逐页复核。", "issues": [],
-                                           "artifactDigest": artifacts["artifactDigest"], "paginationDigest": artifacts["paginationDigest"],
-                                           "page_ids": pages, "media": ["html", "pdf"], "scales": ["100%", "thumbnail"],
-                                           "chapter_contact_sheets": [{"chapter": "whole-book", "page_ids": pages,
-                                                                       "observation": "全册缩略图的章节节奏、留白和证据密度已经按顺序检查。"}],
-                                           "headline_chain": {"status": "reviewed", "observation": "标题链从公司身份、经营表现逐步收束到风险与补齐动作。"},
-                                           "observations": [{"page_id": page, "media": ["html", "pdf"], "scale": ["100%", "thumbnail"],
-                                                             "observation": f"{page} 的标题、证据、限制和来源已在两种媒介逐项查看。",
-                                                             "reason": "页面信息完整，未发现裁切、遗漏或误导性视觉强调。"} for page in pages]}, ensure_ascii=False), encoding="utf-8")
+        decision = {"reviewer": "决策审查员（合成）", "role": "decision-maker-reviewer", "at": "2026-10-21T09:55:00+08:00",
+                    "answers": {key: "最终 PDF 给出了具体、可执行且有证据边界的答案。"
+                                for key in ("answer_visibility", "executive_summary", "argument_sufficiency", "actions", "ownership", "continue_stop_thresholds")}}
+        decision["review_digest"] = review_digest(decision)
+        independent_value = {"type": "independent", "reviewer": "成品审查员（合成）", "role": "visual-design-reviewer",
+                             "at": "2026-10-21T10:00:00+08:00",
+                             "conclusion": "合成夹具的整册证据、层级和阅读顺序已经逐页复核。", "issues": [],
+                             "artifactDigest": artifacts["artifactDigest"], "paginationDigest": artifacts["paginationDigest"],
+                             "page_ids": pages, "media": ["html", "pdf"], "scales": ["100%", "contact-sheet"],
+                             "chapter_contact_sheets": [{"chapter": "whole-book", "page_ids": pages,
+                                                         "observation": "全册缩略图的章节节奏、留白和证据密度已经按顺序检查。"}],
+                             "headline_chain": {"status": "reviewed", "observation": "标题链从公司身份、经营表现逐步收束到风险与补齐动作。"},
+                             "worst_page": {"page_id": pages[-1], "finding": "最密页面仍保持可读，证据和限制没有相互遮挡。"},
+                             "decision_review": decision,
+                             "observations": [{"page_id": page, "media": ["html", "pdf"], "scale": ["100%", "contact-sheet"],
+                                               "observation": f"{page} 的标题、证据、限制和来源已在两种媒介逐项查看。",
+                                               "reason": "页面信息完整，未发现裁切、遗漏或误导性视觉强调。"} for page in pages]}
+        independent_value["review_digest"] = review_digest(independent_value)
+        independent.write_text(json.dumps(independent_value, ensure_ascii=False), encoding="utf-8")
         run("review", task, "independent", independent)
         cls.finish = subprocess.run([sys.executable, str(OUT_REPORT), "package", str(task)], capture_output=True, text=True)
 
@@ -177,16 +186,10 @@ class DiligenceReportPipelineTest(unittest.TestCase):
         self.assertEqual([c["result"] for c in e["upstream_checks"]], ["passed"] * 10, self.finish.stdout)
         for name in ("尽调检查（diligence check）", "尽调内容契约（拆页后复核、22 条人工清单）", "尽调完成状态"):
             self.assertIn(name, names)
-        html = next((self.task / "08_deliverables" / "report").glob("*.html")).read_text(encoding="utf-8")
+        html = next((self.task / "08_deliverables" / "client-report").glob("*.html")).read_text(encoding="utf-8")
         self.assertIn("5600 万元", html)
 
     def test_independent_review_makes_it_passed(self):
-        verdict = self.task / "verdict.json"
-        verdict.write_text(json.dumps({"type": "independent", "reviewer": "成品审查员（合成）", "at": "2026-10-21T10:00:00+08:00",
-                                       "conclusion": "合成结论", "issues": []}, ensure_ascii=False), encoding="utf-8")
-        p = subprocess.run([sys.executable, str(REPO / "tools" / "acceptance.py"), str(self.task), "review", "report-main", str(verdict)],
-                           capture_output=True, text=True)
-        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
         e = next(x for x in Acceptance(self.task).load()["deliverables"] if x["id"] == "report-main")
         self.assertEqual(e["status"], "passed")
 
