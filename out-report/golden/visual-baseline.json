@@ -49,6 +49,12 @@
         "p15-p16 references",
         "whole-book contact sheet"
       ]
+    },
+    {
+      "type": "policy-classification",
+      "commit": "083f51b",
+      "candidateDigest": "f2f2c00c81b58e7043932e1b6fc85ad90df6ebff3e454a5c2f370b823baaf841",
+      "reason": "Golden booklet is the explicit full-bibliography variant; metadata-only classification leaves the approved pixels unchanged"
     }
   ]
 }

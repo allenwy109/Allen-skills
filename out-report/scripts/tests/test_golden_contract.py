@@ -95,9 +95,14 @@ class GoldenReportContractTest(unittest.TestCase):
         self.assertRegex(approval["approvedAt"], r"^2026-10-27T\d{2}:\d{2}:\d{2}\+10:30$")
         self.assertEqual(approval["changeReason"], "用户确认：这个排版结构我认可")
         self.assertRegex(approval["candidateDigest"], r"^[0-9a-f]{64}$")
-        self.assertEqual([event["type"] for event in self.baseline["auditTrail"]], ["approval", "revision", "revision", "approval", "baseline-update"])
-        self.assertEqual(self.baseline["auditTrail"][-1]["reason"], self.baseline["changeReason"])
-        self.assertEqual(self.baseline["auditTrail"][-1]["observedPages"], ["p02-p14 body markers", "p12 densest", "p15-p16 references", "whole-book contact sheet"])
+        self.assertEqual([event["type"] for event in self.baseline["auditTrail"]],
+                         ["approval", "revision", "revision", "approval", "baseline-update", "policy-classification"])
+        approval = self.baseline["auditTrail"][-2]
+        classification = self.baseline["auditTrail"][-1]
+        self.assertEqual(approval["reason"], self.baseline["changeReason"])
+        self.assertEqual(approval["observedPages"], ["p02-p14 body markers", "p12 densest", "p15-p16 references", "whole-book contact sheet"])
+        self.assertEqual(classification["candidateDigest"], self.baseline["candidateDigest"])
+        self.assertIn("explicit full-bibliography", classification["reason"])
         self.assertNotIn("artifacts", self.baseline); self.assertNotIn("environment", self.baseline)
 
     def test_source_is_script_free_and_declares_a4_readability(self):
