@@ -88,8 +88,13 @@ def validate_project(task):
             errors.append(("HANDOFF_INVALID", f"{path.name}: root must be an object"))
             continue
         handoffs.append(handoff)
-        if handoff.get("line_id"):
-            handoffs_by_line[handoff["line_id"]] = handoff
+        line_id = handoff.get("line_id")
+        if line_id and path.stem != line_id:
+            errors.append(("HANDOFF_INVALID", f"{path.name}: filename must match line_id {line_id}"))
+        if line_id in handoffs_by_line:
+            errors.append(("HANDOFF_DUPLICATE", f"{path.name}: duplicate line_id {line_id}"))
+        elif line_id:
+            handoffs_by_line[line_id] = handoff
         schema_errors = schema_check.check_document(schema_check.load("research-handoff.schema.json"), handoff)
         for detail in schema_errors:
             code = "HANDOFF_DISPOSITION" if "project_manager_disposition" in detail else "SCHEMA_INVALID"
@@ -112,6 +117,11 @@ def validate_project(task):
             continue
         workstream = candidate
         code = workstream.get("code", path.stem)
+        if path.stem != code:
+            errors.append(("WORKSTREAM_INVALID", f"{path.name}: filename must match code {code}"))
+        if code in workstreams:
+            errors.append(("WORKSTREAM_DUPLICATE", f"{path.name}: duplicate code {code}"))
+            continue
         workstreams[code] = workstream
         if workstream is None:
             continue

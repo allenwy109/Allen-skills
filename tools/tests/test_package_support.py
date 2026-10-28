@@ -6,6 +6,7 @@ import zipfile
 import subprocess
 import sys
 import shutil
+from unittest import mock
 
 from tools import package_support as P
 
@@ -144,6 +145,37 @@ class PackageSupportTest(unittest.TestCase):
                     (package / "checksums-sha256.txt").write_text("", encoding="utf-8")
                 with self.assertRaises(P.PackageError):
                     P.verify(package)
+
+    def test_failed_publish_restores_previous_directory_and_zip(self):
+        deliverables = self.task / "08_deliverables"
+        destination = deliverables / "evidence-package"
+        destination.mkdir(parents=True)
+        (destination / "OLD").write_bytes(b"old directory")
+        output = deliverables / "evidence-package.zip"
+        output.write_bytes(b"old zip")
+        original_replace = P.os.replace
+
+        def fail_replace(target_name):
+            def replace(source, target):
+                source = pathlib.Path(source)
+                if (pathlib.Path(target).resolve() == (deliverables / target_name).resolve()
+                        and not source.parent.name.startswith(".evidence-rollback-")):
+                    raise OSError(f"injected {target_name} publish failure")
+                return original_replace(source, target)
+            return replace
+
+        failures = (
+            ("zip-build", mock.patch.object(P.zipfile, "ZipFile", side_effect=OSError("injected zip build failure"))),
+            ("directory-replace", mock.patch.object(P.os, "replace", side_effect=fail_replace("evidence-package"))),
+            ("zip-replace", mock.patch.object(P.os, "replace", side_effect=fail_replace("evidence-package.zip"))),
+        )
+        for label, failure in failures:
+            with self.subTest(label=label), failure:
+                with self.assertRaises(OSError):
+                    P.build(self.task)
+                self.assertEqual((destination / "OLD").read_bytes(), b"old directory")
+                self.assertEqual(output.read_bytes(), b"old zip")
+                self.assertEqual({path.name for path in deliverables.iterdir()}, {"evidence-package", "evidence-package.zip"})
 
 
 if __name__ == "__main__":

@@ -198,6 +198,41 @@ class ConsultingProjectTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("WORKSTREAM_METADATA_MISSING", result.stdout)
 
+    def test_duplicate_workstream_codes_and_handoff_line_ids_are_rejected(self):
+        mutations = {
+            "workstream": lambda task: write_json(task / "03r_research/tasks/alias.json", {
+                **json.loads((task / "03r_research/tasks/pain.json").read_text()), "code": "pain",
+            }),
+            "handoff": lambda task: write_json(task / "research-handoffs/alias.json", {
+                **json.loads((task / "research-handoffs/pain.json").read_text()), "line_id": "pain",
+            }),
+        }
+        for kind, mutate in mutations.items():
+            with self.subTest(kind=kind):
+                temp, task = self.mutate_project(mutate)
+                with temp:
+                    result = self.run_cli("validate", task)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(f"{kind.upper()}_DUPLICATE", result.stdout)
+
+    def test_workstream_and_handoff_filenames_must_match_their_identifiers(self):
+        mutations = {
+            "WORKSTREAM_INVALID": lambda task: write_json(task / "03r_research/tasks/pain.json", {
+                **json.loads((task / "03r_research/tasks/pain.json").read_text()), "code": "renamed",
+            }),
+            "HANDOFF_INVALID": lambda task: write_json(task / "research-handoffs/pain.json", {
+                **json.loads((task / "research-handoffs/pain.json").read_text()), "line_id": "renamed",
+            }),
+        }
+        for code, mutate in mutations.items():
+            with self.subTest(code=code):
+                temp, task = self.mutate_project(mutate)
+                with temp:
+                    result = self.run_cli("validate", task)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(code, result.stdout)
+                    self.assertIn("filename", result.stdout)
+
     def test_non_object_handoff_roots_fail_closed_without_traceback(self):
         for value in ([], "bad", None):
             with self.subTest(value=value):

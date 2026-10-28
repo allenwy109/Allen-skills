@@ -210,6 +210,34 @@ def verify(package_dir):
     return {"package": str(package), "verified": True}
 
 
+def publish_package(package, staged_zip, destination, output):
+    """Publish the directory and archive together, restoring both on failure."""
+    deliverables = destination.parent
+    rollback = pathlib.Path(tempfile.mkdtemp(prefix=".evidence-rollback-", dir=deliverables))
+    old = []
+    published = []
+    pairs = ((package, destination), (staged_zip, output))
+    try:
+        for current in (destination, output):
+            if current.exists():
+                os.replace(current, rollback / current.name)
+                old.append(current)
+        for staged, current in pairs:
+            os.replace(staged, current)
+            published.append(current)
+    except Exception:
+        for current in reversed(published):
+            if current.is_dir():
+                shutil.rmtree(current)
+            elif current.exists():
+                current.unlink()
+        for current in old:
+            os.replace(rollback / current.name, current)
+        raise
+    finally:
+        shutil.rmtree(rollback, ignore_errors=True)
+
+
 def build(task_dir, include_raw=False, require_app=True, output_root=None, record_acceptance=True):
     task = pathlib.Path(task_dir).resolve()
     app_id, app_label = read_app(task, require_app)
@@ -262,15 +290,12 @@ def build(task_dir, include_raw=False, require_app=True, output_root=None, recor
         (package / "checksums-sha256.txt").write_text(
             "".join(f"{digest(path)}  {path.relative_to(package).as_posix()}\n" for path in checksummed), encoding="utf-8")
         verify(package)
-        if destination.exists():
-            shutil.rmtree(destination)
-        os.replace(package, destination)
-    tmp = output.with_suffix(".zip.tmp")
-    with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for path in sorted(destination.rglob("*")):
-            if path.is_file():
-                archive.write(path, f"evidence-package/{path.relative_to(destination).as_posix()}")
-    tmp.replace(output)
+        staged_zip = pathlib.Path(temporary) / "evidence-package.zip"
+        with zipfile.ZipFile(staged_zip, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for path in sorted(package.rglob("*")):
+                if path.is_file():
+                    archive.write(path, f"evidence-package/{path.relative_to(package).as_posix()}")
+        publish_package(package, staged_zip, destination, output)
 
     record = {
         "id": "evidence-" + app_id.removeprefix("allen-"),
