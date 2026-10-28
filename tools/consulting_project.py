@@ -3,6 +3,7 @@
 import argparse
 import json
 import pathlib
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -68,30 +69,57 @@ def validate_project(task):
                 errors.append(("SCHEMA_INVALID", f"{name}: {detail}"))
 
     handoffs = []
+    handoffs_by_line = {}
     handoff_dir = task / "research-handoffs"
     for path in sorted(handoff_dir.glob("*.json")) if handoff_dir.is_dir() else []:
         handoff = load_document(path, "HANDOFF_INVALID", errors)
         if handoff is None:
             continue
         handoffs.append(handoff)
+        if handoff.get("line_id"):
+            handoffs_by_line[handoff["line_id"]] = handoff
         schema_errors = schema_check.check_document(schema_check.load("research-handoff.schema.json"), handoff)
         for detail in schema_errors:
             code = "HANDOFF_DISPOSITION" if "project_manager_disposition" in detail else "SCHEMA_INVALID"
             errors.append((code, f"{path.name}: {detail}"))
 
+    workstreams = {}
     workstream_dir = task / "03r_research" / "tasks"
     for path in sorted(workstream_dir.glob("*.json")) if workstream_dir.is_dir() else []:
-        workstream = load_document(path, "WORKSTREAM_INVALID", errors)
+        try:
+            candidate = read_json(path)
+        except (OSError, json.JSONDecodeError) as exc:
+            if re.fullmatch(r"[A-Z]", path.stem):
+                errors.append(("WORKSTREAM_INVALID", f"cannot read {path.name}: {exc}"))
+            continue
+        if candidate.get("kind") != "research_workstream" and not re.fullmatch(r"[A-Z]", path.stem):
+            continue
+        workstream = candidate
+        code = workstream.get("code", path.stem)
+        workstreams[code] = workstream
         if workstream is None:
             continue
         status = workstream.get("status")
         if status not in ("accepted", "rejected"):
-            errors.append(("WORKSTREAM_OPEN", f"{workstream.get('code', path.stem)} is {status or 'missing status'}"))
+            errors.append(("WORKSTREAM_OPEN", f"{code} is {status or 'missing status'}"))
+        else:
+            handoff = handoffs_by_line.get(code)
+            if handoff is None:
+                errors.append(("WORKSTREAM_HANDOFF_MISSING", f"{code} has terminal metadata without handoff"))
+            elif handoff.get("role") != workstream.get("role") or handoff.get("project_manager_disposition") != status:
+                errors.append(("WORKSTREAM_MISMATCH", f"{code} metadata and handoff role/disposition differ"))
+    for line_id in handoffs_by_line:
+        if line_id not in workstreams:
+            errors.append(("WORKSTREAM_METADATA_MISSING", f"{line_id} has handoff without metadata"))
 
     depth = config.get("depth") if isinstance(config, dict) else None
     if depth not in ("L1", "L2", "L3"):
         errors.append(("PROJECT_DEPTH_INVALID", "depth must be L1, L2, or L3"))
-    if depth == "L3" and len({h.get("line_id") for h in handoffs if h.get("line_id")}) < 2:
+    accepted = {code for code, item in workstreams.items()
+                if item.get("status") == "accepted" and code in handoffs_by_line
+                and handoffs_by_line[code].get("project_manager_disposition") == "accepted"
+                and handoffs_by_line[code].get("role") == item.get("role")}
+    if depth == "L3" and len(accepted) < 2:
         errors.append(("RESEARCH_LINES_MIN", "L3 requires at least two independent research lines"))
 
     coverage = docs.get("research-coverage.json")

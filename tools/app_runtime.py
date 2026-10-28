@@ -217,9 +217,9 @@ def init_task(args):
         "block_reason": None,
         "created_at": now(),
     }
-    save(task, run)
     if args.depth in ("L2", "L3"):
         consulting_project.init_project(task, args.depth)
+    save(task, run)
     return stage_payload(task, run)
 
 

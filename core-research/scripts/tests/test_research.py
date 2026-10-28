@@ -9,6 +9,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -107,6 +108,7 @@ class WorkstreamTest(Base):
         self.assertIn("市场是否足够大？", task_file.read_text(encoding="utf-8"))
         self.assertEqual((metadata["code"], metadata["role"], metadata["status"]),
                          ("A", "market-and-data", "awaiting_handoff"))
+        self.assertEqual(metadata["kind"], "research_workstream")
         self.assertTrue((self.task / "03_evidence" / "ledger" / "staging" / "A").is_dir())
 
     def test_add_rejects_duplicate_code(self):
@@ -123,6 +125,65 @@ class WorkstreamTest(Base):
         self.assertNotEqual(result, 0)
         self.assertFalse((self.task / "03r_research" / "tasks" / "A.md").exists())
         self.assertFalse((self.task / "03r_research" / "tasks" / "A.json").exists())
+
+    def test_add_and_decide_reject_blank_fields(self):
+        for flag in ("--role", "--question"):
+            args = ["workstream", "add", str(self.task), "A", "--role", "market", "--question", "question"]
+            args[args.index(flag) + 1] = "   "
+            self.assertNotEqual(research.main(args), 0)
+        research.main(["workstream", "add", str(self.task), "A", "--role", "market", "--question", "question"])
+        handoff = pathlib.Path(self.tmp.name) / "A.json"
+        handoff.write_text(json.dumps(valid_handoff()), encoding="utf-8")
+        research.main(["workstream", "handoff", str(self.task), "A", str(handoff)])
+        self.assertNotEqual(research.main([
+            "workstream", "decide", str(self.task), "A", "--status", "accepted", "--reason", "  ",
+        ]), 0)
+
+    def test_handoff_update_rolls_back_and_retry_succeeds_after_second_replace_fails(self):
+        research.main(["workstream", "add", str(self.task), "A", "--role", "market-and-data", "--question", "市场？"])
+        handoff = pathlib.Path(self.tmp.name) / "A.json"
+        handoff.write_text(json.dumps(valid_handoff()), encoding="utf-8")
+        real_replace = research.os.replace
+        calls = 0
+
+        def fail_second(src, dst):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("injected")
+            return real_replace(src, dst)
+
+        with mock.patch.object(research.os, "replace", side_effect=fail_second):
+            self.assertNotEqual(research.main(["workstream", "handoff", str(self.task), "A", str(handoff)]), 0)
+        self.assertFalse((self.task / "research-handoffs" / "A.json").exists())
+        metadata = json.loads((self.task / "03r_research" / "tasks" / "A.json").read_text(encoding="utf-8"))
+        self.assertEqual(metadata["status"], "awaiting_handoff")
+        self.assertEqual(research.main(["workstream", "handoff", str(self.task), "A", str(handoff)]), 0)
+
+    def test_decide_update_rolls_back_and_retry_succeeds_after_second_replace_fails(self):
+        research.main(["workstream", "add", str(self.task), "A", "--role", "market-and-data", "--question", "市场？"])
+        handoff = pathlib.Path(self.tmp.name) / "A.json"
+        handoff.write_text(json.dumps(valid_handoff()), encoding="utf-8")
+        research.main(["workstream", "handoff", str(self.task), "A", str(handoff)])
+        real_replace = research.os.replace
+        calls = 0
+
+        def fail_second(src, dst):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("injected")
+            return real_replace(src, dst)
+
+        with mock.patch.object(research.os, "replace", side_effect=fail_second):
+            self.assertNotEqual(research.main([
+                "workstream", "decide", str(self.task), "A", "--status", "accepted", "--reason", "reviewed",
+            ]), 0)
+        stored = json.loads((self.task / "research-handoffs" / "A.json").read_text(encoding="utf-8"))
+        self.assertNotIn("project_manager_disposition", stored)
+        self.assertEqual(research.main([
+            "workstream", "decide", str(self.task), "A", "--status", "accepted", "--reason", "reviewed",
+        ]), 0)
 
     def test_handoff_validates_schema_and_cannot_set_disposition(self):
         research.main(["workstream", "add", str(self.task), "A", "--role", "market-and-data", "--question", "市场？"])

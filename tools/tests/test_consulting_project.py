@@ -49,6 +49,10 @@ def valid_project(task):
         }],
     })
     for line in ("pain", "competition"):
+        write_json(task / "03r_research" / "tasks" / f"{line}.json", {
+            "kind": "research_workstream", "version": 1, "code": line, "role": f"{line}-researcher",
+            "question": f"Research {line}", "task_file": f"03r_research/tasks/{line}.md", "status": "accepted",
+        })
         write_json(task / "research-handoffs" / f"{line}.json", {
             "version": 1, "line_id": line, "role": f"{line}-researcher", "summary": f"{line} findings",
             "source_ids": [f"SRC-{line}"], "data_files": [f"data/{line}.csv"],
@@ -133,6 +137,64 @@ class ConsultingProjectTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("WORKSTREAM_OPEN", result.stdout)
             self.assertIn("D", result.stdout)
+
+    def test_data_handoff_json_is_not_treated_as_workstream_metadata(self):
+        temp, task = self.mutate_project(lambda task: write_json(
+            task / "03r_research" / "tasks" / "A-data.json", {"datasets": [], "dictionary": []},
+        ))
+        with temp:
+            result = self.run_cli("validate", task)
+            self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_terminal_metadata_requires_matching_handoff_and_disposition(self):
+        cases = (
+            ("missing", lambda task: None, "WORKSTREAM_HANDOFF_MISSING"),
+            ("role", lambda task: write_json(task / "research-handoffs" / "A.json", {
+                **json.loads((task / "research-handoffs" / "pain.json").read_text()),
+                "line_id": "A", "role": "wrong", "project_manager_disposition": "accepted",
+            }), "WORKSTREAM_MISMATCH"),
+        )
+        for name, handoff_write, code in cases:
+            with self.subTest(name=name):
+                def mutate(task):
+                    write_json(task / "03r_research" / "tasks" / "A.json", {
+                        "kind": "research_workstream", "version": 1, "code": "A", "role": "market-and-data",
+                        "question": "Market?", "task_file": "03r_research/tasks/A.md", "status": "accepted",
+                    })
+                    handoff_write(task)
+                temp, task = self.mutate_project(mutate)
+                with temp:
+                    result = self.run_cli("validate", task)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(code, result.stdout)
+
+    def test_handoff_without_metadata_is_rejected(self):
+        temp, task = self.mutate_project(lambda task: (task / "03r_research" / "tasks" / "pain.json").unlink())
+        with temp:
+            result = self.run_cli("validate", task)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("WORKSTREAM_METADATA_MISSING", result.stdout)
+
+    def test_l3_minimum_counts_only_accepted_reconciled_workstreams(self):
+        def mutate(task):
+            for old in (task / "research-handoffs").glob("*.json"):
+                old.unlink()
+            for code in ("A", "B"):
+                write_json(task / "03r_research" / "tasks" / f"{code}.json", {
+                    "kind": "research_workstream", "version": 1, "code": code, "role": "market-and-data",
+                    "question": "Market?", "task_file": f"03r_research/tasks/{code}.md", "status": "rejected",
+                })
+                write_json(task / "research-handoffs" / f"{code}.json", {
+                    "version": 1, "line_id": code, "role": "market-and-data", "summary": "none",
+                    "source_ids": [], "data_files": [], "supported_claims": [], "counter_evidence": [],
+                    "limitations": [], "unresolved_questions": [], "next_search_recommendation": "none",
+                    "project_manager_disposition": "rejected",
+                })
+        temp, task = self.mutate_project(mutate)
+        with temp:
+            result = self.run_cli("validate", task)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("RESEARCH_LINES_MIN", result.stdout)
 
     def test_l3_rejects_claimed_skill_without_output(self):
         def mutate(task):

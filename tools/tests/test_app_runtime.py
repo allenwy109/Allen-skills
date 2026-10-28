@@ -3,6 +3,7 @@ import json
 import pathlib
 import tempfile
 import unittest
+from unittest import mock
 
 from tools import app_runtime as R
 from tools.acceptance import Acceptance
@@ -50,6 +51,12 @@ class AppRuntimeTest(unittest.TestCase):
         self.assertEqual(run["stages"][1:3], ["evidence", "framing"])
         with self.assertRaises(R.AppError):
             self.init("allen-company")
+
+    def test_init_rolls_back_app_run_when_consulting_project_init_fails(self):
+        with mock.patch.object(R.consulting_project, "init_project", side_effect=OSError("injected")):
+            with self.assertRaises(OSError):
+                self.init(depth="L2")
+        self.assertFalse((self.task / "app-run.json").exists())
 
     def test_idea_uses_clarify_pathing_and_research_first(self):
         payload = self.init("allen-idea")

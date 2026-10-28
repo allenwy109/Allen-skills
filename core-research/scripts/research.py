@@ -50,12 +50,39 @@ def _write_json_new(path, value):
         stream.write("\n")
 
 
+def _replace_json_pair(updates):
+    originals = {path: path.read_bytes() if path.is_file() else None for path, _ in updates}
+    temps = []
+    replaced = []
+    try:
+        for path, value in updates:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temp = path.with_name(path.name + ".tmp")
+            temp.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            temps.append(temp)
+        for (path, _), temp in zip(updates, temps):
+            os.replace(temp, path)
+            replaced.append(path)
+    except OSError:
+        for path in replaced:
+            if originals[path] is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.write_bytes(originals[path])
+        for temp in temps:
+            temp.unlink(missing_ok=True)
+        raise
+
+
 def _workstream_paths(task, code):
     root = pathlib.Path(task)
     return root / "03r_research" / "tasks" / f"{code}.md", root / "03r_research" / "tasks" / f"{code}.json"
 
 
 def cmd_workstream_add(a):
+    if not a.role.strip() or not a.question.strip():
+        print("role 和 question 不能为空", file=sys.stderr)
+        return 1
     if not WORKSTREAM_CODE.fullmatch(a.code):
         print("研究线代号必须是单个大写字母，且不能使用 C、M、U", file=sys.stderr)
         return 1
@@ -79,7 +106,7 @@ def cmd_workstream_add(a):
         with metadata_file.open("x", encoding="utf-8") as stream:
             created.append(metadata_file)
             json.dump({
-                "version": 1, "code": a.code, "role": a.role, "question": a.question,
+                "kind": "research_workstream", "version": 1, "code": a.code, "role": a.role, "question": a.question,
                 "task_file": str(task_file.relative_to(pathlib.Path(a.task))), "status": "awaiting_handoff",
             }, stream, ensure_ascii=False, indent=2)
             stream.write("\n")
@@ -121,14 +148,20 @@ def cmd_workstream_handoff(a):
     if destination.exists():
         print(f"研究线 {a.code} 已提交 handoff", file=sys.stderr)
         return 1
-    _write_json_new(destination, handoff)
     metadata.update({"status": "awaiting_decision", "handoff": str(destination.relative_to(pathlib.Path(a.task)))})
-    metadata_file.write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    try:
+        _replace_json_pair(((destination, handoff), (metadata_file, metadata)))
+    except OSError as err:
+        print(f"handoff 写入失败：{err}", file=sys.stderr)
+        return 1
     print(json.dumps({"code": a.code, "status": "awaiting_decision"}, ensure_ascii=False))
     return 0
 
 
 def cmd_workstream_decide(a):
+    if not a.reason.strip():
+        print("reason 不能为空", file=sys.stderr)
+        return 1
     try:
         metadata_file, metadata = _load_workstream(a.task, a.code)
         handoff_path = pathlib.Path(a.task) / "research-handoffs" / f"{a.code}.json"
@@ -141,9 +174,12 @@ def cmd_workstream_decide(a):
     if errors:
         print("；".join(errors), file=sys.stderr)
         return 1
-    handoff_path.write_text(json.dumps(handoff, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     metadata.update({"status": a.status, "decision_reason": a.reason})
-    metadata_file.write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    try:
+        _replace_json_pair(((handoff_path, handoff), (metadata_file, metadata)))
+    except OSError as err:
+        print(f"处置写入失败：{err}", file=sys.stderr)
+        return 1
     print(json.dumps({"code": a.code, "status": a.status, "reason": a.reason}, ensure_ascii=False))
     return 0
 
