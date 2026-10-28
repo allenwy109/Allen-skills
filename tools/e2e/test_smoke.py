@@ -115,6 +115,14 @@ class EndToEndSmokeTest(unittest.TestCase):
         # out-report A4：首次视觉差异失败关闭，再登记作者和独立逐页审查。
         d = task / "07_storyline" / "a4-work"
         run(OUT_REPORT, "init", task)
+        render_document = json.loads((d / "render-document.json").read_text(encoding="utf-8"))
+        action = next(block for component in render_document["components"] for block in component["payload"].get("blocks", [])
+                      if "cl-0004" in block.get("claim_refs", []))
+        action["content"]["semantic_type"] = "30-60-90-roadmap"
+        action["content"]["exhibit"] = {"kind": "30-60-90-roadmap", "family": "timeline", "form": "html.table",
+            "stages": [{"label": "30 天", "output": "取得留存数据"}, {"label": "60 天", "output": "核实合同期限"},
+                       {"label": "90 天", "output": "作出继续或停止决策"}]}
+        (d / "render-document.json").write_text(json.dumps(render_document, ensure_ascii=False), encoding="utf-8")
         preview = run(OUT_REPORT, "render", task, ok=False)
         if preview.returncode != 1 or "REPORT_VISUAL_REGRESSION" not in preview.stdout:
             raise AssertionError(preview.stdout + preview.stderr)

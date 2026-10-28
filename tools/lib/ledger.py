@@ -216,6 +216,22 @@ class Ledger:
         staging = self.dir / "staging" / line
         if not staging.is_dir():
             raise LedgerError(f"没有暂存目录：{staging}")
+        if (self.task / "consulting-project.json").is_file():
+            metadata_path = self.task / "03r_research" / "tasks" / f"{line}.json"
+            handoff_path = self.task / "research-handoffs" / f"{line}.json"
+            try:
+                metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+                handoff = json.loads(handoff_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise LedgerError(f"咨询项目研究线 {line} 缺少可核验的 accepted 元数据或 handoff：{exc}") from exc
+            accepted = (
+                isinstance(metadata, dict) and isinstance(handoff, dict)
+                and metadata.get("code") == line and metadata.get("status") == "accepted"
+                and handoff.get("line_id") == line and handoff.get("project_manager_disposition") == "accepted"
+                and metadata.get("role") == handoff.get("role")
+            )
+            if not accepted:
+                raise LedgerError(f"咨询项目研究线 {line} 未同时获得 accepted 元数据和 handoff，禁止合并")
         tables = self.schema["tables"]
         with self.lock():
             current = {t: self.read(t) for t in tables}

@@ -87,7 +87,7 @@ class A4OutReportPipelineTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             task = make_task(temporary)
             slides = json.loads((task / "07_storyline/slides.json").read_text(encoding="utf-8"))
-            report, _ = out_report.to_report.build(task, slides)
+            report, _ = out_report.to_report.build(task, slides, bibliography_policy="full")
             report["sections"][0]["blocks"][0]["content"]["semantic_type"] = "pain-demand"
             report["sections"][0]["blocks"][0]["content"]["pain_groups"] = [{
                 "segment": "AI 应用创业公司", "trigger": "流量突增", "workaround": "排队或包卡",
@@ -155,17 +155,27 @@ class A4OutReportPipelineTest(unittest.TestCase):
         self.assertTrue((self.work / "coverage-manifest.json").is_file())
         self.assertFalse((self.story / "forge-work/pages.html").exists())
 
+        document_path = self.work / "render-document.json"
+        document = json.loads(document_path.read_text(encoding="utf-8"))
+        action = next(block for component in document["components"] for block in component["payload"].get("blocks", [])
+                      if "cl-0004" in block.get("claim_refs", []))
+        action["content"]["semantic_type"] = "30-60-90-roadmap"
+        action["content"]["exhibit"] = {"kind": "30-60-90-roadmap", "family": "timeline", "form": "html.table",
+            "stages": [{"label": "30 天", "output": "取得留存数据"}, {"label": "60 天", "output": "核实合同期限"},
+                       {"label": "90 天", "output": "作出继续或停止决策"}]}
+        document_path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+
         preview = self.command("render", self.task, expected=1)
         self.assertIn("REPORT_VISUAL_REGRESSION", preview.stdout)
         self.assertTrue((self.work / "build/report.html").is_file())
         html = (self.work / "build/report.html").read_text(encoding="utf-8")
         self.assertIn("收入从 1800 万元增至 3200 万元", html)
         self.assertNotIn('<li class="summary-item">cl-0001</li>', html)
-        body = html.split('aria-label="References and appendix"')[0]
-        self.assertIn('class="citation-marker" href="#source-M001">[1]</a>', body)
-        self.assertNotIn("https://", body)
-        self.assertNotIn("source-strip", body)
-        self.assertEqual(1, html.count('id="source-M001"'))
+        self.assertNotIn('class="citation-marker"', html)
+        self.assertNotIn('data-component-kind="references-appendix"', html)
+        self.assertNotIn("https://", html)
+        self.assertNotIn("source-strip", html)
+        self.assertEqual(0, html.count('id="source-M001"'))
         pdf = self.work / "build/report.pdf"
         self.assertTrue(pdf.is_file())
         info = subprocess.run(["pdfinfo", str(pdf)], capture_output=True, text=True, check=True).stdout
@@ -180,7 +190,7 @@ class A4OutReportPipelineTest(unittest.TestCase):
                            capture_output=True, text=True, check=True)
             annotations = xml.read_text(encoding="utf-8")
             self.assertRegex(annotations, r'<a href="report\.html#2">')
-            self.assertRegex(annotations, r'<a href="report\.html#\d+">\[1\]</a>')
+            self.assertNotRegex(annotations, r'>\[1\]</a>')
         self.assertFalse((self.story / "forge-work/pages.html").exists())
 
         regression = json.loads((self.work / "visual-regression.json").read_text(encoding="utf-8"))
@@ -209,7 +219,8 @@ class A4OutReportPipelineTest(unittest.TestCase):
             "chapter_contact_sheets": [{"chapter": "whole-book", "page_ids": [page["id"] for page in json.loads((self.work / "build/pagination-manifest.json").read_text())["pages"]],
                                          "observation": "The booklet rhythm and chapter transitions were inspected as a complete sequence."}],
             "headline_chain": {"status": "reviewed", "observation": "The headline sequence forms a coherent evidence-to-decision argument."},
-            "worst_page": {"page_id": "page-004", "finding": "The comparison matrix is the densest page and its hierarchy remains legible in both final media."},
+            "worst_page": {"page_id": json.loads((self.work / "build/pagination-manifest.json").read_text())["pages"][-1]["id"],
+                           "finding": "The comparison matrix is the densest page and its hierarchy remains legible in both final media."},
             "decision_review": {"reviewer": "Synthetic decision maker", "role": "decision-maker-reviewer",
                                 "at": "2026-10-27T12:06:00+10:30",
                                 "answers": {key: "The PDF gives a concrete, page-specific answer that supports an executive decision."
@@ -303,7 +314,8 @@ class A4OutReportPipelineTest(unittest.TestCase):
         self.assertTrue((self.task / "08_deliverables/evidence-package.zip").is_file())
         self.assertTrue(out_report.package_support.verify(evidence)["verified"])
         client_html = (out / "report.html").read_text(encoding="utf-8")
-        self.assertIn('class="citation-marker"', client_html)
+        self.assertNotIn('class="citation-marker"', client_html)
+        self.assertNotIn('data-component-kind="references-appendix"', client_html)
         for forbidden in ("https://", "http://", "www.", "example.com/report", "FORBIDDEN_AUTHOR", "FORBIDDEN_PUBLISHER",
                           "2026-03-28", "2026-10-22T10:00:00+08:00", "Grade S", "FORBIDDEN_CONFLICT",
                           "FORBIDDEN_INTERNAL_AUDIT", "conflict_of_interest", "access_note"):
@@ -339,7 +351,7 @@ class A4OutReportPipelineTest(unittest.TestCase):
     def test_package_fails_closed_before_both_reviews(self):
         with tempfile.TemporaryDirectory() as temporary:
             task = make_task(temporary)
-            self.assertEqual(0, run("init", task).returncode)
+            self.assertEqual(0, run("init", task, "--bibliography-policy", "full").returncode)
             self.assertEqual(1, run("render", task).returncode)
             result = run("package", task)
             self.assertEqual(1, result.returncode)
@@ -397,7 +409,7 @@ class A4OutReportContractTest(unittest.TestCase):
             self.skipTest("missing renderer tools")
         with tempfile.TemporaryDirectory() as temporary:
             task = make_task(temporary)
-            self.assertEqual(0, run("init", task).returncode)
+            self.assertEqual(0, run("init", task, "--bibliography-policy", "full").returncode)
             document_path = task / "07_storyline/a4-work/render-document.json"
             document = json.loads(document_path.read_text(encoding="utf-8"))
             document["components"][-1]["payload"]["references"] = []
@@ -411,7 +423,7 @@ class A4OutReportContractTest(unittest.TestCase):
             self.skipTest("missing renderer tools")
         with tempfile.TemporaryDirectory() as temporary:
             task = make_task(temporary)
-            self.assertEqual(0, run("init", task).returncode)
+            self.assertEqual(0, run("init", task, "--bibliography-policy", "full").returncode)
             document_path = task / "07_storyline/a4-work/render-document.json"
             document = json.loads(document_path.read_text(encoding="utf-8"))
             body = next(component for component in document["components"] if component["payload"].get("blocks"))
@@ -426,7 +438,7 @@ class A4OutReportContractTest(unittest.TestCase):
             self.skipTest("missing renderer tools")
         with tempfile.TemporaryDirectory() as temporary:
             task = make_task(temporary)
-            self.assertEqual(0, run("init", task).returncode)
+            self.assertEqual(0, run("init", task, "--bibliography-policy", "full").returncode)
             document_path = task / "07_storyline/a4-work/render-document.json"
             document = json.loads(document_path.read_text(encoding="utf-8"))
             body = next(component for component in document["components"] if component["payload"].get("blocks"))
@@ -441,7 +453,7 @@ class A4OutReportContractTest(unittest.TestCase):
             self.skipTest("missing renderer tools")
         with tempfile.TemporaryDirectory() as temporary:
             task = make_task(temporary)
-            self.assertEqual(0, run("init", task).returncode)
+            self.assertEqual(0, run("init", task, "--bibliography-policy", "full").returncode)
             report_path = task / "07_storyline/report.json"
             report = json.loads(report_path.read_text(encoding="utf-8"))
             report.pop("citation_registry")
@@ -459,7 +471,7 @@ class A4OutReportContractTest(unittest.TestCase):
             self.skipTest("missing renderer tools")
         with tempfile.TemporaryDirectory() as temporary:
             task = make_task(temporary)
-            self.assertEqual(0, run("init", task).returncode)
+            self.assertEqual(0, run("init", task, "--bibliography-policy", "full").returncode)
             document_path = task / "07_storyline/a4-work/render-document.json"
             document = json.loads(document_path.read_text(encoding="utf-8"))
             reference = document["components"][-1]["payload"]["references"][0]

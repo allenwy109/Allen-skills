@@ -168,6 +168,25 @@ class MergeTest(Base):
         with self.assertRaises(L.LedgerError):
             self.led.merge("B")
 
+    def test_consulting_project_merge_requires_accepted_matching_disposition(self):
+        (self.task / "consulting-project.json").write_text('{"version":1,"depth":"L3"}\n')
+        self.stage("C", "claims", [dict(claim(statement="rejected finding"), id="C-cl-0001")])
+        tasks = self.task / "03r_research" / "tasks"
+        tasks.mkdir(parents=True)
+        (tasks / "C.json").write_text(json.dumps({
+            "kind": "research_workstream", "version": 1, "code": "C", "role": "competitors-and-substitutes",
+            "question": "Which substitutes constrain adoption?", "task_file": "03r_research/tasks/C.md", "status": "rejected",
+        }))
+        handoffs = self.task / "research-handoffs"
+        handoffs.mkdir()
+        (handoffs / "C.json").write_text(json.dumps({
+            "line_id": "C", "role": "competitors-and-substitutes", "project_manager_disposition": "rejected",
+        }))
+        with self.assertRaisesRegex(L.LedgerError, "accepted"):
+            self.led.merge("C")
+        self.assertTrue((self.led.dir / "staging" / "C").is_dir())
+        self.assertNotIn("rejected finding", [item["statement"] for item in self.led.read("claims")])
+
 
 class CheckTest(Base):
     def test_clean_ledger(self):

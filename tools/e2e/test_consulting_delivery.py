@@ -1,6 +1,7 @@
 """Consulting-delivery contract adoption and one executable L3 journey."""
 import json
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -11,7 +12,7 @@ sys.path.insert(0, str(ROOT / "out-report/scripts"))
 from out_report import review_digest  # noqa: E402
 from tools.acceptance import Acceptance  # noqa: E402
 from tools.e2e.test_report_outputs import read_json, run_cli  # noqa: E402
-from tools.lib.ledger import Ledger  # noqa: E402
+from tools.lib.ledger import Ledger, LedgerError  # noqa: E402
 from tools.tests import fixtures as F  # noqa: E402
 
 
@@ -66,14 +67,19 @@ class ConsultingDeliveryContractTest(unittest.TestCase):
                     "remedy_evidence": ["cl-0001"], "re_reviewer": "fact-reviewer", "status": "closed",
                 }],
             })
-            for code, status in (("A", "accepted"), ("B", "accepted"), ("C", "rejected")):
+            lines = {
+                "A": ("pain-and-sentiment", "Which recurring customer pains create observable urgency?", "accepted"),
+                "B": ("competitors-and-substitutes", "Which direct, indirect and status-quo substitutes constrain adoption?", "accepted"),
+                "C": ("market-and-data", "How large is the adjacent market?", "rejected"),
+            }
+            for code, (role, question, status) in lines.items():
                 write_json(task / f"03r_research/tasks/{code}.json", {
                     "kind": "research_workstream", "version": 1, "code": code,
-                    "role": f"researcher-{code}", "question": f"Independent line {code}",
+                    "role": role, "question": question,
                     "task_file": f"03r_research/tasks/{code}.md", "status": status,
                 })
                 write_json(task / f"research-handoffs/{code}.json", {
-                    "version": 1, "line_id": code, "role": f"researcher-{code}",
+                    "version": 1, "line_id": code, "role": role,
                     "summary": f"Independent finding {code}", "source_ids": [], "data_files": [],
                     "supported_claims": [f"{code}-cl-0001"], "counter_evidence": ["none found"],
                     "limitations": ["synthetic fixture"], "unresolved_questions": ["none"],
@@ -97,6 +103,10 @@ class ConsultingDeliveryContractTest(unittest.TestCase):
             self.assertIn("LINE-A-FINDING", statements)
             self.assertIn("LINE-B-FINDING", statements)
             self.assertNotIn("LINE-C-FINDING", statements)
+            with self.assertRaisesRegex(LedgerError, "accepted"):
+                Ledger(task).merge("C")
+            self.assertTrue((task / "03_evidence/ledger/staging/C").is_dir())
+            self.assertNotIn("LINE-C-FINDING", [item["statement"] for item in Ledger(task).read("claims")])
             validated = subprocess.run(
                 [sys.executable, str(PROJECT), "validate", str(task)], capture_output=True, text=True,
             )
@@ -104,9 +114,31 @@ class ConsultingDeliveryContractTest(unittest.TestCase):
 
             initialized = run_cli("init", task)
             self.assertEqual(0, initialized.returncode, initialized.stdout + initialized.stderr)
+            render_document_path = task / "07_storyline/a4-work/render-document.json"
+            render_document = read_json(render_document_path)
+            exhibit_block = next(block for component in render_document["components"]
+                                 for block in component["payload"].get("blocks", [])
+                                 if "cl-0001" in block.get("claim_refs", []) and block.get("metric_refs"))
+            exhibit_block["content"]["semantic_type"] = "decision-tree"
+            exhibit_block["content"]["exhibit"] = {
+                "kind": "decision-tree", "family": "decision-tree", "form": "svg.custom",
+                "nodes": [{"id": "growth", "label": "收入增长已核实"}, {"id": "verify", "label": "核实客户留存"}],
+                "edges": [{"from": "growth", "to": "verify", "label": "继续跟进"}],
+            }
+            action_block = next(block for component in render_document["components"]
+                                for block in component["payload"].get("blocks", [])
+                                if "cl-0004" in block.get("claim_refs", []))
+            action_block["content"]["semantic_type"] = "30-60-90-roadmap"
+            action_block["content"]["exhibit"] = {
+                "kind": "30-60-90-roadmap", "family": "timeline", "form": "html.table",
+                "stages": [{"label": "30 天", "output": "取得留存数据"},
+                           {"label": "60 天", "output": "核实合同期限"},
+                           {"label": "90 天", "output": "作出继续或停止决策"}],
+            }
+            write_json(render_document_path, render_document)
             rendered = run_cli("render", task)
-            self.assertEqual(1, rendered.returncode)
-            self.assertIn("REPORT_VISUAL_REGRESSION", rendered.stdout)
+            self.assertEqual(1, rendered.returncode, rendered.stdout + rendered.stderr)
+            self.assertIn("REPORT_VISUAL_REGRESSION", rendered.stdout, rendered.stdout + rendered.stderr)
             work = task / "07_storyline/a4-work"
             regression = read_json(work / "visual-regression.json")
             artifacts = read_json(work / "artifact-manifest.json")
@@ -119,7 +151,8 @@ class ConsultingDeliveryContractTest(unittest.TestCase):
                 "differenceDigest": regression["differenceDigest"], "artifactDigest": artifacts["artifactDigest"],
                 "paginationDigest": artifacts["paginationDigest"],
             })
-            self.assertEqual(0, run_cli("review", task, "author", work / "author.json").returncode)
+            author_reviewed = run_cli("review", task, "author", work / "author.json")
+            self.assertEqual(0, author_reviewed.returncode, author_reviewed.stdout + author_reviewed.stderr)
             issue = {
                 "id": "RV-0001", "level": "major", "text": "Growth wording initially exceeded the evidence.",
                 "reviewer": "Fixture visual reviewer", "resolved": True,
@@ -160,8 +193,19 @@ class ConsultingDeliveryContractTest(unittest.TestCase):
 
             report = next((task / "08_deliverables/client-report").glob("*.html"))
             html = report.read_text(encoding="utf-8")
-            self.assertNotIn("https://example.com/report", html)
-            self.assertTrue(any(tag in html for tag in ("<svg", "<table", "class=\"metric")))
+            client_body = html.split("<body>", 1)[1]
+            forbidden = {
+                "raw URL": r"https?://", "references appendix": r"references-appendix|source-table|References and appendix",
+                "source grade": r"source[-_ ]grade|grade\s*[=:]", "capture metadata": r"capture_method|captured_at|accessed_at",
+                "internal research label": r"research-handoffs|skill-usage-manifest|review-closure|03r_research",
+            }
+            for label, pattern in forbidden.items():
+                self.assertIsNone(re.search(pattern, client_body, re.IGNORECASE), label)
+            exhibit = re.search(r'<[^>]+data-exhibit-kind="decision-tree"[^>]*>.*?</[^>]+>', html, re.DOTALL)
+            self.assertIsNotNone(exhibit, "canonical decision-tree exhibit missing")
+            exhibit_page = html[html.rfind('<section class="page"', 0, exhibit.start()):html.find('</section>', exhibit.end())]
+            for binding in ('data-claim-id="cl-0001"', 'data-metric-id="m-0001"', 'data-source-id="M001"'):
+                self.assertIn(binding, exhibit_page)
             self.assertTrue((task / "08_deliverables/evidence-package.zip").is_file())
             entry = next(item for item in Acceptance(task).load()["deliverables"] if item["id"] == "report-main")
             self.assertEqual("passed", entry["status"])

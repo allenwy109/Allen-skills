@@ -96,6 +96,29 @@ class ConsultingProjectTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("RESEARCH_LINES_MIN", result.stdout)
 
+    def test_l3_rejects_accepted_lines_with_duplicate_or_generic_scope(self):
+        mutations = {
+            "duplicate role": lambda docs: docs["competition"].update(role=docs["pain"]["role"]),
+            "duplicate question": lambda docs: docs["competition"].update(question="  RESEARCH   PAIN "),
+            "generic role": lambda docs: docs["competition"].update(role="researcher-B"),
+        }
+        for label, mutation in mutations.items():
+            with self.subTest(label=label):
+                def change(task):
+                    docs = {name: json.loads((task / f"03r_research/tasks/{name}.json").read_text())
+                            for name in ("pain", "competition")}
+                    mutation(docs)
+                    for name, doc in docs.items():
+                        write_json(task / f"03r_research/tasks/{name}.json", doc)
+                        handoff = json.loads((task / f"research-handoffs/{name}.json").read_text())
+                        handoff["role"] = doc["role"]
+                        write_json(task / f"research-handoffs/{name}.json", handoff)
+                temp, task = self.mutate_project(change)
+                with temp:
+                    result = self.run_cli("validate", task)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("RESEARCH_LINES_INDEPENDENCE", result.stdout)
+
     def test_l3_rejects_material_pain_without_two_signal_classes(self):
         def mutate(task):
             path = task / "research-coverage.json"

@@ -188,15 +188,13 @@ def render_document(report, task):
         components.append({"kind": "section-title", "payload": {"id": chapter_id, "title": section["title"], "layout_id": "overview-detail",
                                                                     "chapter_claims": [section["title"]], "blocks": []}})
         components.extend(_component_for_block(block, section, index, report, metrics) for index, block in enumerate(section["blocks"], 1))
-    references = report["references"]
-    if report["metadata"].get("bibliography_policy") != "full":
-        references = [{"id": reference["id"], "title": reference["id"],
-                       "locators": reference.get("locators") or ["Evidence package"]}
-                      for reference in references]
-    components.append({"kind": "references-appendix", "payload": {"id": "references", "title": "来源索引", "layout_id": "continued-table",
-                                                                         "blocks": [], "references": references}})
+    if report["metadata"].get("bibliography_policy") == "full":
+        components.append({"kind": "references-appendix", "payload": {
+            "id": "references", "title": "来源索引", "layout_id": "continued-table",
+            "blocks": [], "references": report["references"],
+        }})
     document = {"title": report["metadata"]["title"], "components": components}
-    if "citation_registry" in report:
+    if report["metadata"].get("bibliography_policy") == "full" and "citation_registry" in report:
         document["citation_registry"] = report["citation_registry"]
     return document
 

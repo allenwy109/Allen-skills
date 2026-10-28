@@ -25,6 +25,14 @@ SCHEMAS = {
 }
 
 
+def normalized_scope(value):
+    return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", " ", str(value).casefold()).strip()
+
+
+def generic_role(value):
+    return bool(re.fullmatch(r"(?:researcher|research|analyst)(?: [a-z0-9]+)?", normalized_scope(value)))
+
+
 def read_json(path):
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -129,6 +137,14 @@ def validate_project(task):
                 and handoffs_by_line[code].get("role") == item.get("role")}
     if depth == "L3" and len(accepted) < 2:
         errors.append(("RESEARCH_LINES_MIN", "L3 requires at least two independent research lines"))
+    if depth == "L3" and len(accepted) >= 2:
+        accepted_items = [workstreams[code] for code in sorted(accepted)]
+        roles = [normalized_scope(item.get("role")) for item in accepted_items]
+        questions = [normalized_scope(item.get("coverage_domain") or item.get("question")) for item in accepted_items]
+        if (not all(roles) or len(set(roles)) != len(roles) or any(generic_role(role) for role in roles)
+                or not all(questions) or len(set(questions)) != len(questions)):
+            errors.append(("RESEARCH_LINES_INDEPENDENCE",
+                           "L3 accepted lines require distinct non-generic roles and distinct normalized questions/coverage domains"))
 
     coverage = docs.get("research-coverage.json")
     if isinstance(coverage, dict):
