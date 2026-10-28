@@ -5,7 +5,7 @@
   "approvedAt": "2026-10-28T12:00:00+10:30",
   "changeReason": "Named native-exhibits.png inspected at 1191x1684 after enforcing 8.5pt SVG text: connectors visible, structures distinct, text legible, no clipping observed.",
   "fixtureSha256": "dc9d961e7fa6d671d8b61a19ef4d55a670affce522a826d891d64f46eddd1deb",
-  "candidateDigest": "c0d3eafdc57bb4cf2fbc829164234f284d0256071c3b5dd471869cd927a2861b",
-  "artifact": {"name": "native-exhibits.png", "sha256": "c0d3eafdc57bb4cf2fbc829164234f284d0256071c3b5dd471869cd927a2861b"},
+  "candidateDigest": "68cc54cac5f4981e60264b445cc1573f2d8dad0c676073391120ea002d2c22f5",
+  "artifact": {"name": "native-exhibits.png", "sha256": "68cc54cac5f4981e60264b445cc1573f2d8dad0c676073391120ea002d2c22f5"},
   "viewport": {"width": 1191, "height": 1684, "deviceScaleFactor": 1}
 }

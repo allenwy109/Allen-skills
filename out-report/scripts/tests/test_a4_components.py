@@ -149,8 +149,14 @@ class A4ComponentTest(unittest.TestCase):
         tree["content"]["exhibit"]["edges"].append({"from": "start", "to": "stop", "label": "否"})
         rendered = run_node("component.renderBlock(payload.block, {})", {"block": tree})
         self.assertTrue(rendered["ok"], rendered)
-        self.assertRegex(rendered["value"], r'id="b-1-edge-1"[^>]*x1="98"[^>]*x2="113"')
-        self.assertRegex(rendered["value"], r'id="b-1-edge-2"[^>]*x1="98"[^>]*x2="218"')
+        self.assertRegex(rendered["value"], r'id="b-1-edge-1"[^>]*x1="98"[^>]*y1="27"[^>]*x2="118"[^>]*y2="27"')
+        self.assertRegex(rendered["value"], r'id="b-1-edge-2"[^>]*x1="98"[^>]*y1="27"[^>]*x2="118"[^>]*y2="82"')
+
+        duplicate = json.loads(json.dumps(tree))
+        duplicate["content"]["exhibit"]["nodes"][2]["id"] = "go"
+        result = run_node("component.renderBlock(payload.block, {})", {"block": duplicate})
+        self.assertFalse(result["ok"])
+        self.assertEqual("REPORT_EXHIBIT_MISMATCH", result["code"])
 
         broken = json.loads(json.dumps(tree))
         broken["content"]["exhibit"]["edges"][0]["to"] = "missing"
@@ -183,6 +189,14 @@ class A4ComponentTest(unittest.TestCase):
             html = run_node("component.renderBlock(payload.block, {})", {"block": item})["value"]
             structures[kind] = re.search(r'data-exhibit-kind="[^"]+"[^>]*data-structure="([^"]+)"', html).group(1)
         self.assertEqual(4, len(set(structures.values())))
+
+    def test_competitor_matrix_requires_exact_row_width(self):
+        for values in (["only-one"], ["one", "two", "three"]):
+            item = block("table")
+            item["content"].update(semantic_type="competition", exhibit={"kind": "competitor-matrix", "family": "matrix", "form": "html.table", "columns": ["A", "B"], "rows": [{"label": "X", "values": values}]})
+            result = run_node("component.renderBlock(payload.block, {})", {"block": item})
+            self.assertFalse(result["ok"])
+            self.assertEqual("REPORT_EXHIBIT_MISMATCH", result["code"])
 
     def test_red_components_module_exists(self):
         result = run_node("Object.keys(component).sort()")

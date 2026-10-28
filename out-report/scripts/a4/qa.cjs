@@ -13,6 +13,7 @@ const SHA256 = /^[0-9a-f]{64}$/;
 const ISO8601_TZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 const LAYOUT_CATALOG = JSON.parse(fs.readFileSync(path.join(__dirname, '../../assets/a4-layout-catalog.json'), 'utf8'));
 const EXHIBIT_LAYOUTS = new Map(LAYOUT_CATALOG.exhibits.map(item => [item.kind, item]));
+const SEMANTIC_LAYOUTS = new Map(LAYOUT_CATALOG.exhibits.flatMap(item => item.semantic_types.map(semantic => [semantic, item])));
 const FAMILY_FORMS = new Map(LAYOUT_CATALOG.exhibits.map(item => [item.family, item.forms]));
 
 function validateExhibitDeclaration(declaration) {
@@ -43,7 +44,7 @@ function renderedExhibitIssues(html, location) {
     const body = match[2];
     const semantic = attribute(article, 'data-semantic-type');
     if (semantic === 'point_evidence') continue;
-    const layout = EXHIBIT_LAYOUTS.get(semantic);
+    const layout = SEMANTIC_LAYOUTS.get(semantic);
     const exhibit = body.match(/<[^>]+\bdata-exhibit-kind\s*=\s*["']([^"']+)["'][^>]*>/i);
     if (!layout || !exhibit) {
       errors.push(issue('REPORT_EXHIBIT_MISSING', location, `${semantic || '<missing>'} has no native rendered exhibit`));
@@ -55,7 +56,7 @@ function renderedExhibitIssues(html, location) {
     const exhibitForm = attribute(tag, 'data-exhibit-form');
     const panelForm = attribute(article, 'data-form');
     const structure = attribute(tag, 'data-structure');
-    if (kind !== semantic || family !== layout.family || exhibitForm !== panelForm || !layout.forms.includes(exhibitForm) || !structure) {
+    if (kind !== layout.kind || family !== layout.family || exhibitForm !== panelForm || !layout.forms.includes(exhibitForm) || !structure) {
       errors.push(issue('REPORT_EXHIBIT_MISMATCH', location, `${semantic} DOM kind/family/form/structure does not match catalog`, { kind, family, exhibitForm, panelForm, structure }));
     }
   }

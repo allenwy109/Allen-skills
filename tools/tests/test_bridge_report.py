@@ -116,6 +116,10 @@ class ReportContractTest(unittest.TestCase):
         self.assertEqual("pain-comparison", pain["content"]["exhibit"]["selected_layout"])
         self.assertIn("comparison", pain["content"]["exhibit"]["layout_reason"])
         self.assertEqual("within-soft", pain["content"]["exhibit"]["capacity_state"])
+        pain["content"]["exhibit"]["selected_layout"] = "decision-tree"
+        with self.assertRaises(T.ReportError) as cm:
+            T.validate_report(report)
+        self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
         recommendation = next(detail for block in blocks for detail in block["content"]["claims"] if detail["id"] == "cl-0004")
         self.assertEqual("indirect_lead", recommendation["support_label"])
 
@@ -132,6 +136,16 @@ class ReportContractTest(unittest.TestCase):
         with self.assertRaises(T.ReportError) as cm:
             T._native_exhibit(panel, {})
         self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
+
+    def test_competitor_matrix_rejects_short_and_long_rows(self):
+        base = {"id": "matrix", "semantic_type": "competition", "relationship": "positioning", "form": "html.table", "capacity": {"rows": 1},
+                "exhibit": {"kind": "competitor-matrix", "family": "matrix", "form": "html.table", "columns": ["A", "B"], "rows": [{"label": "X", "values": []}]}}
+        for values in (["one"], ["one", "two", "three"]):
+            panel = copy.deepcopy(base)
+            panel["exhibit"]["rows"][0]["values"] = values
+            with self.assertRaises(T.ReportError) as cm:
+                T._native_exhibit(panel, {})
+            self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
 
     def test_report_matches_schema_and_schema_self_checks(self):
         schema = schema_check.load("report.schema.json")

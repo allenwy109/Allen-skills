@@ -8,6 +8,7 @@
   "panel_role": {"values": ["primary", "support", "context", "evidence", "implication"], "labels": {"primary": "主展品", "support": "支持", "context": "背景", "evidence": "证据", "implication": "含义"}}
   ,"exhibit_kind": {"values": ["executive-summary", "answer-and-reasons", "pain-comparison", "competitor-matrix", "decision-tree", "mechanism-process", "paired-scenarios", "30-60-90-roadmap", "methods-limitations", "point_evidence"], "labels": {"executive-summary":"执行摘要","answer-and-reasons":"答案与理由","pain-comparison":"痛点比较","competitor-matrix":"竞品矩阵","decision-tree":"决策树","mechanism-process":"机制流程","paired-scenarios":"成对情景","30-60-90-roadmap":"三阶段路线图","methods-limitations":"方法与限制","point_evidence":"要点证据"}}
   ,"exhibit_family": {"values": ["chart", "process", "timeline", "matrix", "scenario", "decision-tree", "point_evidence"], "labels": {"chart":"图表","process":"流程","timeline":"时间线","matrix":"矩阵","scenario":"情景","decision-tree":"决策树","point_evidence":"要点证据"}}
+  ,"capacity_state": {"values": ["within-soft", "soft-exceeded"], "labels": {"within-soft":"软容量内","soft-exceeded":"超过软容量"}}
  },
  "root": {
   "type": "object",
@@ -83,7 +84,7 @@
        "form": {"type": "string", "enum": "block_form", "required": true},
        "selected_layout": {"type": "string", "enum": "exhibit_kind", "required": true},
        "layout_reason": {"type": "string", "required": true},
-       "capacity_state": {"type": "string", "required": true},
+       "capacity_state": {"type": "string", "enum": "capacity_state", "required": true},
        "answer": {"type": "string"},
        "reasons": {"type": "array", "min_items": 1, "items": {"type": "string"}},
        "columns": {"type": "array", "min_items": 1, "items": {"type": "string"}},

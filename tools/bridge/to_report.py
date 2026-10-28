@@ -69,6 +69,8 @@ def _native_exhibit(panel, semantic_content):
     if missing:
         raise ReportError("REPORT_EXHIBIT_MISSING", f"panel {panel.get('id')} 缺少 {','.join(missing)}")
     count = len(exhibit[layout["capacity"]["field"]])
+    if kind == "competitor-matrix" and any(len(row.get("values", [])) != len(exhibit["columns"]) for row in exhibit["rows"]):
+        raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 的 competitor matrix 行宽与 columns 不一致")
     if count > layout["capacity"]["hard"]:
         raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 超过 hard capacity")
     forbidden = [field for field in layout["forbidden_content"] if exhibit.get(field)]
@@ -218,6 +220,12 @@ def validate_report(report):
               ("source_ids", "source_ids", "source"), ("panel_refs", "panel_ids", "panel"),
               ("relation_refs", "relation_ids", "relation"))
     for block in blocks:
+        exhibit = block.get("content", {}).get("exhibit")
+        if exhibit:
+            semantic = block["content"].get("semantic_type")
+            layout = next((item for item in LAYOUT_CATALOG["exhibits"] if semantic in item["semantic_types"]), None)
+            if not layout or exhibit.get("selected_layout") != layout["kind"] or exhibit.get("capacity_state") not in {"within-soft", "soft-exceeded"}:
+                raise ReportError("REPORT_EXHIBIT_MISMATCH", f"block {block['id']} 的 selected_layout/capacity_state 与 catalog 不一致")
         for field, registry_field, label in checks:
             _unique(block[field], f"block {block['id']} {field}", problems)
             for ref in sorted(set(block[field]) - known[registry_field]):

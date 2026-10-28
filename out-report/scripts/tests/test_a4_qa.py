@@ -113,6 +113,17 @@ class A4QualityGateTest(unittest.TestCase):
         )
         codes = {item["code"] for item in run_qa(evidence)["blocking"]}
         self.assertIn("REPORT_EXHIBIT_MISMATCH", codes)
+
+    def test_semantic_alias_resolves_to_canonical_catalog_exhibit(self):
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0]["visibleHtml"] = (
+            '<article data-semantic-type="competition" data-exhibit-required="true" data-form="html.table">'
+            '<figure data-exhibit-kind="competitor-matrix" data-exhibit-family="matrix" data-exhibit-form="html.table" '
+            'data-structure="competitor-criteria-table">Decision evidence source</figure></article>'
+        )
+        codes = {item["code"] for item in run_qa(evidence)["blocking"]}
+        self.assertNotIn("REPORT_EXHIBIT_MISSING", codes)
+        self.assertNotIn("REPORT_EXHIBIT_MISMATCH", codes)
     def test_declared_exhibit_family_requires_matching_native_form(self):
         cases = [
             ({"family": "matrix", "form": "html.text"}, "REPORT_EXHIBIT_MISMATCH"),

@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { escapeHtml } = require('./escape.cjs');
 const EXHIBIT_LAYOUTS = new Map(JSON.parse(fs.readFileSync(path.join(__dirname, '../../assets/a4-layout-catalog.json'), 'utf8')).exhibits.map(item => [item.kind, item]));
+const SEMANTIC_LAYOUTS = new Map([...EXHIBIT_LAYOUTS.values()].flatMap(item => item.semantic_types.map(semantic => [semantic, item])));
 
 const APPROVED_BLOCK_KINDS = Object.freeze(['chart', 'text', 'metric', 'table']);
 const APPROVED_COMPONENT_KINDS = Object.freeze([
@@ -258,13 +259,31 @@ function matrixExhibit(block, exhibit) {
 
 function decisionTreeExhibit(block, exhibit) {
   const nodes = list(exhibit.nodes);
-  const positions = new Map(nodes.map((node, index) => [node.id, { x: 8 + index * 105, y: 12 }]));
+  const ids = nodes.map(node => node.id);
+  if (new Set(ids).size !== ids.length) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} has duplicate decision-tree node IDs`);
   const nodeIds = new Set(nodes.map(node => node.id));
   const invalid = list(exhibit.edges).find(edge => !nodeIds.has(edge.from) || !nodeIds.has(edge.to));
   if (invalid) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} edge ${invalid.from} -> ${invalid.to} does not resolve`);
+  const incoming = new Map(ids.map(id => [id, 0]));
+  const outgoing = new Map(ids.map(id => [id, []]));
+  for (const edge of exhibit.edges) { incoming.set(edge.to, incoming.get(edge.to) + 1); outgoing.get(edge.from).push(edge.to); }
+  const roots = ids.filter(id => incoming.get(id) === 0);
+  if (roots.length !== 1) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} decision tree requires one root and no cycles`);
+  const queue = [roots[0]];
+  const depth = new Map([[roots[0], 0]]);
+  const visited = [];
+  while (queue.length) {
+    const id = queue.shift(); visited.push(id);
+    for (const next of outgoing.get(id)) { depth.set(next, Math.max(depth.get(next) || 0, depth.get(id) + 1)); incoming.set(next, incoming.get(next) - 1); if (incoming.get(next) === 0) queue.push(next); }
+  }
+  if (visited.length !== nodes.length) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} decision tree contains a cycle or unreachable node`);
+  const lanes = new Map();
+  const positions = new Map(nodes.map(node => { const level = depth.get(node.id); const lane = lanes.get(level) || 0; lanes.set(level, lane + 1); return [node.id, { x: 8 + level * 110, y: 12 + lane * 55 }]; }));
   const labels = nodes.map(node => { const point = positions.get(node.id); return `<g id="${escapeHtml(block.id)}-node-${escapeHtml(node.id)}"><rect x="${point.x}" y="${point.y}" width="90" height="30"></rect><text x="${point.x + 45}" y="${point.y + 19}">${escapeHtml(node.label)}</text></g>`; }).join('');
-  const edges = list(exhibit.edges).map((edge, index) => { const from = positions.get(edge.from); const to = positions.get(edge.to); const x1 = from.x + 90; const x2 = to.x; return `<line id="${escapeHtml(block.id)}-edge-${index + 1}" data-from="${escapeHtml(block.id)}-node-${escapeHtml(edge.from)}" data-to="${escapeHtml(block.id)}-node-${escapeHtml(edge.to)}" x1="${x1}" y1="27" x2="${x2}" y2="27"></line><text x="${(x1 + x2) / 2}" y="22">${escapeHtml(edge.label)}</text>`; }).join('');
-  return exhibitShell(block, exhibit, 'decision-branch-svg', `<svg role="img" aria-labelledby="${escapeHtml(block.id)}-tree-title" viewBox="0 0 ${Math.max(210, nodes.length * 105 + 8)} 54"><title id="${escapeHtml(block.id)}-tree-title">决策树</title>${edges}${labels}</svg>`, 'figure');
+  const edges = list(exhibit.edges).map((edge, index) => { const from = positions.get(edge.from); const to = positions.get(edge.to); const x1 = from.x + 90; const x2 = to.x; const y1 = from.y + 15; const y2 = to.y + 15; return `<line id="${escapeHtml(block.id)}-edge-${index + 1}" data-from="${escapeHtml(block.id)}-node-${escapeHtml(edge.from)}" data-to="${escapeHtml(block.id)}-node-${escapeHtml(edge.to)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line><text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 5}">${escapeHtml(edge.label)}</text>`; }).join('');
+  const width = Math.max(...[...positions.values()].map(point => point.x + 98));
+  const height = Math.max(...[...positions.values()].map(point => point.y + 42));
+  return exhibitShell(block, exhibit, 'decision-branch-svg', `<svg role="img" aria-labelledby="${escapeHtml(block.id)}-tree-title" viewBox="0 0 ${width} ${height}"><title id="${escapeHtml(block.id)}-tree-title">决策树</title>${edges}${labels}</svg>`, 'figure');
 }
 
 function processExhibit(block, exhibit) {
@@ -303,8 +322,8 @@ const EXHIBIT_RENDERERS = Object.freeze({
 function semanticBody(block) {
   const content = block.content || {};
   const semanticType = content.semantic_type;
-  const aliases = { 'pain-demand': 'pain-comparison', competition: 'competitor-matrix' };
-  const expectedKind = aliases[semanticType] || semanticType;
+  const selectedLayout = SEMANTIC_LAYOUTS.get(semanticType);
+  const expectedKind = selectedLayout && selectedLayout.kind;
   if (semanticType === 'point_evidence') return null;
   if (!Object.hasOwn(EXHIBIT_RENDERERS, expectedKind)) throw reportError('REPORT_EXHIBIT_MISSING', `${block.id} requires explicit point_evidence or a supported exhibit`);
   if (!content.exhibit) throw reportError('REPORT_EXHIBIT_MISSING', `${block.id} declares ${semanticType} without exhibit content`);
@@ -317,6 +336,9 @@ function semanticBody(block) {
   }
   const count = content.exhibit[layout.capacity.field].length;
   if (count > layout.capacity.hard) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} exceeds hard capacity`);
+  if (expectedKind === 'competitor-matrix' && content.exhibit.rows.some(row => list(row.values).length !== content.exhibit.columns.length)) {
+    throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} competitor matrix row width does not match columns`);
+  }
   return EXHIBIT_RENDERERS[expectedKind](block, content.exhibit);
 }
 
