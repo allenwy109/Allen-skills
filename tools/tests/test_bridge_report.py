@@ -67,6 +67,69 @@ class ReportContractTest(unittest.TestCase):
         self.assertEqual(blocks[0]["source_bindings"], [{"source_id": "M001", "locators": ["p12"]}])
         self.assertEqual(report["references"][0]["locators"], ["p12", "p30", "附录 A"])
 
+    def test_slides_schema_accepts_and_bridge_preserves_native_exhibits(self):
+        cases = {
+            "competitor-matrix": {
+                "family": "matrix", "form": "html.table", "relationship": "positioning",
+                "columns": ["总成本", "可靠性"],
+                "rows": [{"label": "GPU 云", "values": ["待核价", "有 SLA"]}],
+            },
+            "decision-tree": {
+                "family": "decision-tree", "form": "svg.custom", "relationship": "branching",
+                "nodes": [{"id": "start", "label": "POC"}, {"id": "pilot", "label": "付费试单"}],
+                "edges": [{"from": "start", "to": "pilot", "label": "通过"}],
+            },
+            "mechanism-process": {
+                "family": "process", "form": "svg.custom", "relationship": "mechanism",
+                "steps": [{"label": "检测闲置"}, {"label": "可抢占调度"}],
+            },
+            "30-60-90-roadmap": {
+                "family": "timeline", "form": "html.table", "relationship": "roadmap",
+                "stages": [
+                    {"label": "30 天", "output": "访谈"},
+                    {"label": "60 天", "output": "试点"},
+                    {"label": "90 天", "output": "决策"},
+                ],
+            },
+        }
+        schema = schema_check.load("slides.schema.json")
+        for kind, exhibit in cases.items():
+            with self.subTest(kind=kind):
+                slides = copy.deepcopy(self.slides)
+                panel = slides["slides"][1]["panels"][0]
+                panel["semantic_type"] = kind
+                panel["form"] = exhibit["form"]
+                panel["relationship"] = exhibit["relationship"]
+                panel["capacity"] = {
+                    "rows": len(exhibit.get("rows", [])),
+                    "nodes": len(exhibit.get("nodes", [])),
+                    "steps": len(exhibit.get("steps", [])),
+                    "stages": len(exhibit.get("stages", [])),
+                }
+                panel["exhibit"] = {"kind": kind, **{k: v for k, v in exhibit.items() if k != "relationship"}}
+                self.assertEqual([], schema_check.check_document(schema, slides, "slides.json"))
+                report, _ = self.build(slides)
+                block = report["sections"][0]["blocks"][0]
+                self.assertEqual(kind, block["content"]["exhibit"]["kind"])
+                self.assertEqual(exhibit["family"], block["content"]["exhibit"]["family"])
+
+    def test_slides_schema_rejects_unknown_or_incomplete_native_exhibit(self):
+        schema = schema_check.load("slides.schema.json")
+        for exhibit in (
+            {"kind": "unknown", "family": "process", "form": "svg.custom", "steps": [{"label": "A"}, {"label": "B"}]},
+            {"kind": "decision-tree", "family": "decision-tree", "form": "svg.custom", "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}]},
+        ):
+            with self.subTest(exhibit=exhibit):
+                slides = copy.deepcopy(self.slides)
+                panel = slides["slides"][1]["panels"][0]
+                panel["semantic_type"] = exhibit["kind"]
+                panel["exhibit"] = exhibit
+                problems = schema_check.check_document(schema, slides, "slides.json")
+                self.assertTrue(problems)
+                with self.assertRaises(T.ReportError) as cm:
+                    self.build(slides)
+                self.assertEqual("REPORT_COVERAGE_MISMATCH", cm.exception.code)
+
     def test_ambiguous_non_point_semantic_is_not_rewritten_to_fallback(self):
         slides = copy.deepcopy(self.slides)
         slides["slides"][1]["panels"][0]["semantic_type"] = "comparison"
