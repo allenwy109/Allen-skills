@@ -66,7 +66,11 @@ def component_payload(kind, contract):
     required = {
         "cover": {"title_groups": [{"title": "标题"}]},
         "toc": {"entries": [{"title": "第一章", "destination": "section-1"}]},
-        "executive-summary": {"answers": ["优先验证"], "summary_items": [{"text": "两项付费试点", "qualification": "目标"}]},
+        "executive-summary": {"answers": ["优先验证"], "summary_items": [{"text": "两项付费试点", "qualification": "目标"}],
+                              "decision_level": "conditional-go", "decisive_reasons": ["付费信号", "供给可得", "单位经济"],
+                              "largest_upside": "可复用闲置容量", "largest_risk": "锁定率不足",
+                              "immediate_actions": ["签两份付费试点"],
+                              "thresholds": {"continue": "锁定率至少 55%", "stop": "连续八周低于 32%"}},
         "section-title": {"chapter_claims": ["需求验证"]},
         "claim-evidence": {"claim": "客户存在等待", "evidence_groups": [{"source_id": "s1", "locators": ["interview 1"]}]},
         "data-chart": {"unit": "percent", "period": "2026", "items": [{"label": "A", "value": 1}]},
@@ -244,6 +248,10 @@ class A4ComponentTest(unittest.TestCase):
                 "text": "目标客户付费意愿仍未证实", "identity": "judgment", "confidence": "low",
                 "qualification": "尚无访谈、订单或愿付价格",
             }],
+            "decision_level": "conditional-go", "decisive_reasons": ["付费信号", "供给可得", "单位经济"],
+            "largest_upside": "可复用闲置容量", "largest_risk": "锁定率不足",
+            "immediate_actions": ["签两份付费试点"],
+            "thresholds": {"continue": "锁定率至少 55%", "stop": "连续八周低于 32%"},
         }
         rendered = run_node("component.renderComponent('executive-summary', payload, {})", payload)
         self.assertTrue(rendered["ok"], rendered)
@@ -251,6 +259,19 @@ class A4ComponentTest(unittest.TestCase):
         self.assertIn("目标客户付费意愿仍未证实", rendered["value"])
         self.assertIn("judgment · low", rendered["value"])
         self.assertIn("尚无访谈、订单或愿付价格", rendered["value"])
+        for text in ("conditional-go", "付费信号", "可复用闲置容量", "锁定率不足", "签两份付费试点", "锁定率至少 55%", "连续八周低于 32%"):
+            self.assertIn(text, rendered["value"])
+
+    def test_executive_summary_rejects_any_missing_decision_part(self):
+        contract = run_node("component.COMPONENT_CONTRACTS['executive-summary']")["value"]
+        payload = component_payload("executive-summary", contract)
+        for field in ("decision_level", "decisive_reasons", "largest_upside", "largest_risk", "immediate_actions", "thresholds"):
+            with self.subTest(field=field):
+                invalid = json.loads(json.dumps(payload))
+                invalid.pop(field)
+                result = run_node("component.renderComponent('executive-summary', payload, {})", invalid)
+                self.assertFalse(result["ok"])
+                self.assertEqual("REPORT_COMPONENT_CONTRACT", result["code"])
 
     def test_semantic_blocks_render_real_claim_pain_and_competition_content(self):
         claim_block = block("text")

@@ -41,7 +41,9 @@ function expandComponents(components) {
       }
       if (Array.isArray(copy.blocks) && component.kind === 'comparison') {
         copy.blocks = copy.blocks.map(block => ({ ...block, content: { ...block.content,
-          comparison: { ...(block.content && block.content.comparison), alternatives: part.values } } }));
+          comparison: { ...(block.content && block.content.comparison), alternatives: part.values },
+          exhibit: block.content && block.content.exhibit ? { ...block.content.exhibit,
+            rows: part.values.map(item => ({ label: item.name, values: (block.content.exhibit.columns || []).map(key => item.values[key]) })) } : undefined } }));
       }
       if (Array.isArray(copy.blocks) && component.kind === 'pain-demand') {
         copy.blocks = copy.blocks.map(block => ({ ...block, content: { ...block.content, pain_groups: part.values } }));
@@ -75,17 +77,12 @@ function paginateMeasured(fragments, contentHeightPx) {
     page = newPage(pages.length + 1);
   };
   for (const fragment of fragments) {
-    if (fragment.kind === 'section-title') {
-      if (page.items.length) flush();
-    }
     if (fragment.heightPx > contentHeightPx + 1) {
       throw reportError('REPORT_PAGE_OVERFLOW', `${fragment.originalId} is ${fragment.heightPx}px, page content is ${contentHeightPx}px`);
     }
-    const forceOwnPage = fragment.table;
-    if (page.items.length && (forceOwnPage || page.usedHeightPx + fragment.heightPx > contentHeightPx + 1)) flush();
+    if (page.items.length && page.usedHeightPx + fragment.heightPx > contentHeightPx + 1) flush();
     page.items.push(fragment);
     page.usedHeightPx += fragment.heightPx;
-    if (forceOwnPage) flush();
   }
   if (page.items.length || page.intentionalBlank) flush();
   return pages;

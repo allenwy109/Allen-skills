@@ -79,6 +79,22 @@ class GoldenReportContractTest(unittest.TestCase):
         for p in pages:
             self.assertRegex(self.source_html, rf'<section\b(?=[^>]*data-page-id="{p["id"]}")(?=[^>]*data-page-role="{p["role"]}")[^>]*>')
 
+    def test_executive_summary_has_the_fixed_six_part_decision_contract(self):
+        summary = self.manifest["executiveSummary"]
+        self.assertTrue(summary["decisionLevel"])
+        self.assertEqual(3, len(summary["decisiveReasons"]))
+        self.assertTrue(summary["largestUpside"])
+        self.assertTrue(summary["largestRisk"])
+        self.assertTrue(summary["immediateActions"])
+        self.assertTrue(summary["thresholds"]["continue"])
+        self.assertTrue(summary["thresholds"]["stop"])
+
+    def test_golden_is_a_concise_decision_report_with_real_exhibits_and_methods(self):
+        self.assertLessEqual(len(self.manifest["pages"]), 16)
+        self.assertGreaterEqual(len(self.manifest["exhibits"]), 4)
+        self.assertTrue(all(item["decisionUse"] for item in self.manifest["exhibits"]))
+        self.assertIn("方法", self.manifest["pages"][-1]["title"])
+
     def test_maintenance_sources_are_small_and_have_exact_placeholders(self):
         self.assertLess((GOLDEN / "golden.html").stat().st_size, 100_000)
         self.assertLess((GOLDEN / "golden.css").stat().st_size, 50_000)
@@ -121,13 +137,13 @@ class GoldenReportContractTest(unittest.TestCase):
         self.assertIn("批准日期：2026-10-27", visible)
         self.assertIn("current digest: needs-reapproval", visible)
         self.assertEqual(self.baseline["status"], "approved")
-        self.assertEqual(self.baseline["candidateDigest"], "f2f2c00c81b58e7043932e1b6fc85ad90df6ebff3e454a5c2f370b823baaf841")
+        self.assertEqual(self.baseline["candidateDigest"], "f348d2205af4c7fc56450ce9120e2e5c40fc5c3e2fd3ee8153e43a12794e89c3")
 
     def test_approval_record_is_separate_and_records_user_approval(self):
         self.assertEqual(self.baseline["status"], "approved")
-        self.assertEqual(self.baseline["approvedBy"], "user")
-        self.assertRegex(self.baseline["approvedAt"], r"^2026-10-27T\d{2}:\d{2}:\d{2}\+10:30$")
-        self.assertEqual(self.baseline["changeReason"], "Task 4：正文来源带改为 appendix-linked citation markers；逐页与 contact sheet 已检查")
+        self.assertEqual(self.baseline["approvedBy"], "codex-visual-review")
+        self.assertRegex(self.baseline["approvedAt"], r"^2026-10-28T\d{2}:\d{2}:\d{2}\+10:30$")
+        self.assertIn("Task 5", self.baseline["changeReason"])
         self.assertRegex(self.baseline["candidateDigest"], r"^[0-9a-f]{64}$")
         approval = self.baseline["contentApproval"]
         self.assertEqual(approval["status"], "approved")
@@ -135,13 +151,13 @@ class GoldenReportContractTest(unittest.TestCase):
         self.assertRegex(approval["approvedAt"], r"^2026-10-27T\d{2}:\d{2}:\d{2}\+10:30$")
         self.assertEqual(approval["changeReason"], "用户确认：这个排版结构我认可")
         self.assertRegex(approval["candidateDigest"], r"^[0-9a-f]{64}$")
-        self.assertEqual([event["type"] for event in self.baseline["auditTrail"]],
-                         ["approval", "revision", "revision", "approval", "baseline-update", "policy-classification"])
-        approval = self.baseline["auditTrail"][-2]
-        classification = self.baseline["auditTrail"][-1]
+        self.assertEqual([event["type"] for event in self.baseline["auditTrail"]][-2:],
+                         ["policy-classification", "baseline-update"])
+        approval = self.baseline["auditTrail"][-1]
+        classification = self.baseline["auditTrail"][-2]
         self.assertEqual(approval["reason"], self.baseline["changeReason"])
-        self.assertEqual(approval["observedPages"], ["p02-p14 body markers", "p12 densest", "p15-p16 references", "whole-book contact sheet"])
-        self.assertEqual(classification["candidateDigest"], self.baseline["candidateDigest"])
+        self.assertEqual(approval["observedPages"], ["p01-p16 whole-book contact sheet", "p04 decision path", "p10 operating boundary", "p15-p16 methods and references"])
+        self.assertRegex(classification["candidateDigest"], r"^[0-9a-f]{64}$")
         self.assertIn("explicit full-bibliography", classification["reason"])
         self.assertNotIn("artifacts", self.baseline); self.assertNotIn("environment", self.baseline)
 

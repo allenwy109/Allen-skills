@@ -167,12 +167,16 @@ class A4PaginationTest(unittest.TestCase):
                         for index in range(1, 8)]
         matrix_block = block("competition", "table")
         matrix_block["content"].update(semantic_type="competition", comparison={"criteria": criteria, "alternatives": alternatives})
+        matrix_block["content"]["exhibit"] = {
+            "kind": "competitor-matrix", "family": "matrix", "form": "html.table", "columns": criteria,
+            "rows": [{"label": item["name"], "values": [item["values"][key] for key in criteria]} for item in alternatives],
+        }
         matrix = component("competition", "comparison", layout_id="comparison-columns", blocks=[matrix_block],
                            criteria=criteria, alternatives=alternatives)
         result = render({"title": "Competition", "components": [matrix]})
-        self.assertEqual(2, result["html"].count('class="table-body competition-matrix"'))
-        self.assertEqual(2, result["html"].count('<th scope="col">层级 / 选项</th>'))
-        self.assertEqual(7, result["html"].count('class="competition-layer"'))
+        self.assertEqual(2, result["html"].count('data-exhibit-kind="competitor-matrix"'))
+        self.assertEqual(2, result["html"].count('<th scope="col">比较项</th>'))
+        self.assertEqual(7, sum(result["html"].count(f'<th scope="row">Option {index}</th>') for index in range(1, 8)))
 
     def test_long_sources_split_at_record_boundaries_and_keep_locators(self):
         refs = [{"id": f"src-{i}", "title": "Evidence " + "detail " * 20, "locators": [f"§{i}"]} for i in range(1, 18)]
@@ -216,8 +220,41 @@ class A4PaginationTest(unittest.TestCase):
         first = render(doc)
         second = render(doc)
         self.assertEqual(first, second)
-        self.assertEqual(2, first["manifest"]["blockToPage"]["chapter-2"])
+        self.assertEqual(1, first["manifest"]["blockToPage"]["chapter-2"])
         self.assertFalse(any(page["intentionalBlank"] for page in first["manifest"]["pages"]))
+
+    def test_compatible_components_and_section_heading_compose_continuously(self):
+        heading = component(
+            "chapter-2", "section-title", layout_id="overview-detail",
+            blocks=[block("chapter-2")], chapter_claims=["Prove demand"],
+        )
+        result = render({"title": "Continuous", "components": [heading, component("finding")]})
+        self.assertEqual(1, result["manifest"]["pageCount"])
+        self.assertEqual(1, result["manifest"]["blockToPage"]["chapter-2"])
+        self.assertEqual(1, result["manifest"]["blockToPage"]["finding"])
+
+    def test_duplicate_titles_and_unjustified_repeated_primary_structures_fail(self):
+        duplicate_block = block("two")
+        duplicate_block["content"]["title"] = "Block one"
+        duplicate = [component("one", blocks=[block("one"), duplicate_block])]
+        process = subprocess.run(
+            ["node", str(RENDER)], cwd=ROOT, input=json.dumps({"title": "Duplicate", "components": duplicate}),
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(0, process.returncode)
+        self.assertIn("REPORT_DUPLICATE_TITLE", process.stderr)
+
+        repeated = [component("one", primary_structure="claim-stack"), component("two", primary_structure="claim-stack")]
+        process = subprocess.run(
+            ["node", str(RENDER)], cwd=ROOT, input=json.dumps({"title": "Repeated", "components": repeated}),
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(0, process.returncode)
+        self.assertIn("REPORT_REPEATED_PRIMARY_STRUCTURE", process.stderr)
+
+        repeated[1]["payload"]["repeat_reason"] = "Same decision matrix continued across a semantic table boundary"
+        repeated[1]["payload"]["repeat_approved"] = True
+        self.assertEqual(1, render({"title": "Approved repeat", "components": repeated})["manifest"]["pageCount"])
 
     def test_file_mode_writes_html_and_pagination_manifest(self):
         doc = {"title": "Artifacts", "components": [component("finding")]}

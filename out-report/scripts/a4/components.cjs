@@ -49,7 +49,9 @@ const COMPONENT_CONTRACTS = Object.freeze({
   'executive-summary': componentContract(
     ['text', 'metric', 'chart'], ['answer', 'decisions', 'evidence chain'], ['overview-detail', 'small-multiples'],
     { soft: 3, hard: 4, unit: 'decisions or metrics', field: 'summary_items' }, 'Move supporting analysis to dedicated evidence pages.',
-    ['More than one governing answer', 'Metric without qualification'], ['answers', 'summary_items'], ['single_answer', 'qualified_summary_item'],
+    ['More than one governing answer', 'Metric without qualification'],
+    ['answers', 'summary_items', 'decision_level', 'decisive_reasons', 'largest_upside', 'largest_risk', 'immediate_actions', 'thresholds'],
+    ['single_answer', 'qualified_summary_item', 'complete_decision_summary'],
   ),
   'section-title': componentContract(
     ['text'], ['chapter number', 'chapter claim', 'reading cue'], ['overview-detail'],
@@ -367,6 +369,11 @@ const COMPONENT_PREDICATES = Object.freeze({
   qualified_summary_item(payload) {
     return Array.isArray(payload.summary_items) && payload.summary_items.length > 0 && payload.summary_items.every(item => item && present(item.text) && present(item.qualification));
   },
+  complete_decision_summary(payload) {
+    return present(payload.decision_level) && Array.isArray(payload.decisive_reasons) && payload.decisive_reasons.length === 3 && payload.decisive_reasons.every(present) &&
+      present(payload.largest_upside) && present(payload.largest_risk) && Array.isArray(payload.immediate_actions) && payload.immediate_actions.length > 0 && payload.immediate_actions.every(present) &&
+      payload.thresholds && present(payload.thresholds.continue) && present(payload.thresholds.stop);
+  },
   single_chapter_claim(payload) {
     return present(payload.title) && Array.isArray(payload.chapter_claims) && payload.chapter_claims.length === 1 && present(payload.chapter_claims[0]);
   },
@@ -441,7 +448,9 @@ function executiveSummaryBody(payload) {
     `<span class="summary-meta">${escapeHtml(item.identity || 'claim')} · ${escapeHtml(item.confidence || 'unspecified')}</span>` +
     `<p>${escapeHtml(item.qualification)}</p></li>`
   ).join('');
-  return `${answer}<ol class="summary-list">${items}</ol>`;
+  const reasons = list(payload.decisive_reasons).map(reason => `<li>${escapeHtml(reason)}</li>`).join('');
+  const actions = list(payload.immediate_actions).map(action => `<li>${escapeHtml(action)}</li>`).join('');
+  return `${answer}<div class="executive-decision" data-decision-level="${escapeHtml(payload.decision_level)}"><strong>${escapeHtml(payload.decision_level)}</strong><ul class="decisive-reasons">${reasons}</ul><dl><div><dt>Largest upside</dt><dd>${escapeHtml(payload.largest_upside)}</dd></div><div><dt>Largest risk</dt><dd>${escapeHtml(payload.largest_risk)}</dd></div><div><dt>Continue threshold</dt><dd>${escapeHtml(payload.thresholds.continue)}</dd></div><div><dt>Stop threshold</dt><dd>${escapeHtml(payload.thresholds.stop)}</dd></div></dl><h3>Immediate actions</h3><ul>${actions}</ul></div><ol class="summary-list">${items}</ol>`;
 }
 
 function renderComponent(kind, payload = {}, context = {}) {

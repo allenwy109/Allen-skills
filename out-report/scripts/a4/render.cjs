@@ -185,6 +185,32 @@ async function renderDocument(document) {
       seen.add(id);
     }
   }
+  for (const [label, titles] of [
+    ['section', document.components.filter(component => component && component.kind === 'section-title').map(component => component.payload && component.payload.title)],
+  ]) {
+    const seen = new Set();
+    for (const title of titles.map(value => String(value || '').trim()).filter(Boolean)) {
+      const key = title.normalize('NFKC').toLocaleLowerCase();
+      if (seen.has(key)) throw reportError('REPORT_DUPLICATE_TITLE', `${label} title is duplicated: ${title}`);
+      seen.add(key);
+    }
+  }
+  for (const component of document.components) {
+    const seen = new Set();
+    for (const title of ((component && component.payload && component.payload.blocks) || []).map(block => String(block && block.content && block.content.title || '').trim()).filter(Boolean)) {
+      const key = title.normalize('NFKC').toLocaleLowerCase();
+      if (seen.has(key)) throw reportError('REPORT_DUPLICATE_TITLE', `block title is duplicated in ${component.payload.id}: ${title}`);
+      seen.add(key);
+    }
+  }
+  for (let index = 1; index < document.components.length; index += 1) {
+    const previous = document.components[index - 1].payload || {};
+    const current = document.components[index].payload || {};
+    if (current.primary_structure && current.primary_structure === previous.primary_structure &&
+        (current.repeat_approved !== true || String(current.repeat_reason || '').trim().length < 24)) {
+      throw reportError('REPORT_REPEATED_PRIMARY_STRUCTURE', `${current.id || index} repeats ${current.primary_structure} without a specific reason`);
+    }
+  }
   const context = citationContext(document);
   const runtime = lockedRuntime();
   const css = `${runtime.fontCss}${CSS}${SEMANTIC_CSS}${CONNECTOR_CSS}`;

@@ -257,9 +257,16 @@ function evaluate(evidence) {
   const geometryPages = Array.isArray(evidence.geometry && evidence.geometry.pages) ? evidence.geometry.pages : [];
   blocking.push(...evidenceErrors(evidence));
 
+  const maximumUnusedRatio = finiteNumber(pagination.maximumUnusedRatio) ? pagination.maximumUnusedRatio : 0.56;
+
   for (const page of paginationPages) {
     if (finiteNumber(page.usedHeightPx) && finiteNumber(page.contentHeightPx) && page.usedHeightPx > page.contentHeightPx + 1) {
       blocking.push(issue('REPORT_PAGE_OVERFLOW', page.id, `${page.usedHeightPx}px exceeds ${page.contentHeightPx}px`, { usedHeightPx: page.usedHeightPx, contentHeightPx: page.contentHeightPx }));
+    }
+    const unusedRatio = finiteNumber(page.usedHeightPx) && finiteNumber(page.contentHeightPx) && page.contentHeightPx > 0
+      ? Math.max(0, 1 - page.usedHeightPx / page.contentHeightPx) : 0;
+    if (!page.intentionalBlank && unusedRatio > maximumUnusedRatio && String(page.whitespaceReason || '').trim().length < 24) {
+      blocking.push(issue('REPORT_NONFUNCTIONAL_WHITESPACE', page.id, `${Math.round(unusedRatio * 100)}% unused exceeds ${Math.round(maximumUnusedRatio * 100)}%`, { unusedRatio, maximumUnusedRatio }));
     }
   }
   if (Number(pagination.pageCount) !== paginationPages.length) {
@@ -357,6 +364,11 @@ function evaluate(evidence) {
   const sorter = (left, right) => left.code.localeCompare(right.code) || left.location.localeCompare(right.location) || left.detail.localeCompare(right.detail);
   blocking.sort(sorter);
   warnings.sort(sorter);
+  const pageScores = paginationPages.map(page => {
+    const issues = [...blocking, ...warnings].filter(item => item.location === page.id);
+    const unusedRatio = finiteNumber(page.usedHeightPx) && finiteNumber(page.contentHeightPx) && page.contentHeightPx > 0 ? Math.max(0, 1 - page.usedHeightPx / page.contentHeightPx) : 0;
+    return { id: page.id, score: issues.length * 100 + Math.round(unusedRatio * 1000) / 1000, issueCodes: issues.map(item => item.code).sort(), unusedRatio: Math.round(unusedRatio * 1000) / 1000 };
+  }).sort((left, right) => right.score - left.score || left.id.localeCompare(right.id));
   return {
     schemaVersion: '1.0',
     status: blocking.length ? 'failed' : warnings.length ? 'passed-with-disposition' : 'passed',
@@ -364,7 +376,7 @@ function evaluate(evidence) {
     warnings,
     pageManifest: { pageCount: paginationPages.length, pages: paginationPages.map(page => ({ id: page.id, number: page.number, intentionalBlank: Boolean(page.intentionalBlank), geometry: page.geometry })) },
     textManifest: { pages: htmlText.map((page, index) => ({ id: page.id, htmlDigest: page.digest, pdfDigest: pdfText[index] && pdfText[index].digest })) },
-    audit: { visualRegression: { baselineDigest: regression.baselineDigest || '', candidateDigest: regression.candidateDigest || '', differences: regression.differences || [], disposition: regression.disposition || null } },
+    audit: { worstPage: pageScores[0] || null, visualRegression: { baselineDigest: regression.baselineDigest || '', candidateDigest: regression.candidateDigest || '', differences: regression.differences || [], disposition: regression.disposition || null } },
   };
 }
 

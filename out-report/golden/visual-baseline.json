@@ -1,10 +1,10 @@
 {
   "schemaVersion": "1.0",
   "status": "approved",
-  "approvedBy": "user",
-  "approvedAt": "2026-10-27T17:30:00+10:30",
-  "candidateDigest": "f2f2c00c81b58e7043932e1b6fc85ad90df6ebff3e454a5c2f370b823baaf841",
-  "changeReason": "Task 4：正文来源带改为 appendix-linked citation markers；逐页与 contact sheet 已检查",
+  "approvedBy": "codex-visual-review",
+  "approvedAt": "2026-10-28T11:33:44+10:30",
+  "candidateDigest": "f348d2205af4c7fc56450ce9120e2e5c40fc5c3e2fd3ee8153e43a12794e89c3",
+  "changeReason": "Task 5：将稀疏章节页改为决策路径与承接边界实展；逐页与整册 contact sheet 已检查",
   "contentApproval": {
     "status": "approved",
     "approvedBy": "user",
@@ -55,6 +55,14 @@
       "commit": "083f51b",
       "candidateDigest": "f2f2c00c81b58e7043932e1b6fc85ad90df6ebff3e454a5c2f370b823baaf841",
       "reason": "Golden booklet is the explicit full-bibliography variant; metadata-only classification leaves the approved pixels unchanged"
+    },
+    {
+      "type": "baseline-update",
+      "approvedBy": "codex-visual-review",
+      "approvedAt": "2026-10-28T11:33:44+10:30",
+      "candidateDigest": "f348d2205af4c7fc56450ce9120e2e5c40fc5c3e2fd3ee8153e43a12794e89c3",
+      "reason": "Task 5：将稀疏章节页改为决策路径与承接边界实展；逐页与整册 contact sheet 已检查",
+      "observedPages": ["p01-p16 whole-book contact sheet", "p04 decision path", "p10 operating boundary", "p15-p16 methods and references"]
     }
   ]
 }

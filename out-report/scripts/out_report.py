@@ -137,8 +137,10 @@ def _component_for_block(block, section, index, report, metrics):
         return {"kind": "data-chart", "payload": {**base, "layout_id": "full-evidence", "unit": block["content"].get("subtitle") or "见来源口径",
                                                         "period": report["metadata"].get("date") or "报告期", "items": [block["id"]]}}
     if block["kind"] == "metric":
-        return {"kind": "executive-summary", "payload": {**base, "layout_id": "overview-detail", "answers": [block["content"]["purpose"]],
-                                                               "summary_items": [{"text": block["id"], "qualification": block["content"].get("subtitle") or "以来源口径为准"}]}}
+        block["kind"] = "text"
+        base["blocks"] = [block]
+        return {"kind": "claim-evidence", "payload": {**base, "layout_id": "full-evidence", "claim": block["content"]["purpose"],
+                                                          "evidence_groups": source_groups}}
     return {"kind": "claim-evidence", "payload": {**base, "layout_id": "full-evidence", "claim": block["content"]["purpose"],
                                                           "evidence_groups": source_groups}}
 
@@ -159,6 +161,10 @@ def render_document(report, task):
             "qualification": claim.get("limitation") or "需要结合正文边界判断",
         })
     answer = answer_claims[0]["statement"] if answer_claims else report["executive_summary"].get("question", "")
+    reasons = [item["text"] for item in summary_items[:3]]
+    while len(reasons) < 3:
+        reasons.append(["适用边界仍需核实", "关键风险仍需闭环", "继续条件仍需验证"][len(reasons)])
+    decision_summary = report["executive_summary"].get("decision_structure", {})
     components = [
         {"kind": "cover", "payload": {"id": "cover", "title": report["metadata"]["title"], "layout_id": "overview-detail",
                                          "title_groups": [{"title": report["metadata"]["title"]}], "blocks": []}},
@@ -167,7 +173,13 @@ def render_document(report, task):
                                                    for index, section in enumerate(report["sections"], 1)]}},
         {"kind": "executive-summary", "payload": {"id": "executive-summary", "title": "执行摘要", "layout_id": "overview-detail", "blocks": [],
                                                      "answers": [answer] if answer else [],
-                                                     "summary_items": summary_items}},
+                                                     "summary_items": summary_items,
+                                                     "decision_level": decision_summary.get("decision_level") or answer,
+                                                     "decisive_reasons": decision_summary.get("decisive_reasons") or reasons,
+                                                     "largest_upside": decision_summary.get("largest_upside") or "通过受控验证保留可行机会",
+                                                     "largest_risk": decision_summary.get("largest_risk") or "证据不足时过早扩大投入",
+                                                     "immediate_actions": decision_summary.get("immediate_actions") or ["完成关键证据缺口验证"],
+                                                     "thresholds": decision_summary.get("thresholds") or {"continue": "关键证据达到正文约定门槛", "stop": "关键证据未达到正文约定门槛"}}},
     ]
     for section_index, section in enumerate(report["sections"], 1):
         chapter_id = f"chapter-{section_index:02d}"

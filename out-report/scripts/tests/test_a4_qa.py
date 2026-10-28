@@ -38,6 +38,7 @@ def load_visual():
 def good_evidence():
     return {
         "pagination": {
+            "maximumUnusedRatio": 0.55,
             "pageCount": 1,
             "pages": [{
                 "id": "page-001", "number": 1, "intentionalBlank": False,
@@ -97,6 +98,22 @@ Promise.resolve().then(() => {expression}).then(
 
 
 class A4QualityGateTest(unittest.TestCase):
+    def test_nonfunctional_whitespace_and_a4_type_minimums_block_and_worst_page_is_named(self):
+        evidence = good_evidence()
+        evidence["pagination"]["pages"][0]["usedHeightPx"] = 200
+        evidence["geometry"]["pages"][0]["fonts"][0]["minimumPt"] = 8.49
+        result = run_qa(evidence)
+        codes = {item["code"] for item in result["blocking"]}
+        self.assertIn("REPORT_NONFUNCTIONAL_WHITESPACE", codes)
+        self.assertIn("REPORT_FONT_TOO_SMALL", codes)
+        self.assertEqual("page-001", result["audit"]["worstPage"]["id"])
+        self.assertGreater(result["audit"]["worstPage"]["score"], 0)
+
+    def test_intentional_whitespace_is_allowed_only_with_a_specific_reason(self):
+        evidence = good_evidence()
+        evidence["pagination"]["pages"][0].update(usedHeightPx=200, whitespaceReason="Chapter close preserves the next decision tree with its governing question")
+        result = run_qa(evidence)
+        self.assertNotIn("REPORT_NONFUNCTIONAL_WHITESPACE", {item["code"] for item in result["blocking"]})
     def test_real_evaluate_rejects_missing_and_mismatched_rendered_exhibits(self):
         evidence = good_evidence()
         evidence["media"]["htmlPages"][0]["visibleHtml"] = (
@@ -544,7 +561,7 @@ class A4QualityGateTest(unittest.TestCase):
 
         evidence = good_evidence()
         evidence["pagination"]["pageCount"] = 2
-        evidence["pagination"]["pages"].append({"id": "page-002", "number": 2, "intentionalBlank": False, "usedHeightPx": 10, "contentHeightPx": 986, "geometry": {"widthMm": 210, "heightMm": 297}})
+        evidence["pagination"]["pages"].append({"id": "page-002", "number": 2, "intentionalBlank": False, "usedHeightPx": 10, "contentHeightPx": 986, "whitespaceReason": "Visual regression fixture isolates an intentionally sparse second page", "geometry": {"widthMm": 210, "heightMm": 297}})
         evidence["geometry"]["pages"].append({"id": "page-002", "mediaBoxMm": [210, 297], "overlaps": [], "clipped": [], "empty": False, "fonts": [{"role": "body", "minimumPt": 8.5}]})
         evidence["media"]["htmlPages"].append({"id": "page-002", "role": "body", "text": "Second", "visibleHtml": "<p>Second</p>"})
         evidence["media"]["pdfPages"].append({"id": "page-002", "text": "Second"})

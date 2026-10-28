@@ -13,6 +13,9 @@
   --font-source: 7.5pt;
   --font-label: 7.7pt;
   --font-note: 8.5pt;
+  --font-body-min: 8.5pt;
+  --font-source-min: 7.5pt;
+  --maximum-unused-ratio: .56;
   --font-heading-1: 26pt;
   --font-heading-2: 20pt;
   --font-heading-3: 12pt;
