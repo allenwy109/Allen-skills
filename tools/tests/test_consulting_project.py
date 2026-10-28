@@ -173,6 +173,23 @@ class ConsultingProjectTest(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn("REVIEW_CLOSURE_INCOMPLETE", result.stdout)
 
+    def test_closed_major_review_rejects_whitespace_and_empty_evidence_items(self):
+        def mutate(task):
+            path = task / "review-closure.json"
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            issue = doc["issues"][0]
+            issue.update({
+                "severity": "major", "status": "closed", "remedy": "  ",
+                "remedy_evidence": [""], "re_reviewer": "\t",
+            })
+            write_json(path, doc)
+
+        temp, task = self.mutate_project(mutate)
+        with temp:
+            result = self.run_cli("validate", task)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("REVIEW_CLOSURE_INCOMPLETE", result.stdout)
+
     def test_closed_minor_review_does_not_require_re_review_evidence(self):
         def mutate(task):
             path = task / "review-closure.json"

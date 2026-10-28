@@ -105,7 +105,12 @@ def validate_project(task):
             if issue.get("severity") in ("blocking", "major") and issue.get("status") != "closed":
                 errors.append(("REVIEW_OPEN_MAJOR", f"{issue.get('id', '?')} is {issue.get('status', 'open')}"))
             if issue.get("severity") in ("blocking", "major") and issue.get("status") == "closed":
-                if not issue.get("remedy") or not issue.get("remedy_evidence") or not issue.get("re_reviewer"):
+                evidence = issue.get("remedy_evidence")
+                valid_evidence = (isinstance(evidence, list) and evidence and
+                                  all(isinstance(item, str) and item.strip() for item in evidence))
+                if (not isinstance(issue.get("remedy"), str) or not issue["remedy"].strip() or
+                        not valid_evidence or not isinstance(issue.get("re_reviewer"), str) or
+                        not issue["re_reviewer"].strip()):
                     errors.append(("REVIEW_CLOSURE_INCOMPLETE", f"{issue.get('id', '?')} lacks remedy or re-review evidence"))
     return errors
 
