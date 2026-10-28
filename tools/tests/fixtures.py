@@ -66,7 +66,8 @@ def report_slides():
     """报告夹具的 slides.json：封面、两页正文（分析页、行动页）、封底。"""
     def panel(pid, role, slot, purpose, claims, form, relationship, reason, **extra):
         return {"id": pid, "role": role, "slot": slot, "span": extra.pop("span", 1), "purpose": purpose, "claim_refs": claims,
-                "form": form, "relationship": relationship, "reason": reason, **extra}
+                "form": form, "relationship": relationship, "reason": reason,
+                "semantic_type": extra.pop("semantic_type", "point_evidence"), **extra}
     return {
         "deck": {"title": "星河数据科技经营概览", "kind": "reading", "language": "zh-CN", "audience": "投资经理", "decision": "是否继续跟进",
                  "story_mode": "company_research", "arc": "evidence-to-view", "ratio": "16x9",
@@ -88,7 +89,7 @@ def report_slides():
                                "layout_reason": "主图占左侧三分之二，右侧写口径和边界"},
              "anchor_panel": "bars",
              "panels": [panel("bars", "primary", "main", "两年收入同量尺比较，看出增长幅度", ["cl-0001"], "svg.custom", "comparison",
-                              "两期数值共用零基线，柱形比较绝对规模最直接", visual="两年收入柱形", semantic_type="comparison",
+                              "两期数值共用零基线，柱形比较绝对规模最直接", visual="两年收入柱形", semantic_type="point_evidence",
                               alternative="并排数字卡", tradeoff="柱形更适合比较绝对规模", capacity={"items": 2}, span=2),
                         panel("note", "support", "aside", "说明收入口径和不能推出的结论", ["cl-0001"], "html.text", "text",
                               "口径和边界是文字判断，用短段落最清楚")],

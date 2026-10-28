@@ -258,19 +258,20 @@ function matrixExhibit(block, exhibit) {
 
 function decisionTreeExhibit(block, exhibit) {
   const nodes = list(exhibit.nodes);
+  const positions = new Map(nodes.map((node, index) => [node.id, { x: 8 + index * 105, y: 12 }]));
   const nodeIds = new Set(nodes.map(node => node.id));
   const invalid = list(exhibit.edges).find(edge => !nodeIds.has(edge.from) || !nodeIds.has(edge.to));
   if (invalid) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} edge ${invalid.from} -> ${invalid.to} does not resolve`);
-  const labels = nodes.map((node, index) => `<g id="${escapeHtml(block.id)}-node-${escapeHtml(node.id)}"><rect x="${8 + index * 52}" y="12" width="44" height="20"></rect><text x="${30 + index * 52}" y="24">${escapeHtml(node.label)}</text></g>`).join('');
-  const edges = list(exhibit.edges).map((edge, index) => `<line id="${escapeHtml(block.id)}-edge-${index + 1}" data-from="${escapeHtml(block.id)}-node-${escapeHtml(edge.from)}" data-to="${escapeHtml(block.id)}-node-${escapeHtml(edge.to)}" x1="52" y1="22" x2="60" y2="22"></line><text x="56" y="18">${escapeHtml(edge.label)}</text>`).join('');
-  return exhibitShell(block, exhibit, 'decision-branch-svg', `<svg role="img" aria-labelledby="${escapeHtml(block.id)}-tree-title" viewBox="0 0 ${Math.max(120, nodes.length * 60)} 44"><title id="${escapeHtml(block.id)}-tree-title">决策树</title>${edges}${labels}</svg>`, 'figure');
+  const labels = nodes.map(node => { const point = positions.get(node.id); return `<g id="${escapeHtml(block.id)}-node-${escapeHtml(node.id)}"><rect x="${point.x}" y="${point.y}" width="90" height="30"></rect><text x="${point.x + 45}" y="${point.y + 19}">${escapeHtml(node.label)}</text></g>`; }).join('');
+  const edges = list(exhibit.edges).map((edge, index) => { const from = positions.get(edge.from); const to = positions.get(edge.to); const x1 = from.x + 90; const x2 = to.x; return `<line id="${escapeHtml(block.id)}-edge-${index + 1}" data-from="${escapeHtml(block.id)}-node-${escapeHtml(edge.from)}" data-to="${escapeHtml(block.id)}-node-${escapeHtml(edge.to)}" x1="${x1}" y1="27" x2="${x2}" y2="27"></line><text x="${(x1 + x2) / 2}" y="22">${escapeHtml(edge.label)}</text>`; }).join('');
+  return exhibitShell(block, exhibit, 'decision-branch-svg', `<svg role="img" aria-labelledby="${escapeHtml(block.id)}-tree-title" viewBox="0 0 ${Math.max(210, nodes.length * 105 + 8)} 54"><title id="${escapeHtml(block.id)}-tree-title">决策树</title>${edges}${labels}</svg>`, 'figure');
 }
 
 function processExhibit(block, exhibit) {
   const steps = list(exhibit.steps);
-  const groups = steps.map((step, index) => `<g id="${escapeHtml(block.id)}-step-${index + 1}"><rect x="${6 + index * 42}" y="8" width="34" height="18"></rect><text x="${23 + index * 42}" y="19">${escapeHtml(step.label)}</text></g>`).join('');
-  const connectors = steps.slice(1).map((_, index) => `<line class="process-connector" x1="${40 + index * 42}" y1="17" x2="${48 + index * 42}" y2="17"></line>`).join('');
-  return exhibitShell(block, exhibit, 'mechanism-flow-svg', `<svg role="img" aria-labelledby="${escapeHtml(block.id)}-process-title" viewBox="0 0 ${Math.max(120, steps.length * 42)} 34"><title id="${escapeHtml(block.id)}-process-title">机制与流程</title>${connectors}${groups}</svg>`, 'figure');
+  const groups = steps.map((step, index) => `<g id="${escapeHtml(block.id)}-step-${index + 1}"><rect x="${6 + index * 105}" y="8" width="90" height="30"></rect><text x="${51 + index * 105}" y="27">${escapeHtml(step.label)}</text></g>`).join('');
+  const connectors = steps.slice(1).map((_, index) => `<line class="process-connector" x1="${96 + index * 105}" y1="23" x2="${111 + index * 105}" y2="23"></line>`).join('');
+  return exhibitShell(block, exhibit, 'mechanism-flow-svg', `<svg role="img" aria-labelledby="${escapeHtml(block.id)}-process-title" viewBox="0 0 ${Math.max(210, steps.length * 105 + 6)} 46"><title id="${escapeHtml(block.id)}-process-title">机制与流程</title>${connectors}${groups}</svg>`, 'figure');
 }
 
 function scenariosExhibit(block, exhibit) {

@@ -44,16 +44,27 @@ class GoldenReportContractTest(unittest.TestCase):
         kinds = {block["content"]["exhibit"]["kind"] for component in fixture["components"] for block in component["payload"]["blocks"]}
         self.assertEqual(expected, kinds)
         env = dict(os.environ, ALLEN_RUNTIME=str(dependency_runtime()))
-        process = subprocess.run(["node", str(EXHIBIT_RENDER), str(EXHIBIT_GOLDEN)], cwd=ROOT, env=env, capture_output=True, text=True)
-        self.assertEqual(0, process.returncode, process.stderr)
-        rendered = json.loads(process.stdout)
+        with tempfile.TemporaryDirectory() as temporary:
+            output = pathlib.Path(temporary)
+            process = subprocess.run(["node", str(EXHIBIT_RENDER), str(EXHIBIT_GOLDEN), str(output)], cwd=ROOT, env=env, capture_output=True, text=True)
+            self.assertEqual(0, process.returncode, process.stderr)
+            rendered = json.loads(process.stdout)
+            artifact = output / "native-exhibits.png"
+            screenshot = """const {chromium}=require(process.env.ALLEN_RUNTIME+'/vendor/report-forge/node_modules/playwright');(async()=>{const b=await chromium.launch({headless:true});const p=await b.newPage({viewport:{width:1191,height:1684},deviceScaleFactor:1});await p.goto('file://'+process.argv[1]);await p.screenshot({path:process.argv[2],fullPage:true});await b.close()})().catch(e=>{console.error(e);process.exit(1)})"""
+            capture = subprocess.run(["node", "-e", screenshot, str(output / "report.html"), str(artifact)], cwd=ROOT, env=env, capture_output=True, text=True)
+            self.assertEqual(0, capture.returncode, capture.stderr)
+            artifact_digest = sha(artifact)
         self.assertGreaterEqual(rendered["manifest"]["pageCount"], 1)
+        self.assertGreaterEqual(rendered["manifest"]["minimumFontPt"], 7.5)
         for kind in expected:
             self.assertIn(f'data-exhibit-kind="{kind}"', rendered["html"])
         baseline = json.loads(EXHIBIT_BASELINE.read_text())
         self.assertEqual("approved", baseline["status"])
         self.assertEqual(sha(EXHIBIT_GOLDEN), baseline["fixtureSha256"])
         self.assertRegex(baseline["candidateDigest"], r"^[0-9a-f]{64}$")
+        self.assertEqual("native-exhibits.png", baseline["artifact"]["name"])
+        self.assertEqual(baseline["candidateDigest"], baseline["artifact"]["sha256"])
+        self.assertEqual(baseline["artifact"]["sha256"], artifact_digest)
     @classmethod
     def setUpClass(cls):
         cls.manifest = json.loads((GOLDEN / "golden-report.json").read_text())

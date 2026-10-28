@@ -145,6 +145,13 @@ class A4ComponentTest(unittest.TestCase):
         self.assertIn('data-from="b-1-node-start"', rendered["value"])
         self.assertIn('data-to="b-1-node-go"', rendered["value"])
 
+        tree["content"]["exhibit"]["nodes"].append({"id": "stop", "label": "停止"})
+        tree["content"]["exhibit"]["edges"].append({"from": "start", "to": "stop", "label": "否"})
+        rendered = run_node("component.renderBlock(payload.block, {})", {"block": tree})
+        self.assertTrue(rendered["ok"], rendered)
+        self.assertRegex(rendered["value"], r'id="b-1-edge-1"[^>]*x1="98"[^>]*x2="113"')
+        self.assertRegex(rendered["value"], r'id="b-1-edge-2"[^>]*x1="98"[^>]*x2="218"')
+
         broken = json.loads(json.dumps(tree))
         broken["content"]["exhibit"]["edges"][0]["to"] = "missing"
         result = run_node("component.renderBlock(payload.block, {})", {"block": broken})

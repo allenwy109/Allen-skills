@@ -396,6 +396,8 @@ def build(task, slides, sidecar=None, bibliography_policy=None):
             rel_refs = sorted(r["id"] for r in relations if panel["id"] in r["panel_refs"])
             semantic_content = _semantic_content(panel, set(panel_claims), claims, decision)
             native_exhibit = _native_exhibit(panel, semantic_content)
+            if not native_exhibit and panel.get("semantic_type") != "point_evidence":
+                raise ReportError("REPORT_EXHIBIT_MISSING", f"panel {panel.get('id')} 的 {panel.get('semantic_type') or '<missing>'} 无法唯一路由；请显式声明 exhibit kind")
             blocks.append({
                 "id": f"p{slide['page']:02d}-{panel['id']}",
                 "kind": FORM_KIND[panel["form"]],

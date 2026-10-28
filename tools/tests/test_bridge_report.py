@@ -61,6 +61,13 @@ class ReportContractTest(unittest.TestCase):
         self.assertEqual(blocks[0]["source_bindings"], [{"source_id": "M001", "locators": ["p12"]}])
         self.assertEqual(report["references"][0]["locators"], ["p12", "p30", "附录 A"])
 
+    def test_ambiguous_non_point_semantic_is_not_rewritten_to_fallback(self):
+        slides = copy.deepcopy(self.slides)
+        slides["slides"][1]["panels"][0]["semantic_type"] = "comparison"
+        error = self.error(slides)
+        self.assertEqual("REPORT_EXHIBIT_MISSING", error.code)
+        self.assertIn("comparison", str(error))
+
     def test_build_carries_claims_and_decision_research_into_semantic_blocks(self):
         slides = copy.deepcopy(self.slides)
         slides["slides"][1]["panels"][0]["semantic_type"] = "pain-demand"
