@@ -127,12 +127,12 @@ def _digest(value):
 def review_closure_failures(reviewer):
     failures = []
     for issue in reviewer.get("issues") or []:
+        original = str(issue.get("reviewer") or "").strip()
+        if not original:
+            failures.append(f"问题 {issue.get('id', '?')} 缺少问题审查者身份")
         if not issue.get("resolved") or issue.get("level") not in ("blocking", "major"):
             continue
         re_review = issue.get("re_review") or {}
-        original = str(issue.get("reviewer") or "").strip()
-        if not original:
-            failures.append(f"已解决的{issue['level']}问题 {issue['id']} 缺少问题审查者身份")
         if str(re_review.get("reviewer") or "").strip() != original:
             failures.append(f"已解决的{issue['level']}问题 {issue['id']} 必须由原审查者复审")
         if (not str(issue.get("remedy") or "").strip() or not issue.get("remedy_evidence")

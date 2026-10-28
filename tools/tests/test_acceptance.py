@@ -158,6 +158,16 @@ class StatusRuleTest(unittest.TestCase):
         self.assertEqual("failed", status)
         self.assertIn("问题审查者", "；".join(failures))
 
+    def test_report_requires_owner_on_open_and_resolved_minor_issues(self):
+        for resolved in (False, True):
+            value = report_review(("minor", "Minor wording issue", resolved))
+            value["issues"][0]["reviewer"] = ""
+            stamp_review(value)
+            with self.subTest(resolved=resolved):
+                status, failures, _ = self.status(kind="report", reviewer=value)
+                self.assertEqual("failed", status)
+                self.assertIn("问题审查者", "；".join(failures))
+
     def test_digest_cli_uses_canonical_review_content(self):
         value = report_review()
         with tempfile.TemporaryDirectory() as temporary:

@@ -459,7 +459,7 @@ def _validate_independent(review, work, artifacts, author_reviewer=None):
         and not review_closure_failures(review)
     )
     if not required:
-        raise StepError("REPORT_REVIEW_INVALID: independent reviewer must differ from the author; visual review must bind review digests, cover every page and the worst page with concrete aesthetic findings; decision review must answer all six executive questions; blocking/major issues require remedy evidence and one re-review")
+        raise StepError("REPORT_REVIEW_INVALID: independent reviewer must differ from the author; every report issue requires an issue reviewer; visual review must bind review digests, cover every page and the worst page with concrete aesthetic findings; decision review must answer all six executive questions; blocking/major issues require remedy evidence and one re-review")
 
 
 def cmd_review(args):
