@@ -119,6 +119,16 @@ class A4OutReportPipelineTest(unittest.TestCase):
             self.assertEqual(["应否进入该市场？"], summary["payload"]["answers"])
             self.assertEqual([], summary["payload"]["summary_items"])
 
+    def test_explicit_full_bibliography_reaches_rendered_document(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            task = make_task(temporary)
+            slides = json.loads((task / "07_storyline/slides.json").read_text(encoding="utf-8"))
+            report, _ = out_report.to_report.build(task, slides, bibliography_policy="full")
+            references = next(item for item in out_report.render_document(report, task)["components"]
+                              if item["kind"] == "references-appendix")["payload"]["references"]
+            self.assertIn("url", references[0])
+            self.assertIn("grade", references[0])
+
     def test_a4_workflow_is_default_and_packages_audited_outputs(self):
         self.command("init", self.task)
         self.assertTrue((self.story / "report.json").is_file())
@@ -226,6 +236,10 @@ class A4OutReportPipelineTest(unittest.TestCase):
         for name in ("report.html", "report.pdf"):
             self.assertTrue((out / name).is_file(), name)
         self.assertEqual([], list(out.glob("page-*.png")))
+        evidence = self.task / "08_deliverables/evidence-package"
+        self.assertTrue(evidence.is_dir())
+        self.assertTrue((self.task / "08_deliverables/evidence-package.zip").is_file())
+        self.assertTrue(out_report.package_support.verify(evidence)["verified"])
         client_html = (out / "report.html").read_text(encoding="utf-8")
         self.assertIn('class="citation-marker"', client_html)
         for forbidden in ("https://", "Grade A", "2026-01-15T", "conflict_of_interest"):

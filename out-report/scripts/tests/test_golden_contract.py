@@ -107,6 +107,8 @@ class GoldenReportContractTest(unittest.TestCase):
         self.assertRegex(self.source_css, r"--font-body:\s*10\.75pt"); self.assertRegex(self.source_css, r"--font-source:\s*7\.5pt")
 
     def test_body_pages_use_compact_markers_and_full_references_stay_in_appendix(self):
+        self.assertEqual("full", self.manifest["metadata"]["bibliography_policy"])
+        self.assertEqual("compact", self.manifest["metadata"]["client_citations"])
         sections = re.findall(r'<section\b.*?</section>', self.source_html, re.S)
         body = "".join(section for section in sections if 'data-page-role="references"' not in section)
         appendix = "".join(section for section in sections if 'data-page-role="references"' in section)

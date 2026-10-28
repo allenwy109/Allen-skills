@@ -110,9 +110,11 @@ def select_files(task, include_raw=False):
     return sorted(set(selected), key=lambda p: p.relative_to(task).as_posix())
 
 
-def read_app(task):
+def read_app(task, required=True):
     run = task / "app-run.json"
     if not run.is_file():
+        if not required:
+            return "report", "正式报告"
         raise PackageError(f"找不到 {run}，支撑包只用于 Allen 应用任务")
     doc = json.loads(run.read_text(encoding="utf-8"))
     app_id = doc.get("app_id")
@@ -138,19 +140,49 @@ def verify(package_dir):
     checksum = package / "checksums-sha256.txt"
     if not checksum.is_file():
         raise PackageError("缺少 checksums-sha256.txt")
-    for line in checksum.read_text(encoding="utf-8").splitlines():
-        expected, rel = line.split("  ", 1)
+    lines = checksum.read_text(encoding="utf-8").splitlines()
+    if not lines:
+        raise PackageError("checksums-sha256.txt 为空")
+    recorded = {}
+    for line in lines:
+        try:
+            expected, rel = line.split("  ", 1)
+        except ValueError as error:
+            raise PackageError("checksums-sha256.txt 格式无效") from error
+        if rel in recorded:
+            raise PackageError(f"重复校验路径：{rel}")
+        recorded[rel] = expected
         path = (package / rel).resolve()
         if package not in path.parents:
             raise PackageError(f"校验路径越界：{rel}")
         if not path.is_file() or digest(path) != expected:
             raise PackageError(f"校验失败：{rel}")
+    actual = {path.relative_to(package).as_posix() for path in package.rglob("*") if path.is_file()}
+    expected_actual = set(recorded) | {"checksums-sha256.txt"}
+    if actual != expected_actual:
+        raise PackageError("包内文件与 checksums-sha256.txt 不一致")
+    manifest = json.loads((package / "package-manifest.json").read_text(encoding="utf-8"))
+    entries = manifest.get("files")
+    if not isinstance(entries, list) or not entries:
+        raise PackageError("package-manifest.json 没有文件记录")
+    manifest_paths = [item.get("path") for item in entries]
+    if len(manifest_paths) != len(set(manifest_paths)) or any(not path for path in manifest_paths):
+        raise PackageError("package-manifest.json 路径重复或为空")
+    generated = {"README.md", "source-index.md", "package-manifest.json"}
+    if set(manifest_paths) != set(recorded) - generated:
+        raise PackageError("package-manifest.json 与校验清单不一致")
+    for item in entries:
+        path = package / item["path"]
+        if item.get("size") != path.stat().st_size or item.get("sha256") != digest(path):
+            raise PackageError(f"package-manifest.json 文件记录不一致：{item['path']}")
     return {"package": str(package), "verified": True}
 
 
-def build(task_dir, include_raw=False):
+def build(task_dir, include_raw=False, require_app=True):
     task = pathlib.Path(task_dir).resolve()
-    app_id, app_label = read_app(task)
+    app_id, app_label = read_app(task, require_app)
+    if not (task / "03_evidence" / "ledger" / "sources.jsonl").is_file():
+        raise PackageError("证据包缺少 03_evidence/ledger/sources.jsonl")
     files = select_files(task, include_raw)
     if not files:
         raise PackageError("没有可打包的支撑文件")

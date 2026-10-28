@@ -5,6 +5,7 @@ import unittest
 import zipfile
 import subprocess
 import sys
+import shutil
 
 from tools import package_support as P
 
@@ -67,8 +68,11 @@ class PackageSupportTest(unittest.TestCase):
         self.assertFalse(any(".backup" in name or "cache.bin" in name or "/build/" in name for name in names))
         self.assertFalse(manifest["includes_raw_materials"])
 
-        package = self.task / "08_deliverables" / "evidence-package"
-        subprocess.run([sys.executable, str(pathlib.Path(P.__file__)), "--verify", package], check=True)
+        with tempfile.TemporaryDirectory() as extracted:
+            with zipfile.ZipFile(self.task / "08_deliverables/evidence-package.zip") as archive:
+                archive.extractall(extracted)
+            package = pathlib.Path(extracted) / "evidence-package"
+            subprocess.run([sys.executable, str(pathlib.Path(P.__file__)), "--verify", package], check=True)
 
     def test_include_raw_is_explicit(self):
         P.build(self.task, include_raw=True)
@@ -80,6 +84,34 @@ class PackageSupportTest(unittest.TestCase):
         (self.task / "app-run.json").unlink()
         with self.assertRaises(P.PackageError):
             P.build(self.task)
+
+    def test_generic_report_package_fails_without_source_ledger(self):
+        shutil.rmtree(self.task / "03_evidence/ledger")
+        with self.assertRaisesRegex(P.PackageError, "sources.jsonl"):
+            P.build(self.task, require_app=False)
+
+    def test_verify_rejects_missing_tampered_extra_and_manifest_mismatch(self):
+        P.build(self.task)
+        source = self.task / "08_deliverables/evidence-package"
+        for mutation in ("deleted", "tampered", "extra", "manifest-size", "empty-checksums"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
+                package = pathlib.Path(temporary) / "package"
+                shutil.copytree(source, package)
+                target = package / "00_brief.md"
+                if mutation == "deleted":
+                    target.unlink()
+                elif mutation == "tampered":
+                    target.write_text("changed", encoding="utf-8")
+                elif mutation == "extra":
+                    (package / "unlisted.txt").write_text("extra", encoding="utf-8")
+                elif mutation == "manifest-size":
+                    manifest = json.loads((package / "package-manifest.json").read_text(encoding="utf-8"))
+                    next(item for item in manifest["files"] if item["path"] == "00_brief.md")["size"] += 1
+                    (package / "package-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+                else:
+                    (package / "checksums-sha256.txt").write_text("", encoding="utf-8")
+                with self.assertRaises(P.PackageError):
+                    P.verify(package)
 
 
 if __name__ == "__main__":

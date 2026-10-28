@@ -2,6 +2,7 @@
   "id": "regional-compute-pool-golden-v1",
   "title": "区域算力资源池创业评估",
   "fixtureKind": "synthetic-example",
+  "metadata": {"bibliography_policy": "full", "client_citations": "compact"},
   "disclaimer": "全部业务数据均为合成示例，仅用于版式评估，不构成市场事实或投资建议。",
   "pages": [
     {"id":"p01","role":"cover","title":"封面"},

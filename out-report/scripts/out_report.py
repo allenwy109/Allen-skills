@@ -495,13 +495,11 @@ def cmd_package(args):
     out = client_report_dir(task)
     sources = {"report.html": build / "report.html", "report.pdf": build / "report.pdf"}
     replace_delivery(out, sources)
-    evidence = None
-    if (task / "app-run.json").is_file():
-        try:
-            evidence = package_support.build(task)
-        except (package_support.PackageError, OSError, ValueError, zipfile.BadZipFile) as error:
-            print(f"EVIDENCE_PACKAGE_FAILED: {error}", file=sys.stderr)
-            return 1
+    try:
+        evidence = package_support.build(task, require_app=False)
+    except (package_support.PackageError, OSError, ValueError, zipfile.BadZipFile) as error:
+        print(f"EVIDENCE_PACKAGE_FAILED: {error}", file=sys.stderr)
+        return 1
     checks = [
         storyline_check(task), *diligence_checks(task),
         {"name": "coverage", "result": "passed", "detail": "input/output sets equal; duplicates rejected"},
@@ -518,8 +516,7 @@ def cmd_package(args):
         "files": [str((out / name).relative_to(task)) for name in sources], "upstream_checks": checks, "reviewer": acceptance_reviewer,
     })
     print(f"已打包 A4 报告：{out}")
-    if evidence:
-        print(f"已打包证据包：{evidence['output']}")
+    print(f"已打包证据包：{evidence['output']}")
     print(f"统一验收状态：{entry['status']}")
     return 0 if entry["status"] == "passed" else 1
 
