@@ -180,12 +180,46 @@ class MergeTest(Base):
         handoffs = self.task / "research-handoffs"
         handoffs.mkdir()
         (handoffs / "C.json").write_text(json.dumps({
-            "line_id": "C", "role": "competitors-and-substitutes", "project_manager_disposition": "rejected",
+            "version": 1, "line_id": "C", "role": "competitors-and-substitutes", "summary": "rejected line",
+            "source_ids": [], "data_files": [], "supported_claims": ["C-cl-0001"], "counter_evidence": [],
+            "limitations": ["fixture"], "unresolved_questions": [], "next_search_recommendation": "stop",
+            "project_manager_disposition": "rejected",
         }))
         with self.assertRaisesRegex(L.LedgerError, "accepted"):
             self.led.merge("C")
         self.assertTrue((self.led.dir / "staging" / "C").is_dir())
         self.assertNotIn("rejected finding", [item["statement"] for item in self.led.read("claims")])
+
+    def test_consulting_project_merge_rejects_claim_smuggling_and_preserves_staging(self):
+        (self.task / "consulting-project.json").write_text('{"version":1,"depth":"L3"}\n')
+        reviewed = dict(claim(statement="reviewed finding"), id="A-cl-0001")
+        smuggled = dict(claim(statement="smuggled finding"), id="A-cl-0002")
+        self.stage("A", "claims", [reviewed, smuggled])
+        self.stage("A", "cards", [{
+            "id": "card-0001", "type": "fact", "content": "smuggled card", "value_tier": "B",
+            "topic": "test", "claim_id": "A-cl-0002",
+        }])
+        tasks = self.task / "03r_research" / "tasks"
+        tasks.mkdir(parents=True)
+        (tasks / "A.json").write_text(json.dumps({
+            "kind": "research_workstream", "version": 1, "code": "A", "role": "pain-and-sentiment",
+            "question": "Which pain is urgent?", "task_file": "03r_research/tasks/A.md", "status": "accepted",
+        }))
+        handoffs = self.task / "research-handoffs"
+        handoffs.mkdir()
+        (handoffs / "A.json").write_text(json.dumps({
+            "version": 1, "line_id": "A", "role": "pain-and-sentiment", "summary": "reviewed line",
+            "source_ids": [], "data_files": [], "supported_claims": ["A-cl-0001"], "counter_evidence": [],
+            "limitations": ["fixture"], "unresolved_questions": [], "next_search_recommendation": "stop",
+            "project_manager_disposition": "accepted",
+        }))
+        before = {path.name: path.read_bytes() for path in (self.led.dir / "staging" / "A").iterdir()}
+        with self.assertRaisesRegex(L.LedgerError, "A-cl-0002"):
+            self.led.merge("A")
+        after = {path.name: path.read_bytes() for path in (self.led.dir / "staging" / "A").iterdir()}
+        self.assertEqual(before, after)
+        self.assertEqual([], self.led.read("claims"))
+        self.assertEqual([], self.led.read("cards"))
 
 
 class CheckTest(Base):

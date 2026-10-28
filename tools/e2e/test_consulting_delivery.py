@@ -97,6 +97,24 @@ class ConsultingDeliveryContractTest(unittest.TestCase):
                     "affects_conclusion": False, "materiality": "minor",
                 }, ensure_ascii=False) + "\n", encoding="utf-8")
 
+            staged_a = task / "03_evidence/ledger/staging/A/claims.jsonl"
+            reviewed_a = staged_a.read_bytes()
+            with staged_a.open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps({
+                    "id": "A-cl-9999", "kind": "fact", "statement": "SMUGGLED-UNREVIEWED-FINDING",
+                    "scope": "consolidated", "period": "2024-2026", "population": "fixture",
+                    "unit": "不适用：定性", "denominator": "不适用：定性", "calculation": "不适用：定性",
+                    "inference": "fixture", "limitation": "synthetic fixture", "verification": "verified",
+                    "confidence": "high", "confidence_reason": "fixture contract",
+                    "affects_conclusion": False, "materiality": "minor",
+                }, ensure_ascii=False) + "\n")
+            staged_with_smuggling = staged_a.read_bytes()
+            ledger_before = [item["statement"] for item in Ledger(task).read("claims")]
+            with self.assertRaisesRegex(LedgerError, "A-cl-9999"):
+                Ledger(task).merge("A")
+            self.assertEqual(staged_with_smuggling, staged_a.read_bytes())
+            self.assertEqual(ledger_before, [item["statement"] for item in Ledger(task).read("claims")])
+            staged_a.write_bytes(reviewed_a)
             Ledger(task).merge("A")
             Ledger(task).merge("B")
             statements = [item["statement"] for item in Ledger(task).read("claims")]

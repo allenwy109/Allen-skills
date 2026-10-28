@@ -216,6 +216,7 @@ class Ledger:
         staging = self.dir / "staging" / line
         if not staging.is_dir():
             raise LedgerError(f"没有暂存目录：{staging}")
+        tables = self.schema["tables"]
         if (self.task / "consulting-project.json").is_file():
             metadata_path = self.task / "03r_research" / "tasks" / f"{line}.json"
             handoff_path = self.task / "research-handoffs" / f"{line}.json"
@@ -224,6 +225,9 @@ class Ledger:
                 handoff = json.loads(handoff_path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError) as exc:
                 raise LedgerError(f"咨询项目研究线 {line} 缺少可核验的 accepted 元数据或 handoff：{exc}") from exc
+            handoff_errors = schema_check.check_document(schema_check.load("research-handoff.schema.json"), handoff)
+            if handoff_errors:
+                raise LedgerError(f"咨询项目研究线 {line} handoff 不符合 schema：{'；'.join(handoff_errors)}")
             accepted = (
                 isinstance(metadata, dict) and isinstance(handoff, dict)
                 and metadata.get("code") == line and metadata.get("status") == "accepted"
@@ -232,7 +236,18 @@ class Ledger:
             )
             if not accepted:
                 raise LedgerError(f"咨询项目研究线 {line} 未同时获得 accepted 元数据和 handoff，禁止合并")
-        tables = self.schema["tables"]
+            staged = {table: self._read_file(staging / spec["file"]) for table, spec in tables.items()}
+            reviewed_claims = set(handoff["supported_claims"])
+            bound_claims = {record["id"] for record in staged["claims"]}
+            for table, records in staged.items():
+                fields = tables[table]["fields"]
+                for record in records:
+                    for field, value in record.items():
+                        if field in fields:
+                            bound_claims.update(ref for target, ref in iter_refs(fields[field], value) if target == "claims")
+            unreviewed = sorted(bound_claims - reviewed_claims)
+            if unreviewed:
+                raise LedgerError(f"咨询项目研究线 {line} 含 handoff.supported_claims 未明确接受的 claim：{'、'.join(unreviewed)}")
         with self.lock():
             current = {t: self.read(t) for t in tables}
             staged = {t: self._read_file(staging / spec["file"]) for t, spec in tables.items()}

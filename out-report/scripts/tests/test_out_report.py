@@ -468,6 +468,24 @@ class A4OutReportContractTest(unittest.TestCase):
             self.assertIn('class="citation-marker" href="#source-M001">[1]</a>', html)
             self.assertEqual(1, html.count('id="source-M001"'))
 
+    def test_compact_renderer_derives_registry_from_legacy_body_sources(self):
+        if missing():
+            self.skipTest("missing renderer tools")
+        with tempfile.TemporaryDirectory() as temporary:
+            task = make_task(temporary)
+            self.assertEqual(0, run("init", task).returncode)
+            document_path = task / "07_storyline/a4-work/render-document.json"
+            document = json.loads(document_path.read_text(encoding="utf-8"))
+            document.pop("citation_registry")
+            self.assertEqual("evidence_package", document["citation_mode"])
+            document_path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+            result = run("render", task)
+            self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+            html = (task / "07_storyline/a4-work/build/report.html").read_text(encoding="utf-8")
+            self.assertIn('class="citation-marker" href="#source-M001">[1]</a>', html)
+            self.assertEqual(1, html.count('class="compact-source-anchor" id="source-M001"'))
+            self.assertNotIn('data-component-kind="references-appendix"', html)
+
     def test_unsafe_reference_url_is_auditable_text_but_never_a_link(self):
         if missing():
             self.skipTest("missing renderer tools")

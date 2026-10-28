@@ -80,7 +80,7 @@ function fragmentHtml(fragment, context) {
 
 function citationContext(document) {
   const hasAppendix = document.components.some(item => item.kind === 'references-appendix');
-  if (!document.citation_registry && !hasAppendix) return { citationRegistry: [] };
+  if (!document.citation_registry && !hasAppendix && document.citation_mode !== 'evidence_package') return { citationRegistry: [] };
   const bodyIds = [];
   const seen = new Set();
   for (const component of document.components) {
