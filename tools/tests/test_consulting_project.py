@@ -118,6 +118,22 @@ class ConsultingProjectTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("HANDOFF_DISPOSITION", result.stdout)
 
+    def test_l3_rejects_extra_open_workstream_even_with_two_accepted_lines(self):
+        def mutate(task):
+            tasks = task / "03r_research" / "tasks"
+            for code, status in (("A", "accepted"), ("B", "accepted"), ("D", "awaiting_handoff")):
+                write_json(tasks / f"{code}.json", {
+                    "version": 1, "code": code, "role": "market-and-data", "question": f"Question {code}",
+                    "task_file": f"03r_research/tasks/{code}.md", "status": status,
+                })
+
+        temp, task = self.mutate_project(mutate)
+        with temp:
+            result = self.run_cli("validate", task)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("WORKSTREAM_OPEN", result.stdout)
+            self.assertIn("D", result.stdout)
+
     def test_l3_rejects_claimed_skill_without_output(self):
         def mutate(task):
             path = task / "skill-usage-manifest.json"

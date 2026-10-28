@@ -60,18 +60,34 @@ def cmd_workstream_add(a):
         print("研究线代号必须是单个大写字母，且不能使用 C、M、U", file=sys.stderr)
         return 1
     task_file, metadata_file = _workstream_paths(a.task, a.code)
-    if task_file.exists() or metadata_file.exists():
-        print(f"研究线 {a.code} 已存在", file=sys.stderr)
+    staging = pathlib.Path(a.task) / "03_evidence" / "ledger" / "staging" / a.code
+    handoff = pathlib.Path(a.task) / "research-handoffs" / f"{a.code}.json"
+    if any(path.exists() for path in (task_file, metadata_file, staging, handoff)):
+        print(f"研究线或来源前缀 {a.code} 已存在", file=sys.stderr)
         return 1
     text = (TEMPLATES / "subagent-task.md").read_text(encoding="utf-8")
     text = text.replace("<代号>", a.code).replace("<主题>", a.question).replace("<角色>", a.role)
     task_file.parent.mkdir(parents=True, exist_ok=True)
-    task_file.write_text(text, encoding="utf-8")
-    _write_json_new(metadata_file, {
-        "version": 1, "code": a.code, "role": a.role, "question": a.question,
-        "task_file": str(task_file.relative_to(pathlib.Path(a.task))), "status": "awaiting_handoff",
-    })
-    (pathlib.Path(a.task) / "03_evidence" / "ledger" / "staging" / a.code).mkdir(parents=True, exist_ok=False)
+    staging.parent.mkdir(parents=True, exist_ok=True)
+    created = []
+    try:
+        staging.mkdir(exist_ok=False)
+        created.append(staging)
+        with task_file.open("x", encoding="utf-8") as stream:
+            created.append(task_file)
+            stream.write(text)
+        with metadata_file.open("x", encoding="utf-8") as stream:
+            created.append(metadata_file)
+            json.dump({
+                "version": 1, "code": a.code, "role": a.role, "question": a.question,
+                "task_file": str(task_file.relative_to(pathlib.Path(a.task))), "status": "awaiting_handoff",
+            }, stream, ensure_ascii=False, indent=2)
+            stream.write("\n")
+    except OSError as err:
+        for path in reversed(created):
+            path.rmdir() if path.is_dir() else path.unlink()
+        print(f"无法创建研究线 {a.code}：{err}", file=sys.stderr)
+        return 1
     print(json.dumps({"code": a.code, "task_file": str(task_file), "status": "awaiting_handoff"}, ensure_ascii=False))
     return 0
 

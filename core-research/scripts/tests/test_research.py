@@ -114,6 +114,16 @@ class WorkstreamTest(Base):
         self.assertEqual(research.main(args), 0)
         self.assertNotEqual(research.main(args), 0)
 
+    def test_add_with_preexisting_staging_prefix_leaves_no_partial_files(self):
+        staging = self.task / "03_evidence" / "ledger" / "staging" / "A"
+        staging.mkdir(parents=True)
+        result = research.main([
+            "workstream", "add", str(self.task), "A", "--role", "market-and-data", "--question", "市场？",
+        ])
+        self.assertNotEqual(result, 0)
+        self.assertFalse((self.task / "03r_research" / "tasks" / "A.md").exists())
+        self.assertFalse((self.task / "03r_research" / "tasks" / "A.json").exists())
+
     def test_handoff_validates_schema_and_cannot_set_disposition(self):
         research.main(["workstream", "add", str(self.task), "A", "--role", "market-and-data", "--question", "市场？"])
         handoff = pathlib.Path(self.tmp.name) / "handoff.json"

@@ -219,6 +219,19 @@ class AppRuntimeTest(unittest.TestCase):
         with self.assertRaisesRegex(R.AppError, "report.*support_package"):
             R.finish(self.task)
 
+    def test_l2_finish_rejects_open_workstream_metadata(self):
+        self.init(depth="L2")
+        self.write("03r_research/tasks/A.json", json.dumps({
+            "version": 1, "code": "A", "role": "market-and-data", "question": "Market?",
+            "task_file": "03r_research/tasks/A.md", "status": "needs_revision",
+        }))
+        run = json.loads((self.task / "app-run.json").read_text(encoding="utf-8"))
+        run["cursor"] = len(run["stages"])
+        run["completed_stages"] = list(run["stages"])
+        (self.task / "app-run.json").write_text(json.dumps(run), encoding="utf-8")
+        with self.assertRaisesRegex(R.AppError, "WORKSTREAM_OPEN"):
+            R.finish(self.task)
+
 
 if __name__ == "__main__":
     unittest.main()

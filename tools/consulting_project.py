@@ -79,6 +79,15 @@ def validate_project(task):
             code = "HANDOFF_DISPOSITION" if "project_manager_disposition" in detail else "SCHEMA_INVALID"
             errors.append((code, f"{path.name}: {detail}"))
 
+    workstream_dir = task / "03r_research" / "tasks"
+    for path in sorted(workstream_dir.glob("*.json")) if workstream_dir.is_dir() else []:
+        workstream = load_document(path, "WORKSTREAM_INVALID", errors)
+        if workstream is None:
+            continue
+        status = workstream.get("status")
+        if status not in ("accepted", "rejected"):
+            errors.append(("WORKSTREAM_OPEN", f"{workstream.get('code', path.stem)} is {status or 'missing status'}"))
+
     depth = config.get("depth") if isinstance(config, dict) else None
     if depth not in ("L1", "L2", "L3"):
         errors.append(("PROJECT_DEPTH_INVALID", "depth must be L1, L2, or L3"))
