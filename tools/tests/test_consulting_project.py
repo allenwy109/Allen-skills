@@ -3,6 +3,9 @@ import pathlib
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
+
+from tools import consulting_project
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -144,6 +147,45 @@ class ConsultingProjectTest(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn("REVIEW_OPEN_MAJOR", result.stdout)
 
+    def test_invalid_project_depth_fails_closed(self):
+        def mutate(task):
+            write_json(task / "consulting-project.json", {"version": 1, "depth": "TYPO"})
+
+        temp, task = self.mutate_project(mutate)
+        with temp:
+            result = self.run_cli("validate", task)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("PROJECT_DEPTH_INVALID", result.stdout)
+
+    def test_closed_blocking_or_major_review_requires_closure_evidence(self):
+        for severity in ("blocking", "major"):
+            with self.subTest(severity=severity):
+                def mutate(task):
+                    path = task / "review-closure.json"
+                    doc = json.loads(path.read_text(encoding="utf-8"))
+                    issue = doc["issues"][0]
+                    issue.update({"severity": severity, "status": "closed", "remedy": "", "remedy_evidence": [], "re_reviewer": ""})
+                    write_json(path, doc)
+
+                temp, task = self.mutate_project(mutate)
+                with temp:
+                    result = self.run_cli("validate", task)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("REVIEW_CLOSURE_INCOMPLETE", result.stdout)
+
+    def test_closed_minor_review_does_not_require_re_review_evidence(self):
+        def mutate(task):
+            path = task / "review-closure.json"
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            issue = doc["issues"][0]
+            issue.update({"severity": "minor", "status": "closed", "remedy": "", "remedy_evidence": [], "re_reviewer": ""})
+            write_json(path, doc)
+
+        temp, task = self.mutate_project(mutate)
+        with temp:
+            result = self.run_cli("validate", task)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_init_creates_artifact_families_without_overwriting(self):
         with tempfile.TemporaryDirectory() as temp:
             task = pathlib.Path(temp) / "task"
@@ -157,6 +199,14 @@ class ConsultingProjectTest(unittest.TestCase):
             self.assertTrue((task / "skill-usage-manifest.json").is_file())
             self.assertTrue((task / "review-closure.json").is_file())
             self.assertTrue((task / "research-handoffs").is_dir())
+
+    def test_exclusive_create_preserves_file_when_precheck_is_stale(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = pathlib.Path(temp) / "existing.json"
+            path.write_text("original\n", encoding="utf-8")
+            with mock.patch.object(pathlib.Path, "exists", return_value=False):
+                consulting_project.write_new(path, {"replacement": True})
+            self.assertEqual(path.read_text(encoding="utf-8"), "original\n")
 
 
 if __name__ == "__main__":

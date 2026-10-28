@@ -29,8 +29,12 @@ def read_json(path):
 
 
 def write_new(path, value):
-    if not path.exists():
-        path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    try:
+        with path.open("x", encoding="utf-8") as stream:
+            json.dump(value, stream, ensure_ascii=False, indent=2)
+            stream.write("\n")
+    except FileExistsError:
+        pass
 
 
 def init_project(task, depth):
@@ -76,6 +80,8 @@ def validate_project(task):
             errors.append((code, f"{path.name}: {detail}"))
 
     depth = config.get("depth") if isinstance(config, dict) else None
+    if depth not in ("L1", "L2", "L3"):
+        errors.append(("PROJECT_DEPTH_INVALID", "depth must be L1, L2, or L3"))
     if depth == "L3" and len({h.get("line_id") for h in handoffs if h.get("line_id")}) < 2:
         errors.append(("RESEARCH_LINES_MIN", "L3 requires at least two independent research lines"))
 
@@ -98,6 +104,9 @@ def validate_project(task):
         for issue in reviews.get("issues", []):
             if issue.get("severity") in ("blocking", "major") and issue.get("status") != "closed":
                 errors.append(("REVIEW_OPEN_MAJOR", f"{issue.get('id', '?')} is {issue.get('status', 'open')}"))
+            if issue.get("severity") in ("blocking", "major") and issue.get("status") == "closed":
+                if not issue.get("remedy") or not issue.get("remedy_evidence") or not issue.get("re_reviewer"):
+                    errors.append(("REVIEW_CLOSURE_INCOMPLETE", f"{issue.get('id', '?')} lacks remedy or re-review evidence"))
     return errors
 
 
