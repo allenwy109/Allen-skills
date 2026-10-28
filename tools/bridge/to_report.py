@@ -227,7 +227,10 @@ def validate_report(report):
         if exhibit:
             semantic = block["content"].get("semantic_type")
             layout = next((item for item in LAYOUT_CATALOG["exhibits"] if semantic in item["semantic_types"]), None)
-            if not layout or exhibit.get("selected_layout") != layout["kind"] or exhibit.get("capacity_state") not in {"within-soft", "soft-exceeded"}:
+            capacity_field = layout and layout["capacity"]["field"]
+            values = exhibit.get(capacity_field) if capacity_field else None
+            derived_state = ("soft-exceeded" if len(values) > layout["capacity"]["soft"] else "within-soft") if isinstance(values, list) else None
+            if not layout or exhibit.get("selected_layout") != layout["kind"] or exhibit.get("capacity_state") != derived_state:
                 raise ReportError("REPORT_EXHIBIT_MISMATCH", f"block {block['id']} 的 selected_layout/capacity_state 与 catalog 不一致")
         for field, registry_field, label in checks:
             _unique(block[field], f"block {block['id']} {field}", problems)

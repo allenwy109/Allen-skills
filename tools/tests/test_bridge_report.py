@@ -116,6 +116,11 @@ class ReportContractTest(unittest.TestCase):
         self.assertEqual("pain-comparison", pain["content"]["exhibit"]["selected_layout"])
         self.assertIn("comparison", pain["content"]["exhibit"]["layout_reason"])
         self.assertEqual("within-soft", pain["content"]["exhibit"]["capacity_state"])
+        pain["content"]["exhibit"]["capacity_state"] = "soft-exceeded"
+        with self.assertRaises(T.ReportError) as cm:
+            T.validate_report(report)
+        self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
+        pain["content"]["exhibit"]["capacity_state"] = "within-soft"
         pain["content"]["exhibit"]["selected_layout"] = "decision-tree"
         with self.assertRaises(T.ReportError) as cm:
             T.validate_report(report)
