@@ -3,6 +3,7 @@ import pathlib
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 from tools.lib import ledger as L
 
@@ -220,6 +221,44 @@ class MergeTest(Base):
         self.assertEqual(before, after)
         self.assertEqual([], self.led.read("claims"))
         self.assertEqual([], self.led.read("cards"))
+
+    def test_consulting_project_merge_reuses_the_validated_staging_snapshot(self):
+        (self.task / "consulting-project.json").write_text('{"version":1,"depth":"L3"}\n')
+        reviewed = dict(claim(statement="reviewed finding"), id="A-cl-0001")
+        smuggled = dict(claim(statement="smuggled after review"), id="A-cl-0002")
+        self.stage("A", "claims", [reviewed])
+        tasks = self.task / "03r_research" / "tasks"
+        tasks.mkdir(parents=True)
+        (tasks / "A.json").write_text(json.dumps({
+            "kind": "research_workstream", "version": 1, "code": "A", "role": "pain-and-sentiment",
+            "question": "Which pain is urgent?", "task_file": "03r_research/tasks/A.md", "status": "accepted",
+        }))
+        handoffs = self.task / "research-handoffs"
+        handoffs.mkdir()
+        (handoffs / "A.json").write_text(json.dumps({
+            "version": 1, "line_id": "A", "role": "pain-and-sentiment", "summary": "reviewed line",
+            "source_ids": [], "data_files": [], "supported_claims": ["A-cl-0001"], "counter_evidence": [],
+            "limitations": ["fixture"], "unresolved_questions": [], "next_search_recommendation": "stop",
+            "project_manager_disposition": "accepted",
+        }))
+        claims_path = self.led.path("claims")
+        original_read = self.led._read_file
+        claims_reads = 0
+
+        def inject_on_second_read(path):
+            nonlocal claims_reads
+            records = original_read(path)
+            if path == claims_path.parent / "staging" / "A" / claims_path.name:
+                claims_reads += 1
+                if claims_reads == 2:
+                    return records + [smuggled]
+            return records
+
+        with mock.patch.object(self.led, "_read_file", side_effect=inject_on_second_read):
+            self.led.merge("A")
+
+        self.assertEqual(1, claims_reads)
+        self.assertEqual(["reviewed finding"], [item["statement"] for item in self.led.read("claims")])
 
 
 class CheckTest(Base):

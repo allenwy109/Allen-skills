@@ -217,6 +217,7 @@ class Ledger:
         if not staging.is_dir():
             raise LedgerError(f"没有暂存目录：{staging}")
         tables = self.schema["tables"]
+        staged = None
         if (self.task / "consulting-project.json").is_file():
             metadata_path = self.task / "03r_research" / "tasks" / f"{line}.json"
             handoff_path = self.task / "research-handoffs" / f"{line}.json"
@@ -250,7 +251,8 @@ class Ledger:
                 raise LedgerError(f"咨询项目研究线 {line} 含 handoff.supported_claims 未明确接受的 claim：{'、'.join(unreviewed)}")
         with self.lock():
             current = {t: self.read(t) for t in tables}
-            staged = {t: self._read_file(staging / spec["file"]) for t, spec in tables.items()}
+            if staged is None:
+                staged = {t: self._read_file(staging / spec["file"]) for t, spec in tables.items()}
             mapping = {}
             for t, recs in staged.items():
                 if t in ("sources", "project") or not recs:
