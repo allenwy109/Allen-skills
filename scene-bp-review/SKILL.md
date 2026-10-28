@@ -17,6 +17,8 @@ BP 文件已由 router 交给 `../core-intake/` 接收：逐页全文、页面�
 
 ## 流程
 
+L2、L3 先遵守 router 第 3.1 节的咨询交付合同；L1 不创建合同文件。
+
 | 步骤 | 做什么 | 用哪个 skill | 写哪个文件 |
 |---|---|---|---|
 | 1 | 建任务单，定深度；接收 BP 文件 | router、`../core-intake/` | `00_brief.md`、`03_evidence/raw/user/` |

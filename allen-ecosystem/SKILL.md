@@ -11,6 +11,8 @@ description: 分析一家企业与企业生态中的上下游机会。接收 BP�
 
 L2、L3 用 `<运行时>/tools/app_runtime.py` 控制全流程。后台使用 `../core-intake/`、`../core-framing/`、`../core-diligence/`、`../core-evidence/`、`../core-research/`、`../core-method-select/`、`../core-review/`、`../core-synthesis/`、`../core-storyline/` 和 `../out-report/`。
 
+L2、L3 同时遵守 router 第 3.1 节的咨询交付合同；L1 不创建合同文件。
+
 先做企业、产品竞争力、市场、竞品、商业模式和交付能力的基础判断，再分析连接机会。不得把泛泛的行业相关性当成商机。
 
 ## 强制输出

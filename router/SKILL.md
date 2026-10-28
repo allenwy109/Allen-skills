@@ -96,6 +96,10 @@ work/<YYYY-MM-DD>-<主题短名>/
 
 用户指定了位置就按用户的来。任务单模板见 `assets/brief-template.md`。
 
+## 3.1 咨询交付合同
+
+L2、L3 建目录后运行 `python3 <运行时>/tools/consulting_project.py init <任务文件夹> --depth L2|L3`。项目经理维护生成的 `research-coverage.json`、`skill-usage-manifest.json`、`review-closure.json` 和 `research-handoffs/`；研究线隔离、交接与只合并 accepted 结果按 `../core-research/`，重要问题的关闭按 `../core-review/`，客户报告与证据包按 `../out-report/`，这里不重复各自流程。进入故事线前、正式交付前都运行 `consulting_project.py validate`，三份 manifest 和全部研究线必须通过；L3 至少两条独立且 accepted 的研究线。L1 不初始化这些文件，保持快答比例。
+
 ## 4. 交给场景
 
 读对应场景 skill 的 SKILL.md，按它的流程走。场景之间不互相调用；一个请求同时涉及两个场景时（比如“评估这份 BP，顺便看看这个行业”），以用户要做的决定为主场景，另一个作为其中的子问题。

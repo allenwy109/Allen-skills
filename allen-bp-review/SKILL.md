@@ -11,6 +11,8 @@ description: 评审企业 BP、融资路演稿或商业计划材料的应用入�
 
 L2、L3 用 `<运行时>/tools/app_runtime.py` 控制全流程。后台使用 `../core-intake/`、`../core-framing/`、`../core-diligence/`、`../core-evidence/`、`../core-research/`、`../core-method-select/`、`../core-review/`、`../core-synthesis/`、`../core-storyline/` 和 `../out-report/`。
 
+L2、L3 同时遵守 router 第 3.1 节的咨询交付合同；L1 不创建合同文件。
+
 评审不能只看文字和版式。产品竞争力、市场前景、竞品与替代方案、商业模式、经营进展和团队说法是强制基础模块；先核实关键主张，再判断表达是否成立。
 
 ## 强制输出

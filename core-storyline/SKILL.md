@@ -9,6 +9,8 @@ description: 把已经核实的证据整理成一条有说服力的故事线，�
 
 工具：`python3 <本 skill 目录>/scripts/storyline.py <子命令> <任务文件夹>`，下文简写为 `storyline`。所有产出放在 `07_storyline/`，卡片的真源是证据账 `03_evidence/ledger/cards.jsonl`。
 
+L2、L3 进入本 skill 前先运行咨询项目校验。只采用 `skill-usage-manifest.json` 中项目经理处置为 accepted 的方法输出；研究内容同样只取 accepted handoff 已合并进统一证据账的记录。校验失败或仍有重要审查问题时不开始故事线。L1 不需要这些 manifest。
+
 ## 1. 每次开始先做能力盘点
 
 | 能力 | 没有时怎么降级 |
