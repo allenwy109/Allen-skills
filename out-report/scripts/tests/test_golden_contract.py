@@ -11,6 +11,9 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 GOLDEN = ROOT / "out-report" / "golden"
+EXHIBIT_GOLDEN = GOLDEN / "native-exhibits.json"
+EXHIBIT_BASELINE = GOLDEN / "native-exhibits-baseline.json"
+EXHIBIT_RENDER = ROOT / "out-report" / "scripts" / "a4" / "render.cjs"
 BUILD = GOLDEN / "build"
 REQUIRED_ROLES = {"cover", "toc", "executive-summary", "section", "quantitative", "chart-table", "comparison", "evidence", "risk", "roadmap", "references"}
 FONT_FILES = {"__FONT_NOTO_SANS_SC_400__": "noto-sans-sc-400.woff2", "__FONT_NOTO_SANS_SC_600__": "noto-sans-sc-600.woff2", "__FONT_NOTO_SERIF_SC_600__": "noto-serif-sc-600.woff2"}
@@ -35,6 +38,22 @@ def run_render(golden=GOLDEN, expect=0):
     return p
 
 class GoldenReportContractTest(unittest.TestCase):
+    def test_native_exhibit_golden_covers_all_kinds_and_actually_renders(self):
+        fixture = json.loads(EXHIBIT_GOLDEN.read_text())
+        expected = {"executive-summary", "answer-and-reasons", "pain-comparison", "competitor-matrix", "decision-tree", "mechanism-process", "paired-scenarios", "30-60-90-roadmap", "methods-limitations"}
+        kinds = {block["content"]["exhibit"]["kind"] for component in fixture["components"] for block in component["payload"]["blocks"]}
+        self.assertEqual(expected, kinds)
+        env = dict(os.environ, ALLEN_RUNTIME=str(dependency_runtime()))
+        process = subprocess.run(["node", str(EXHIBIT_RENDER), str(EXHIBIT_GOLDEN)], cwd=ROOT, env=env, capture_output=True, text=True)
+        self.assertEqual(0, process.returncode, process.stderr)
+        rendered = json.loads(process.stdout)
+        self.assertGreaterEqual(rendered["manifest"]["pageCount"], 1)
+        for kind in expected:
+            self.assertIn(f'data-exhibit-kind="{kind}"', rendered["html"])
+        baseline = json.loads(EXHIBIT_BASELINE.read_text())
+        self.assertEqual("approved", baseline["status"])
+        self.assertEqual(sha(EXHIBIT_GOLDEN), baseline["fixtureSha256"])
+        self.assertRegex(baseline["candidateDigest"], r"^[0-9a-f]{64}$")
     @classmethod
     def setUpClass(cls):
         cls.manifest = json.loads((GOLDEN / "golden-report.json").read_text())

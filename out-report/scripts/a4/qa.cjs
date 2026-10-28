@@ -2,6 +2,7 @@
 'use strict';
 
 const fs = require('fs');
+const path = require('path');
 const crypto = require('crypto');
 
 const COVERAGE_SETS = Object.freeze(['claims', 'a_cards', 'panels', 'relations', 'metrics', 'sources']);
@@ -10,25 +11,55 @@ const MEDIA_TOLERANCE_MM = 0.2;
 const PAGE_ID = /^page-\d{3,}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const ISO8601_TZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
-const EXHIBIT_FORMS = Object.freeze({
-  chart: ['svg.custom'], process: ['svg.custom'], timeline: ['svg.custom', 'html.table'],
-  matrix: ['html.table'], scenario: ['html.table'], 'decision-tree': ['svg.custom'],
-});
+const LAYOUT_CATALOG = JSON.parse(fs.readFileSync(path.join(__dirname, '../../assets/a4-layout-catalog.json'), 'utf8'));
+const EXHIBIT_LAYOUTS = new Map(LAYOUT_CATALOG.exhibits.map(item => [item.kind, item]));
+const FAMILY_FORMS = new Map(LAYOUT_CATALOG.exhibits.map(item => [item.family, item.forms]));
 
 function validateExhibitDeclaration(declaration) {
   const family = declaration && declaration.family;
-  if (!Object.hasOwn(EXHIBIT_FORMS, family)) return declaration;
+  if (!FAMILY_FORMS.has(family)) return declaration;
   if (!declaration.form) {
     const error = new Error(`${family} exhibit requires a native form`);
     error.code = 'REPORT_EXHIBIT_MISSING';
     throw error;
   }
-  if (!EXHIBIT_FORMS[family].includes(declaration.form)) {
+  if (!FAMILY_FORMS.get(family).includes(declaration.form)) {
     const error = new Error(`${family} exhibit cannot use ${declaration.form}`);
     error.code = 'REPORT_EXHIBIT_MISMATCH';
     throw error;
   }
   return declaration;
+}
+
+function attribute(tag, name) {
+  const match = String(tag).match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`, 'i'));
+  return match && match[1];
+}
+
+function renderedExhibitIssues(html, location) {
+  const errors = [];
+  for (const match of String(html).matchAll(/<article\b([^>]*)>([\s\S]*?)<\/article>/gi)) {
+    const article = match[1];
+    const body = match[2];
+    const semantic = attribute(article, 'data-semantic-type');
+    if (semantic === 'point_evidence') continue;
+    const layout = EXHIBIT_LAYOUTS.get(semantic);
+    const exhibit = body.match(/<[^>]+\bdata-exhibit-kind\s*=\s*["']([^"']+)["'][^>]*>/i);
+    if (!layout || !exhibit) {
+      errors.push(issue('REPORT_EXHIBIT_MISSING', location, `${semantic || '<missing>'} has no native rendered exhibit`));
+      continue;
+    }
+    const tag = exhibit[0];
+    const kind = exhibit[1];
+    const family = attribute(tag, 'data-exhibit-family');
+    const exhibitForm = attribute(tag, 'data-exhibit-form');
+    const panelForm = attribute(article, 'data-form');
+    const structure = attribute(tag, 'data-structure');
+    if (kind !== semantic || family !== layout.family || exhibitForm !== panelForm || !layout.forms.includes(exhibitForm) || !structure) {
+      errors.push(issue('REPORT_EXHIBIT_MISMATCH', location, `${semantic} DOM kind/family/form/structure does not match catalog`, { kind, family, exhibitForm, panelForm, structure }));
+    }
+  }
+  return errors;
 }
 
 function normalizedText(value) {
@@ -270,6 +301,7 @@ function evaluate(evidence) {
   const destinationCounts = appendixDestinations.reduce((counts, id) => counts.set(id, (counts.get(id) || 0) + 1), new Map());
   for (const page of htmlPages) {
     const html = visibleHtml(page.visibleHtml);
+    blocking.push(...renderedExhibitIssues(html, page.id));
     if (!html) continue;
     const isReference = page.role === 'references';
     if (!isReference && /https?:\/\//i.test(html.replace(/<[^>]+>/g, ' '))) {
@@ -347,4 +379,4 @@ if (require.main === module) {
   try { main(); } catch (error) { process.stderr.write(`${error.code || 'REPORT_QA_FAILED'}: ${error.message}\n`); process.exit(1); }
 }
 
-module.exports = { A4, COVERAGE_SETS, MEDIA_TOLERANCE_MM, evaluate, evidenceErrors, deriveDifferences, validateExhibitDeclaration };
+module.exports = { A4, COVERAGE_SETS, MEDIA_TOLERANCE_MM, evaluate, evidenceErrors, deriveDifferences, validateExhibitDeclaration, renderedExhibitIssues };

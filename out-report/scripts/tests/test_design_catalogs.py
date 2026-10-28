@@ -57,7 +57,7 @@ class DesignCatalogTest(unittest.TestCase):
         self.assertEqual("relationship-capacity", self.a4_catalog["routing_basis"])
         self.assertNotIn("deck_ratio", json.dumps(self.a4_catalog))
         self.assertNotIn("layout_id", json.dumps(self.a4_catalog))
-        required = {"kind", "relationships", "capacity", "reading_path", "co_location", "forbidden_content", "pagination"}
+        required = {"kind", "semantic_types", "family", "forms", "required_fields", "relationships", "capacity", "reading_path", "co_location", "forbidden_content", "pagination"}
         expected = {"executive-summary", "answer-and-reasons", "pain-comparison", "competitor-matrix", "decision-tree", "mechanism-process", "paired-scenarios", "30-60-90-roadmap", "methods-limitations"}
         exhibits = self.a4_catalog["exhibits"]
         self.assertEqual(expected, {item["kind"] for item in exhibits})
@@ -66,6 +66,9 @@ class DesignCatalogTest(unittest.TestCase):
             self.assertLessEqual(exhibit["capacity"]["soft"], exhibit["capacity"]["hard"])
             self.assertTrue(exhibit["relationships"] and exhibit["reading_path"])
             self.assertTrue(exhibit["co_location"] and exhibit["forbidden_content"] and exhibit["pagination"])
+        router = (ROOT / "tools" / "bridge" / "to_report.py").read_text()
+        self.assertIn('a4-layout-catalog.json', router)
+        self.assertNotIn("EXHIBIT_FORMS =", router)
 
     def test_catalogs_record_the_approved_baseline_digest(self):
         self.assertEqual(self.baseline["status"], "approved")

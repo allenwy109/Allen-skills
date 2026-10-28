@@ -44,7 +44,7 @@ class ReportContractTest(unittest.TestCase):
         self.assertEqual(blocks[0]["content"]["alternative"], "并排数字卡")
         self.assertEqual(blocks[0]["content"]["tradeoff"], "柱形更适合比较绝对规模")
         self.assertEqual(blocks[0]["content"]["capacity"], {"items": 2})
-        self.assertEqual(blocks[0]["content"]["semantic_type"], "comparison")
+        self.assertEqual(blocks[0]["content"]["semantic_type"], "point_evidence")
         self.assertEqual(blocks[0]["content"]["visual"], "两年收入柱形")
         self.assertEqual(blocks[0]["content"]["slot"], "main")
         self.assertEqual(blocks[0]["content"]["span"], 2)
@@ -64,7 +64,9 @@ class ReportContractTest(unittest.TestCase):
     def test_build_carries_claims_and_decision_research_into_semantic_blocks(self):
         slides = copy.deepcopy(self.slides)
         slides["slides"][1]["panels"][0]["semantic_type"] = "pain-demand"
+        slides["slides"][1]["panels"][0]["form"] = "html.table"
         slides["slides"][2]["panels"][1]["semantic_type"] = "competition"
+        slides["slides"][2]["panels"][1]["form"] = "html.table"
         evidence_dir = pathlib.Path(self.task) / "03_evidence"
         evidence_dir.mkdir(exist_ok=True)
         (evidence_dir / "decision-research.json").write_text(json.dumps({
@@ -90,8 +92,8 @@ class ReportContractTest(unittest.TestCase):
 
         report, _ = self.build(slides)
         blocks = [block for section in report["sections"] for block in section["blocks"]]
-        pain = next(block for block in blocks if block["content"].get("semantic_type") == "pain-demand")
-        competition = next(block for block in blocks if block["content"].get("semantic_type") == "competition")
+        pain = next(block for block in blocks if block["content"].get("semantic_type") == "pain-comparison")
+        competition = next(block for block in blocks if block["content"].get("semantic_type") == "competitor-matrix")
 
         self.assertEqual("收入从 1800 万元增至 3200 万元", pain["content"]["claims"][0]["statement"])
         self.assertEqual("high", pain["content"]["claims"][0]["confidence"])
@@ -104,8 +106,25 @@ class ReportContractTest(unittest.TestCase):
         self.assertEqual("direct", competition["content"]["comparison"]["alternatives"][0]["layer"])
         self.assertEqual("官方价可比", competition["content"]["comparison"]["alternatives"][0]["values"]["总拥有成本"])
         self.assertEqual("缺同口径状态数据", competition["content"]["comparison"]["alternatives"][0]["values"]["可靠性"])
+        self.assertEqual("pain-comparison", pain["content"]["exhibit"]["selected_layout"])
+        self.assertIn("comparison", pain["content"]["exhibit"]["layout_reason"])
+        self.assertEqual("within-soft", pain["content"]["exhibit"]["capacity_state"])
         recommendation = next(detail for block in blocks for detail in block["content"]["claims"] if detail["id"] == "cl-0004")
         self.assertEqual("indirect_lead", recommendation["support_label"])
+
+    def test_catalog_capacity_and_form_policy_is_enforced(self):
+        panel = {"id": "tree", "semantic_type": "decision-tree", "relationship": "branching", "form": "svg.custom", "capacity": {"nodes": 11},
+                 "exhibit": {"kind": "decision-tree", "family": "decision-tree", "form": "svg.custom",
+                             "nodes": [{"id": str(i), "label": str(i)} for i in range(11)], "edges": [{"from": "0", "to": "1", "label": "yes"}]}}
+        with self.assertRaises(T.ReportError) as cm:
+            T._native_exhibit(panel, {})
+        self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
+        panel["capacity"]["nodes"] = 2
+        panel["exhibit"]["nodes"] = panel["exhibit"]["nodes"][:2]
+        panel["exhibit"]["form"] = "html.text"
+        with self.assertRaises(T.ReportError) as cm:
+            T._native_exhibit(panel, {})
+        self.assertEqual("REPORT_EXHIBIT_MISMATCH", cm.exception.code)
 
     def test_report_matches_schema_and_schema_self_checks(self):
         schema = schema_check.load("report.schema.json")

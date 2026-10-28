@@ -68,6 +68,7 @@ def block(block_id="b-1", kind="text", anchor=True):
             "form": {"text": "html.text", "table": "html.table"}[kind],
             "relationship": "supports", "reason": "Decision support",
             "anchor": anchor, "role": "primary", "slot": "main", "span": 1,
+            "semantic_type": "point_evidence",
         },
     }
 

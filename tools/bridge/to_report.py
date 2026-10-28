@@ -19,39 +19,29 @@ FORM_KIND = {
     "html.kpi": "metric",
     "html.table": "table",
 }
-EXHIBIT_FORMS = {
-    "executive-summary": {"html.text"}, "answer-and-reasons": {"html.text"},
-    "pain-comparison": {"html.table"}, "competitor-matrix": {"html.table"},
-    "decision-tree": {"svg.custom"}, "mechanism-process": {"svg.custom"},
-    "paired-scenarios": {"html.table"}, "30-60-90-roadmap": {"svg.custom", "html.table"},
-    "methods-limitations": {"html.text"},
-}
+LAYOUT_CATALOG = json.loads((ROOT / "out-report" / "assets" / "a4-layout-catalog.json").read_text(encoding="utf-8"))
+EXHIBIT_LAYOUTS = {item["kind"]: item for item in LAYOUT_CATALOG["exhibits"]}
 
 
 def _route_exhibit_kind(panel):
     semantic = panel.get("semantic_type")
-    kind = {"pain-demand": "pain-comparison", "competition": "competitor-matrix"}.get(semantic, semantic)
-    if kind in EXHIBIT_FORMS:
-        return kind
+    if semantic == "point_evidence":
+        return None
+    matches = [item for item in LAYOUT_CATALOG["exhibits"] if semantic in item["semantic_types"]]
+    if len(matches) == 1:
+        return matches[0]["kind"]
     relationship = panel.get("relationship")
     capacity = panel.get("capacity") or {}
-    if relationship in {"decision-tree", "branching"}:
-        return "decision-tree"
-    if relationship in {"process", "mechanism"}:
-        return "mechanism-process"
-    if relationship in {"timeline", "roadmap"}:
-        return "30-60-90-roadmap" if capacity.get("stages", 0) <= 3 else "mechanism-process"
-    if relationship == "scenario":
-        return "paired-scenarios"
-    if relationship in {"method", "boundary"}:
-        return "methods-limitations"
-    return None
+    candidates = [item for item in LAYOUT_CATALOG["exhibits"] if relationship in item["relationships"]]
+    fitting = [item for item in candidates if capacity.get(item["capacity"]["field"], 0) <= item["capacity"]["hard"]]
+    return fitting[0]["kind"] if len(fitting) == 1 else None
 
 
 def _native_exhibit(panel, semantic_content):
     kind = _route_exhibit_kind(panel)
-    if kind not in EXHIBIT_FORMS:
+    if kind not in EXHIBIT_LAYOUTS:
         return None
+    layout = EXHIBIT_LAYOUTS[kind]
     form = panel.get("form")
     if not form:
         raise ReportError("REPORT_EXHIBIT_MISSING", f"panel {panel.get('id')} 的 {kind} 缺少 form")
@@ -60,18 +50,34 @@ def _native_exhibit(panel, semantic_content):
         if supplied.get("kind", kind) != kind:
             raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 的 exhibit kind 不一致")
         declared_form = supplied.get("form", form)
-        if declared_form not in EXHIBIT_FORMS[kind]:
+        if declared_form != form or declared_form not in layout["forms"]:
             raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 的 {kind} 不能使用 {declared_form}")
-        return {**supplied, "kind": kind, "form": declared_form}
-    if kind == "pain-comparison" and semantic_content.get("pain_groups"):
+        exhibit = {**supplied, "kind": kind, "form": declared_form}
+    elif kind == "pain-comparison" and semantic_content.get("pain_groups"):
         groups = semantic_content["pain_groups"]
-        return {"kind": kind, "family": "matrix", "form": "html.table", "columns": ["当前替代", "后果", "购买信号"],
-                "rows": [{"label": row["segment"], "values": [row["workaround"], row["consequence"], row["purchase_signal"]]} for row in groups]}
-    if kind == "competitor-matrix" and semantic_content.get("comparison"):
+        exhibit = {"kind": kind, "family": "matrix", "form": form, "columns": ["当前替代", "后果", "购买信号"],
+                   "rows": [{"label": row["segment"], "values": [row["workaround"], row["consequence"], row["purchase_signal"]]} for row in groups]}
+    elif kind == "competitor-matrix" and semantic_content.get("comparison"):
         comparison = semantic_content["comparison"]
-        return {"kind": kind, "family": "matrix", "form": "html.table", "columns": comparison["criteria"],
-                "rows": [{"label": row["name"], "values": [row["values"].get(column, "未提供") for column in comparison["criteria"]]} for row in comparison["alternatives"]]}
-    raise ReportError("REPORT_EXHIBIT_MISSING", f"panel {panel.get('id')} 的 {kind} 缺少结构化 exhibit")
+        exhibit = {"kind": kind, "family": "matrix", "form": form, "columns": comparison["criteria"],
+                   "rows": [{"label": row["name"], "values": [row["values"].get(column, "未提供") for column in comparison["criteria"]]} for row in comparison["alternatives"]]}
+    else:
+        raise ReportError("REPORT_EXHIBIT_MISSING", f"panel {panel.get('id')} 的 {kind} 缺少结构化 exhibit")
+    if exhibit.get("family") != layout["family"]:
+        raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 的 family 与 catalog 不一致")
+    missing = [field for field in layout["required_fields"] if not exhibit.get(field)]
+    if missing:
+        raise ReportError("REPORT_EXHIBIT_MISSING", f"panel {panel.get('id')} 缺少 {','.join(missing)}")
+    count = len(exhibit[layout["capacity"]["field"]])
+    if count > layout["capacity"]["hard"]:
+        raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 超过 hard capacity")
+    forbidden = [field for field in layout["forbidden_content"] if exhibit.get(field)]
+    if forbidden:
+        raise ReportError("REPORT_EXHIBIT_MISMATCH", f"panel {panel.get('id')} 含 forbidden content：{','.join(forbidden)}")
+    exhibit["selected_layout"] = kind
+    exhibit["layout_reason"] = f"{panel.get('relationship')} · {count}/{layout['capacity']['hard']} {layout['capacity']['unit']}"
+    exhibit["capacity_state"] = "soft-exceeded" if count > layout["capacity"]["soft"] else "within-soft"
+    return exhibit
 
 
 class ReportError(Exception):
@@ -407,7 +413,7 @@ def build(task, slides, sidecar=None, bibliography_policy=None):
                     "anchor": panel["id"] == slide.get("anchor_panel"),
                     "role": panel["role"], "alternative": panel.get("alternative"),
                     "tradeoff": panel.get("tradeoff"), "capacity": panel.get("capacity"),
-                    "semantic_type": panel.get("semantic_type"), "visual": panel.get("visual"),
+                    "semantic_type": (native_exhibit or {}).get("kind") or "point_evidence", "visual": panel.get("visual"),
                     "slot": panel["slot"], "span": panel["span"],
                     "claims": _claim_details(panel_claims, claims, links, evidence),
                     "exhibit": native_exhibit,

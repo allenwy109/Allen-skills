@@ -15,6 +15,8 @@ const CSS = `
 const SEMANTIC_CSS = `
 .page{height:297mm;break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid}.page__body{height:259mm}.report-component>h1,.report-component>h2{padding-top:1.5mm}.report-block{margin-bottom:3mm}.executive-answer{font:600 16pt/1.45 NotoSerifSC,serif;border-left:1.2mm solid #0b6b66;padding-left:4mm}.summary-list{display:grid;grid-template-columns:1fr 1fr;gap:4mm;padding:0;list-style:none}.summary-item{background:#fff;border-top:1mm solid #0b6b66;padding:3mm}.summary-item strong,.summary-meta{display:block}.summary-meta{color:#667176;font-size:8.5pt;margin:1mm 0}.claim-detail{border-left:1.2mm solid #0b6b66;padding:2.5mm 0 2.5mm 4mm;margin:0 0 3mm}.claim-statement{font:600 12pt/1.45 NotoSerifSC,serif}.claim-meta{display:grid;grid-template-columns:1fr 2fr;gap:2mm;margin:0 0 2mm}.claim-meta div{display:grid;grid-template-columns:25mm 1fr}.claim-meta dt,.pain-group dt{color:#667176}.claim-meta dd,.pain-group dd{margin:0}.claim-evidence-pair{display:grid;grid-template-columns:1fr 1fr;gap:4mm}.claim-evidence-pair h4{margin:0;font-size:9pt}.claim-evidence-pair ul{margin:1mm 0 2mm;padding-left:5mm}.evidence-locator,.evidence-more,.evidence-empty{color:#667176;font-size:8.5pt}.claim-limitation{background:#e8ece8;padding:2mm}.pain-groups{display:grid;grid-template-columns:1fr 1fr;gap:4mm}.pain-group{border-top:1mm solid #0b6b66;background:#fff;padding:3mm}.pain-group h4{font:600 11pt/1.4 NotoSerifSC,serif;margin:0 0 2mm}.pain-group dl{margin:0}.pain-group dl div{display:grid;grid-template-columns:20mm 1fr;border-top:.35pt solid #d6dbd8;padding:1.2mm 0}.pain-group dd{line-height:1.4}.competition-matrix{table-layout:fixed}.competition-matrix th:first-child{width:33mm}.competition-matrix th,.competition-matrix td{padding:1.2mm;overflow-wrap:anywhere}.competition-layer{display:block;color:#0b6b66;font-size:8.5pt;text-transform:uppercase}.native-exhibit{margin:0;background:#fff;border-top:1mm solid #0b6b66;padding:3mm}.native-exhibit table{width:100%;border-collapse:collapse}.native-exhibit th,.native-exhibit td{border-bottom:.35pt solid #bdc5c3;padding:1.6mm;text-align:left}.native-exhibit svg{display:block;width:100%;height:42mm}.native-exhibit rect{fill:#d8e7e3;stroke:#0b6b66}.native-exhibit text{fill:#262d31;font:4px NotoSansSC,Arial,sans-serif;text-anchor:middle}.native-exhibit--paired-scenarios{display:grid;grid-template-columns:1fr 1fr;gap:4mm}.roadmap-stages{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;padding:0;list-style:none}.roadmap-stages time,.roadmap-stages span{display:block}.exhibit-answer{font:600 15pt/1.4 NotoSerifSC,serif}`;
 
+const CONNECTOR_CSS = `.native-exhibit line{stroke:#0b6b66;stroke-width:1.2}`;
+
 const FONTS = Object.freeze([
   { family: 'NotoSansSC', weight: 400, file: 'noto-sans-sc-400.woff2', hash: '758dff09a5625dd659ea4c529ffdb7741bdbc182b54957a7007f1cfcfd450820' },
   { family: 'NotoSansSC', weight: 600, file: 'noto-sans-sc-600.woff2', hash: '722d2f69f1b0f494148dd6a492f7efcfcc9ba9b6c0a203b39987feea076a6064' },
@@ -185,7 +187,7 @@ async function renderDocument(document) {
   }
   const context = citationContext(document);
   const runtime = lockedRuntime();
-  const css = `${runtime.fontCss}${CSS}${SEMANTIC_CSS}`;
+  const css = `${runtime.fontCss}${CSS}${SEMANTIC_CSS}${CONNECTOR_CSS}`;
   let fragments = expandComponents(document.components).map(blockMetadata).map(fragment => ({ ...fragment, html: fragmentHtml(fragment, context) }));
   let measured;
   for (;;) {

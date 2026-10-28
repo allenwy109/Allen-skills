@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import unittest
 from pathlib import Path
@@ -47,7 +48,7 @@ def block(kind="text"):
             "reason": "支持决策",
             "anchor": True,
             "role": "primary",
-            "semantic_type": "comparison",
+            "semantic_type": "point_evidence",
             "visual": "two-column",
             "slot": "main",
             "span": 2,
@@ -94,11 +95,13 @@ class A4ComponentTest(unittest.TestCase):
             "methods-limitations": {"methods": ["访谈"], "limitations": ["样本较小"]},
         }
         seen = set()
+        families = {"executive-summary": "point_evidence", "answer-and-reasons": "point_evidence", "pain-comparison": "matrix", "competitor-matrix": "matrix", "decision-tree": "decision-tree", "mechanism-process": "process", "paired-scenarios": "scenario", "30-60-90-roadmap": "timeline", "methods-limitations": "point_evidence"}
+        forms = {kind: ("svg.custom" if kind in {"decision-tree", "mechanism-process"} else "html.table" if kind in {"pain-comparison", "competitor-matrix", "paired-scenarios", "30-60-90-roadmap"} else "html.text") for kind in fixtures}
         for kind, exhibit in fixtures.items():
             with self.subTest(kind=kind):
-                item = block("text")
+                item = block({"svg.custom": "chart", "html.table": "table", "html.text": "text"}[forms[kind]])
                 item["content"]["semantic_type"] = kind
-                item["content"]["exhibit"] = {"kind": kind, **exhibit}
+                item["content"]["exhibit"] = {"kind": kind, "family": families[kind], "form": forms[kind], **exhibit}
                 result = run_node("component.renderBlock(payload.block, {})", {"block": item})
                 self.assertTrue(result["ok"], result)
                 html = result["value"]
@@ -118,6 +121,61 @@ class A4ComponentTest(unittest.TestCase):
         item["content"]["semantic_type"] = "point_evidence"
         fallback = run_node("component.renderBlock(payload.block, {})", {"block": item})
         self.assertTrue(fallback["ok"], fallback)
+
+        for semantic in (None, "unknown-kind", "pain-demand", "competition"):
+            item = block("text")
+            if semantic is not None:
+                item["content"]["semantic_type"] = semantic
+            else:
+                item["content"].pop("semantic_type", None)
+            result = run_node("component.renderBlock(payload.block, {})", {"block": item})
+            self.assertFalse(result["ok"], semantic)
+            self.assertEqual("REPORT_EXHIBIT_MISSING", result["code"])
+
+    def test_svg_exhibits_draw_resolved_connectors_and_structures_are_distinct(self):
+        tree = block("chart")
+        tree["content"].update(semantic_type="decision-tree", exhibit={
+            "kind": "decision-tree", "family": "decision-tree", "form": "svg.custom",
+            "nodes": [{"id": "start", "label": "开始"}, {"id": "go", "label": "继续"}],
+            "edges": [{"from": "start", "to": "go", "label": "是"}],
+        })
+        rendered = run_node("component.renderBlock(payload.block, {})", {"block": tree})
+        self.assertTrue(rendered["ok"], rendered)
+        self.assertIn('<line id="b-1-edge-1"', rendered["value"])
+        self.assertIn('data-from="b-1-node-start"', rendered["value"])
+        self.assertIn('data-to="b-1-node-go"', rendered["value"])
+
+        broken = json.loads(json.dumps(tree))
+        broken["content"]["exhibit"]["edges"][0]["to"] = "missing"
+        result = run_node("component.renderBlock(payload.block, {})", {"block": broken})
+        self.assertFalse(result["ok"])
+        self.assertEqual("REPORT_EXHIBIT_MISMATCH", result["code"])
+
+        process = block("chart")
+        process["content"].update(semantic_type="mechanism-process", exhibit={
+            "kind": "mechanism-process", "family": "process", "form": "svg.custom",
+            "steps": [{"label": "采集"}, {"label": "判断"}],
+        })
+        rendered = run_node("component.renderBlock(payload.block, {})", {"block": process})
+        self.assertTrue(rendered["ok"], rendered)
+        self.assertIn('class="process-connector"', rendered["value"])
+
+    def test_similar_exhibits_use_different_native_structures(self):
+        cases = {
+            "executive-summary": {"answer": "答", "reasons": ["因"]},
+            "answer-and-reasons": {"answer": "答", "reasons": ["因"]},
+            "pain-comparison": {"columns": ["前", "后"], "rows": [{"label": "痛", "values": ["A", "B"]}]},
+            "competitor-matrix": {"columns": ["价", "速"], "rows": [{"label": "甲", "values": ["低", "快"]}]},
+        }
+        structures = {}
+        families = {"executive-summary": "point_evidence", "answer-and-reasons": "point_evidence", "pain-comparison": "matrix", "competitor-matrix": "matrix"}
+        for kind, exhibit in cases.items():
+            form = "html.table" if kind in {"pain-comparison", "competitor-matrix"} else "html.text"
+            item = block("table" if form == "html.table" else "text")
+            item["content"].update(semantic_type=kind, exhibit={"kind": kind, "family": families[kind], "form": form, **exhibit})
+            html = run_node("component.renderBlock(payload.block, {})", {"block": item})["value"]
+            structures[kind] = re.search(r'data-exhibit-kind="[^"]+"[^>]*data-structure="([^"]+)"', html).group(1)
+        self.assertEqual(4, len(set(structures.values())))
 
     def test_red_components_module_exists(self):
         result = run_node("Object.keys(component).sort()")
@@ -186,9 +244,10 @@ class A4ComponentTest(unittest.TestCase):
             "consequence": "闲置或延期", "purchase_signal": "带价格试点", "evidence_strength": "medium",
             "counter": "成熟 API 可能已足够", "validation_gap": "没有采购样本",
         }]
+        pain_block["content"]["exhibit"] = {"kind": "pain-comparison", "family": "matrix", "form": "html.table", "columns": ["当前替代", "后果", "购买信号"], "rows": [{"label": "AI 应用创业公司", "values": ["排队或包卡", "闲置或延期", "带价格试点"]}]}
         rendered = run_node("component.renderBlock(payload.block, {})", {"block": pain_block})
         self.assertTrue(rendered["ok"], rendered)
-        for text in ("AI 应用创业公司", "流量突增", "排队或包卡", "闲置或延期", "带价格试点", "成熟 API 可能已足够", "没有采购样本"):
+        for text in ("AI 应用创业公司", "排队或包卡", "闲置或延期", "带价格试点"):
             self.assertIn(text, rendered["value"])
         self.assertNotIn("Relationship", rendered["value"])
 
@@ -198,9 +257,10 @@ class A4ComponentTest(unittest.TestCase):
             "criteria": ["总拥有成本", "可靠性"],
             "alternatives": [{"name": "专业 GPU 云", "layer": "direct", "values": {"总拥有成本": "公开价可比", "可靠性": "待同口径核实"}}],
         }
+        comparison_block["content"]["exhibit"] = {"kind": "competitor-matrix", "family": "matrix", "form": "html.table", "columns": ["总拥有成本", "可靠性"], "rows": [{"label": "专业 GPU 云", "values": ["公开价可比", "待同口径核实"]}]}
         rendered = run_node("component.renderBlock(payload.block, {})", {"block": comparison_block})
         self.assertTrue(rendered["ok"], rendered)
-        for text in ("专业 GPU 云", "direct", "总拥有成本", "公开价可比", "可靠性", "待同口径核实"):
+        for text in ("专业 GPU 云", "总拥有成本", "公开价可比", "可靠性", "待同口径核实"):
             self.assertIn(text, rendered["value"])
         self.assertNotIn("Relationship", rendered["value"])
 

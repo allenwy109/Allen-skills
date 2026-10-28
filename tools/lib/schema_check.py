@@ -102,6 +102,8 @@ def check_value(schema, spec, value, path):
             return [f"{path}：应为数组"]
         if len(value) < spec.get("min_items", 0):
             errors.append(f"{path}：至少需要 {spec['min_items']} 项")
+        if "max_items" in spec and len(value) > spec["max_items"]:
+            errors.append(f"{path}：最多允许 {spec['max_items']} 项")
         for i, item in enumerate(value):
             if item is None:
                 errors.append(f"{path}[{i}]：不能为 null")
@@ -111,6 +113,11 @@ def check_value(schema, spec, value, path):
         if not isinstance(value, dict):
             return [f"{path}：应为对象"]
         errors += check_fields(schema, spec["fields"], value, path)
+        for rule in spec.get("require_if", []):
+            if condition_holds(rule["if"], value):
+                missing = [field for field in rule["then"] if empty(value.get(field)) or value.get(field) == []]
+                if missing:
+                    errors.append(f"{path}：{rule['message']}（缺 {'、'.join(missing)}）")
     elif t == "map":
         if not isinstance(value, dict):
             return [f"{path}：应为对象"]

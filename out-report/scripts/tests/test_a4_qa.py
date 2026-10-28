@@ -97,6 +97,22 @@ Promise.resolve().then(() => {expression}).then(
 
 
 class A4QualityGateTest(unittest.TestCase):
+    def test_real_evaluate_rejects_missing_and_mismatched_rendered_exhibits(self):
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0]["visibleHtml"] = (
+            '<article data-semantic-type="decision-tree" data-exhibit-required="true" '
+            'data-form="svg.custom"><p>Decision evidence source</p></article>'
+        )
+        codes = {item["code"] for item in run_qa(evidence)["blocking"]}
+        self.assertIn("REPORT_EXHIBIT_MISSING", codes)
+
+        evidence["media"]["htmlPages"][0]["visibleHtml"] = (
+            '<article data-semantic-type="decision-tree" data-exhibit-required="true" data-form="html.text">'
+            '<figure data-exhibit-kind="decision-tree" data-exhibit-family="decision-tree" '
+            'data-exhibit-form="svg.custom" data-structure="decision-branch-svg">Decision evidence source</figure></article>'
+        )
+        codes = {item["code"] for item in run_qa(evidence)["blocking"]}
+        self.assertIn("REPORT_EXHIBIT_MISMATCH", codes)
     def test_declared_exhibit_family_requires_matching_native_form(self):
         cases = [
             ({"family": "matrix", "form": "html.text"}, "REPORT_EXHIBIT_MISMATCH"),

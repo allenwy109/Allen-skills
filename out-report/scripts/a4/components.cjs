@@ -1,6 +1,9 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
 const { escapeHtml } = require('./escape.cjs');
+const EXHIBIT_LAYOUTS = new Map(JSON.parse(fs.readFileSync(path.join(__dirname, '../../assets/a4-layout-catalog.json'), 'utf8')).exhibits.map(item => [item.kind, item]));
 
 const APPROVED_BLOCK_KINDS = Object.freeze(['chart', 'text', 'metric', 'table']);
 const APPROVED_COMPONENT_KINDS = Object.freeze([
@@ -225,9 +228,9 @@ function comparisonBody(comparison) {
   return `<table class="table-body competition-matrix"><thead><tr><th scope="col">层级 / 选项</th>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-function exhibitShell(block, kind, body, tag = 'div') {
+function exhibitShell(block, exhibit, structure, body, tag = 'div') {
   const id = `${block.id}-exhibit`;
-  return `<${tag} id="${escapeHtml(id)}" class="native-exhibit native-exhibit--${escapeHtml(kind)}" data-exhibit-kind="${escapeHtml(kind)}" aria-label="${escapeHtml(kind)}">${body}</${tag}>`;
+  return `<${tag} id="${escapeHtml(id)}" class="native-exhibit native-exhibit--${escapeHtml(exhibit.kind)}" data-exhibit-kind="${escapeHtml(exhibit.kind)}" data-exhibit-family="${escapeHtml(exhibit.family)}" data-exhibit-form="${escapeHtml(exhibit.form)}" data-structure="${escapeHtml(structure)}" aria-label="${escapeHtml(exhibit.kind)}">${body}</${tag}>`;
 }
 
 function itemList(values, className) {
@@ -235,41 +238,53 @@ function itemList(values, className) {
 }
 
 function answerExhibit(block, exhibit) {
-  return exhibitShell(block, exhibit.kind, `<p class="exhibit-answer">${escapeHtml(exhibit.answer)}</p>${itemList(exhibit.reasons, 'exhibit-reasons')}`, 'section');
+  if (exhibit.kind === 'executive-summary') {
+    const reasons = list(exhibit.reasons).map(reason => `<div><dt>关键理由</dt><dd>${escapeHtml(reason)}</dd></div>`).join('');
+    return exhibitShell(block, exhibit, 'executive-answer-dl', `<p class="exhibit-answer">${escapeHtml(exhibit.answer)}</p><dl>${reasons}</dl>`, 'section');
+  }
+  return exhibitShell(block, exhibit, 'answer-reasons-list', `<h4>${escapeHtml(exhibit.answer)}</h4>${itemList(exhibit.reasons, 'exhibit-reasons')}`, 'section');
 }
 
 function matrixExhibit(block, exhibit) {
   const columns = list(exhibit.columns);
   const head = columns.map(column => `<th scope="col">${escapeHtml(column)}</th>`).join('');
   const rows = list(exhibit.rows).map(row => `<tr><th scope="row">${escapeHtml(row.label)}</th>${columns.map((_, index) => `<td>${escapeHtml(list(row.values)[index])}</td>`).join('')}</tr>`).join('');
-  return exhibitShell(block, exhibit.kind, `<table><thead><tr><th scope="col">比较项</th>${head}</tr></thead><tbody>${rows}</tbody></table>`, 'figure');
+  if (exhibit.kind === 'pain-comparison') {
+    const groups = list(exhibit.rows).map(row => `<section><h4>${escapeHtml(row.label)}</h4><dl>${columns.map((column, index) => `<div><dt>${escapeHtml(column)}</dt><dd>${escapeHtml(list(row.values)[index])}</dd></div>`).join('')}</dl></section>`).join('');
+    return exhibitShell(block, exhibit, 'pain-before-after-dl', groups, 'div');
+  }
+  return exhibitShell(block, exhibit, 'competitor-criteria-table', `<table><thead><tr><th scope="col">比较项</th>${head}</tr></thead><tbody>${rows}</tbody></table>`, 'figure');
 }
 
 function decisionTreeExhibit(block, exhibit) {
   const nodes = list(exhibit.nodes);
+  const nodeIds = new Set(nodes.map(node => node.id));
+  const invalid = list(exhibit.edges).find(edge => !nodeIds.has(edge.from) || !nodeIds.has(edge.to));
+  if (invalid) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} edge ${invalid.from} -> ${invalid.to} does not resolve`);
   const labels = nodes.map((node, index) => `<g id="${escapeHtml(block.id)}-node-${escapeHtml(node.id)}"><rect x="${8 + index * 52}" y="12" width="44" height="20"></rect><text x="${30 + index * 52}" y="24">${escapeHtml(node.label)}</text></g>`).join('');
-  const edges = list(exhibit.edges).map((edge, index) => `<text id="${escapeHtml(block.id)}-edge-${index + 1}" x="${52 + index * 52}" y="9">${escapeHtml(edge.label)}</text>`).join('');
-  return exhibitShell(block, exhibit.kind, `<svg role="img" aria-labelledby="${escapeHtml(block.id)}-tree-title" viewBox="0 0 ${Math.max(120, nodes.length * 60)} 44"><title id="${escapeHtml(block.id)}-tree-title">决策树</title>${edges}${labels}</svg>`, 'figure');
+  const edges = list(exhibit.edges).map((edge, index) => `<line id="${escapeHtml(block.id)}-edge-${index + 1}" data-from="${escapeHtml(block.id)}-node-${escapeHtml(edge.from)}" data-to="${escapeHtml(block.id)}-node-${escapeHtml(edge.to)}" x1="52" y1="22" x2="60" y2="22"></line><text x="56" y="18">${escapeHtml(edge.label)}</text>`).join('');
+  return exhibitShell(block, exhibit, 'decision-branch-svg', `<svg role="img" aria-labelledby="${escapeHtml(block.id)}-tree-title" viewBox="0 0 ${Math.max(120, nodes.length * 60)} 44"><title id="${escapeHtml(block.id)}-tree-title">决策树</title>${edges}${labels}</svg>`, 'figure');
 }
 
 function processExhibit(block, exhibit) {
   const steps = list(exhibit.steps);
   const groups = steps.map((step, index) => `<g id="${escapeHtml(block.id)}-step-${index + 1}"><rect x="${6 + index * 42}" y="8" width="34" height="18"></rect><text x="${23 + index * 42}" y="19">${escapeHtml(step.label)}</text></g>`).join('');
-  return exhibitShell(block, exhibit.kind, `<svg role="img" aria-labelledby="${escapeHtml(block.id)}-process-title" viewBox="0 0 ${Math.max(120, steps.length * 42)} 34"><title id="${escapeHtml(block.id)}-process-title">机制与流程</title>${groups}</svg>`, 'figure');
+  const connectors = steps.slice(1).map((_, index) => `<line class="process-connector" x1="${40 + index * 42}" y1="17" x2="${48 + index * 42}" y2="17"></line>`).join('');
+  return exhibitShell(block, exhibit, 'mechanism-flow-svg', `<svg role="img" aria-labelledby="${escapeHtml(block.id)}-process-title" viewBox="0 0 ${Math.max(120, steps.length * 42)} 34"><title id="${escapeHtml(block.id)}-process-title">机制与流程</title>${connectors}${groups}</svg>`, 'figure');
 }
 
 function scenariosExhibit(block, exhibit) {
   const scenarios = list(exhibit.scenarios).map((scenario, index) => `<section id="${escapeHtml(block.id)}-scenario-${index + 1}"><h4>${escapeHtml(scenario.label)}</h4><p>${escapeHtml(scenario.outcome)}</p></section>`).join('');
-  return exhibitShell(block, exhibit.kind, scenarios, 'div');
+  return exhibitShell(block, exhibit, 'paired-scenario-sections', scenarios, 'div');
 }
 
 function roadmapExhibit(block, exhibit) {
   const stages = list(exhibit.stages).map((stage, index) => `<li id="${escapeHtml(block.id)}-stage-${index + 1}"><time>${escapeHtml(stage.label)}</time><span>${escapeHtml(stage.output)}</span></li>`).join('');
-  return exhibitShell(block, exhibit.kind, `<ol class="roadmap-stages">${stages}</ol>`, 'section');
+  return exhibitShell(block, exhibit, 'thirty-sixty-ninety-list', `<ol class="roadmap-stages">${stages}</ol>`, 'section');
 }
 
 function methodsExhibit(block, exhibit) {
-  return exhibitShell(block, exhibit.kind, `<section><h4>方法</h4>${itemList(exhibit.methods, 'methods-list')}</section><section><h4>限制</h4>${itemList(exhibit.limitations, 'limitations-list')}</section>`, 'aside');
+  return exhibitShell(block, exhibit, 'methods-limitations-aside', `<section><h4>方法</h4>${itemList(exhibit.methods, 'methods-list')}</section><section><h4>限制</h4>${itemList(exhibit.limitations, 'limitations-list')}</section>`, 'aside');
 }
 
 const EXHIBIT_RENDERERS = Object.freeze({
@@ -289,10 +304,18 @@ function semanticBody(block) {
   const semanticType = content.semantic_type;
   const aliases = { 'pain-demand': 'pain-comparison', competition: 'competitor-matrix' };
   const expectedKind = aliases[semanticType] || semanticType;
-  if (!Object.hasOwn(EXHIBIT_RENDERERS, expectedKind)) return null;
-  if (!content.exhibit && Object.hasOwn(aliases, semanticType)) return null;
+  if (semanticType === 'point_evidence') return null;
+  if (!Object.hasOwn(EXHIBIT_RENDERERS, expectedKind)) throw reportError('REPORT_EXHIBIT_MISSING', `${block.id} requires explicit point_evidence or a supported exhibit`);
   if (!content.exhibit) throw reportError('REPORT_EXHIBIT_MISSING', `${block.id} declares ${semanticType} without exhibit content`);
   if (content.exhibit.kind !== expectedKind) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} declares ${semanticType} but provides ${content.exhibit.kind}`);
+  const layout = EXHIBIT_LAYOUTS.get(expectedKind);
+  const missing = layout.required_fields.filter(field => !content.exhibit[field] || content.exhibit[field].length === 0);
+  if (missing.length) throw reportError('REPORT_EXHIBIT_MISSING', `${block.id} missing ${missing.join(', ')}`);
+  if (content.exhibit.family !== layout.family || !layout.forms.includes(content.exhibit.form) || content.form !== content.exhibit.form) {
+    throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} kind/family/form does not match catalog`);
+  }
+  const count = content.exhibit[layout.capacity.field].length;
+  if (count > layout.capacity.hard) throw reportError('REPORT_EXHIBIT_MISMATCH', `${block.id} exceeds hard capacity`);
   return EXHIBIT_RENDERERS[expectedKind](block, content.exhibit);
 }
 
@@ -382,7 +405,7 @@ function renderBlock(block, context = {}) {
   const content = block.content || {};
   const anchor = content.anchor ? ' data-anchor="true"' : '';
   const semantic = semanticBody(block);
-  return `<article class="report-block report-block--${escapeHtml(block.kind)}" data-block-id="${escapeHtml(block.id)}" data-block-kind="${escapeHtml(block.kind)}" data-form="${escapeHtml(content.form)}" data-role="${escapeHtml(content.role)}" aria-labelledby="${escapeHtml(block.id)}-title"${anchor}>${blockHeader(block)}${semantic === null ? BLOCK_RENDERERS[block.kind](block) : semantic}${citationMarkers(block, context)}${bindings(block, context)}</article>`;
+  return `<article class="report-block report-block--${escapeHtml(block.kind)}" data-block-id="${escapeHtml(block.id)}" data-block-kind="${escapeHtml(block.kind)}" data-form="${escapeHtml(content.form)}" data-role="${escapeHtml(content.role)}" data-semantic-type="${escapeHtml(content.semantic_type)}" data-exhibit-required="${content.semantic_type === 'point_evidence' ? 'false' : 'true'}" aria-labelledby="${escapeHtml(block.id)}-title"${anchor}>${blockHeader(block)}${semantic === null ? BLOCK_RENDERERS[block.kind](block) : semantic}${citationMarkers(block, context)}${bindings(block, context)}</article>`;
 }
 
 function executiveSummaryBody(payload) {
