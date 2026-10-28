@@ -85,6 +85,23 @@ class PackageSupportTest(unittest.TestCase):
         with self.assertRaises(P.PackageError):
             P.build(self.task)
 
+    def test_idea_app_builds_evidence_package_with_official_label(self):
+        (self.task / "app-run.json").write_text(
+            json.dumps({"app_id": "allen-idea"}), encoding="utf-8"
+        )
+        result = P.build(self.task)
+        self.assertEqual("evidence-idea", result["acceptance_id"])
+        _, manifest = self.names()
+        self.assertEqual("allen-idea", manifest["app_id"])
+        self.assertEqual("创业点子评估", manifest["app"])
+
+    def test_unknown_app_still_fails_closed(self):
+        (self.task / "app-run.json").write_text(
+            json.dumps({"app_id": "allen-unknown"}), encoding="utf-8"
+        )
+        with self.assertRaisesRegex(P.PackageError, "应用无效"):
+            P.build(self.task)
+
     def test_generic_report_package_fails_without_source_ledger(self):
         shutil.rmtree(self.task / "03_evidence/ledger")
         with self.assertRaisesRegex(P.PackageError, "sources.jsonl"):

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成四个 Allen 应用共用的支撑文件包，并登记统一验收。
+"""生成 Allen 应用共用的支撑文件包，并登记统一验收。
 
 默认只收录可交付的分析、证据账和过程结论；不会收录用户原始附件、网页原件、
 引擎工作目录或内部企业储备名单。需要原始材料时必须显式传入 --include-raw。
@@ -23,6 +23,7 @@ from tools.acceptance import Acceptance  # noqa: E402
 
 
 APP_LABELS = {
+    "allen-idea": "创业点子评估",
     "allen-company": "了解企业",
     "allen-capital": "资本市场对接与表现",
     "allen-ecosystem": "上下游机会",
