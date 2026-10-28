@@ -3,12 +3,12 @@
   "schema": "references/report-output-release.schema.json",
   "status": "approved",
   "releasedAt": "2026-10-27T15:28:08+10:30",
-  "implementationHead": "188627cafc44ace4badc44d8f236cf1c36bafad5",
+  "implementationHead": "fd3b806973cc5b9f3f447de7deaeadc2ef7b57e2",
   "provenance": {
     "upstreamRepository": "https://github.com/ZeroxZhang/zerox-skills.git",
     "upstreamCommit": "ee1f980c8dd7c53408e1a05a084229e6ec03c660",
     "composerReferenceCommit": "bfef13d",
-    "finalBenchmarkIntegrityCommit": "79e90cad0abeb7042ba1d0b27efa1d78d35cd4b7",
+    "finalBenchmarkIntegrityCommit": "fd3b806973cc5b9f3f447de7deaeadc2ef7b57e2",
     "a4ApprovalCommit": "e6017d2883c425fe85da49c6933a940f4e07725f"
   },
   "capabilities": {
