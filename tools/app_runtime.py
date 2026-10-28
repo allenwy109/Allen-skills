@@ -27,6 +27,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from tools.acceptance import Acceptance  # noqa: E402
+from tools import consulting_project  # noqa: E402
 from tools.lib.ledger import Ledger  # noqa: E402
 
 RUN_FILE = "app-run.json"
@@ -217,6 +218,8 @@ def init_task(args):
         "created_at": now(),
     }
     save(task, run)
+    if args.depth in ("L2", "L3"):
+        consulting_project.init_project(task, args.depth)
     return stage_payload(task, run)
 
 
@@ -311,7 +314,18 @@ def finish(task):
     if run["cursor"] != len(run["stages"]):
         p = stage_payload(task, run)
         raise AppError(f"任务尚未完成，当前阶段：{p['stage']}")
+    formal_report = "report" in run.get("stages", [])
+    if run.get("depth") in ("L2", "L3") and formal_report:
+        errors = consulting_project.validate_project(pathlib.Path(task))
+        if errors:
+            details = "；".join(f"{code}: {detail}" for code, detail in errors)
+            raise AppError("consulting project validation failed: " + details)
     doc = Acceptance(task).check()
+    if run.get("depth") in ("L2", "L3") and formal_report:
+        kinds = {d.get("kind"): d for d in doc.get("deliverables", [])}
+        missing = [kind for kind in ("report", "support_package") if kind not in kinds]
+        if missing:
+            raise AppError("验收缺少必需交付物：" + "、".join(missing))
     failed = [d["id"] for d in doc.get("deliverables", []) if d["status"] == "failed"]
     if failed:
         raise AppError("仍有验收失败的交付物：" + "、".join(failed))

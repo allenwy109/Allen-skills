@@ -30,10 +30,10 @@ class AppRuntimeTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def init(self, app="allen-company", files=None, urls=None):
+    def init(self, app="allen-company", files=None, urls=None, depth="L2"):
         args = argparse.Namespace(
             task=str(self.task), app=app, request="请分析", request_file=None,
-            file=files or [], url=urls or [], depth="L2",
+            file=files or [], url=urls or [], depth=depth,
         )
         return R.init_task(args)
 
@@ -192,6 +192,32 @@ class AppRuntimeTest(unittest.TestCase):
         acc.review("support-company", reviewer())
         self.assertEqual(R.advance(self.task)["advanced"], "acceptance")
         self.assertEqual(R.finish(self.task)["status"], "completed")
+
+    def test_l3_finish_rejects_open_consulting_contracts_then_completes_truthfully(self):
+        self.init(depth="L3")
+        run = json.loads((self.task / "app-run.json").read_text(encoding="utf-8"))
+        run["cursor"] = len(run["stages"])
+        run["completed_stages"] = list(run["stages"])
+        (self.task / "app-run.json").write_text(json.dumps(run), encoding="utf-8")
+        with self.assertRaisesRegex(R.AppError, "consulting"):
+            R.finish(self.task)
+
+    def test_l1_finish_preserves_legacy_non_manifest_compatibility(self):
+        self.init(depth="L1")
+        run = json.loads((self.task / "app-run.json").read_text(encoding="utf-8"))
+        run["cursor"] = len(run["stages"])
+        run["completed_stages"] = list(run["stages"])
+        (self.task / "app-run.json").write_text(json.dumps(run), encoding="utf-8")
+        self.assertEqual(R.finish(self.task)["status"], "completed")
+
+    def test_l2_finish_rejects_missing_required_acceptance_deliverables(self):
+        self.init(depth="L2")
+        run = json.loads((self.task / "app-run.json").read_text(encoding="utf-8"))
+        run["cursor"] = len(run["stages"])
+        run["completed_stages"] = list(run["stages"])
+        (self.task / "app-run.json").write_text(json.dumps(run), encoding="utf-8")
+        with self.assertRaisesRegex(R.AppError, "report.*support_package"):
+            R.finish(self.task)
 
 
 if __name__ == "__main__":

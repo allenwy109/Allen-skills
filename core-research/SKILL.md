@@ -68,11 +68,12 @@ L1：3–10 次工具调用，简短回答附来源。默认不建任务文件�
 
 ## 6. 并行与子代理
 
-- 只拆真正独立的子问题，宁少勿滥；不要过早把"研究 X"拆成"X 概述 / X 技术 / X 应用"。
-- 每条研究线一个代号（A、B、D…，主线程是 M），任务说明写进 `03r_research/tasks/<代号>.md`（模板 `assets/templates/subagent-task.md`）。
+- 项目经理从已确认的问题树中选择真正独立的子问题，按需创建研究线，宁少勿滥；L3 至少两条独立研究线，但不要盲目启动所有角色。可选角色包括 pain-and-sentiment、customer-purchase、competitors-and-substitutes、market-and-data、business-model-and-unit-economics、capital、regulation。
+- 每条研究线一个代号（A、B、D…，M 是主线程、U 是用户材料）。用 `research workstream add <任务> <代号> --role <角色> --question <问题>` 创建任务说明、元数据和 staging；只把生成的 `03r_research/tasks/<代号>.md` 任务合同交给子代理，不共享其他研究线的上下文。
 - 子代理只写自己的部分：`research capture` 用自己的研究线前缀；证据、检索日志、数据交接写证据账的 `ledger/staging/<代号>/` 和 `03_evidence/data/extracted/<代号>-*.csv`。不改 report、plan、datasets.json、dictionary.csv、curated。
-- 子代理只回传 4 样：≤300 字摘要；文件路径清单；来源 ID 清单（每个一行：完整度、一手还是二手、是否支撑关键结论）；未解问题和下一轮建议。
-- 主线程每轮 `ledger.py merge`，合并数据、核验格式、去重、查漏补缺。
+- 子代理只回传 4 样，并按 `assets/templates/subagent-handoff.json` 形成 handoff：≤300 字摘要；文件路径清单；来源 ID 清单（每个一行：完整度、一手还是二手、是否支撑关键结论）；未解问题和下一轮建议。用 `research workstream handoff <任务> <代号> <handoff.json>` 校验并登记；子代理不得填写项目经理处置。
+- 项目经理核验后运行 `research workstream decide <任务> <代号> --status accepted|needs_revision|rejected --reason <理由>`。只有 accepted 的 staging 才能由项目经理通过 `ledger.py merge` 合并；本命令不合并证据账。needs_revision/rejected 的主张、数据和结论不得进入综合、故事线或正式报告。
+- 主线程每轮只对 accepted 研究线运行 `ledger.py merge`，合并后核验格式、去重、查漏补缺。项目经理仍是 plan、curated data、综合和故事线的唯一作者。
 
 ## 7. 封包
 
