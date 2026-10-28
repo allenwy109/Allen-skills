@@ -139,14 +139,20 @@ function pdfBackend() {
         .replace(/(?<=\p{Script=Han})\s+(?=\d)|(?<=\d)\s+(?=\p{Script=Han})/gu, '');
       visible.removeAttribute('style');
       visible.remove();
-      const role = visible.querySelector('[data-component-kind="references-appendix"]') ? 'references' : 'body';
+      const kinds = [...new Set([...visible.querySelectorAll('[data-component-kind]')].map(node => node.dataset.componentKind))];
+      const role = visible.querySelector('[data-component-kind="references-appendix"]') ? 'references'
+        : kinds.length === 1 && kinds[0] === 'cover' ? 'cover'
+        : kinds.length === 1 && kinds[0] === 'toc' ? 'toc'
+        : kinds.length === 1 && kinds[0] === 'section-title' ? 'section-divider' : 'body';
       const appendixDestinations = role === 'references'
         ? [...visible.querySelectorAll('[data-source-record][id], .ref[id]')].map(node => node.id)
         : [];
+      const extractorOrderExclusions = [...section.querySelectorAll('.chart-sub,.axis-x,.axis-y,.takeaway,.continued,.citation-markers,.folio,.stage-no,.toc-page')]
+        .filter(node => getComputedStyle(node).display !== 'none').map(node => node.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean);
       return {
         id: section.dataset.pageId, role, text,
         visibleHtml: visible.innerHTML, empty: !text, overlaps, clipped: [...new Set(clipped)], fonts,
-        appendixDestinations,
+        appendixDestinations, extractorOrderExclusions,
       };
     });
   });
@@ -204,7 +210,7 @@ function pdfBackend() {
     const target = path.join(outputDir, `${record.id}.png`);
     fs.renameSync(generated, target);
     pageHashes[record.id] = sha(target);
-    const text = canonicalText(cp.execFileSync('pdftotext', ['-f', String(index + 1), '-l', String(index + 1), '-layout', pdf, '-'], { encoding: 'utf8' }).replace(/\f/g, ''));
+    const text = canonicalText(cp.execFileSync('pdftotext', ['-f', String(index + 1), '-l', String(index + 1), '-raw', pdf, '-'], { encoding: 'utf8' }).replace(/\f/g, ''));
     pdfPages.push({ id: record.id, text });
   });
   const geometry = { schemaVersion: '1.0', pages: dom.map(record => ({
@@ -212,7 +218,7 @@ function pdfBackend() {
     empty: record.empty, fonts: record.fonts,
   })) };
   const media = {
-    schemaVersion: '1.0', htmlPages: dom.map(({ id, role, text, visibleHtml }) => ({ id, role, text, visibleHtml })), pdfPages,
+    schemaVersion: '1.0', htmlPages: dom.map(({ id, role, text, visibleHtml, extractorOrderExclusions }) => ({ id, role, text, visibleHtml, extractorOrderExclusions })), pdfPages,
     appendixDestinations: dom.flatMap(record => record.appendixDestinations),
     resources: [
       { type: 'font', url: 'data:font/woff2;base64,embedded-noto-sans-400', embedded: true },

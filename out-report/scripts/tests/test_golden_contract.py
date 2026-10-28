@@ -148,7 +148,7 @@ class GoldenReportContractTest(unittest.TestCase):
         self.assertNotIn("批准日期：2026-10-27", visible)
         self.assertNotIn("current digest: needs-reapproval", visible)
         self.assertEqual(self.baseline["status"], "approved")
-        self.assertEqual(self.baseline["candidateDigest"], "658791735b252b33d95f220e7f30f7cfe2fdaba6edc519d0077ca9279fbd026f")
+        self.assertEqual(self.baseline["candidateDigest"], "0225e35b6fb307fec5307afec5371d93fec2e31488064ea020a54216a8e03ac3")
         self.assertEqual(self.baseline["qaWorstPage"], "page-001")
         self.assertEqual(self.baseline["auditTrail"][-1]["candidateDigest"], self.baseline["candidateDigest"])
 

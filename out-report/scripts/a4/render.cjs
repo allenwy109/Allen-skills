@@ -254,6 +254,7 @@ async function renderDocument(document) {
   const minimumFontPt = measured.items.length ? Math.min(...measured.items.map(item => item.minimumFontPt)) : 10.75;
   const manifestPages = pages.map(page => ({
     id: page.id, number: page.number, intentionalBlank: page.intentionalBlank,
+    role: (() => { const kinds = [...new Set(page.items.map(item => item.kind))]; return kinds.length === 1 && kinds[0] === 'cover' ? 'cover' : kinds.length === 1 && kinds[0] === 'toc' ? 'toc' : kinds.length === 1 && kinds[0] === 'section-title' ? 'section-divider' : kinds.length === 1 && kinds[0] === 'references-appendix' ? 'references' : 'body'; })(),
     usedHeightPx: Math.round(page.usedHeightPx * 1000) / 1000,
     contentHeightPx: measured.contentHeightPx,
     geometry: PAGE,

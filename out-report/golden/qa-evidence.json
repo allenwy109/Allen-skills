@@ -9,8 +9,8 @@
         "intentionalBlank": false,
         "usedHeightPx": 330.465,
         "contentHeightPx": 925.981,
-        "whitespaceReason": "Cover isolates the decision title and publication identity",
-        "whitespaceRole": "cover",
+        "role": "cover",
+        "whitespaceJustification": "cover-identity",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -22,8 +22,8 @@
         "intentionalBlank": false,
         "usedHeightPx": 512.203,
         "contentHeightPx": 986.453,
-        "whitespaceReason": "Contents page preserves a short navigational reading path",
-        "whitespaceRole": "toc",
+        "role": "toc",
+        "whitespaceJustification": "toc-navigation",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -35,6 +35,7 @@
         "intentionalBlank": false,
         "usedHeightPx": 698.36,
         "contentHeightPx": 986.453,
+        "role": "body",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -46,6 +47,7 @@
         "intentionalBlank": false,
         "usedHeightPx": 511.453,
         "contentHeightPx": 986.453,
+        "role": "section-divider",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -57,6 +59,7 @@
         "intentionalBlank": false,
         "usedHeightPx": 786.906,
         "contentHeightPx": 986.453,
+        "role": "body",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -68,6 +71,7 @@
         "intentionalBlank": false,
         "usedHeightPx": 576.422,
         "contentHeightPx": 986.453,
+        "role": "body",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -79,6 +83,7 @@
         "intentionalBlank": false,
         "usedHeightPx": 810.11,
         "contentHeightPx": 986.453,
+        "role": "body",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -90,6 +95,7 @@
         "intentionalBlank": false,
         "usedHeightPx": 498.813,
         "contentHeightPx": 986.453,
+        "role": "body",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -101,6 +107,7 @@
         "intentionalBlank": false,
         "usedHeightPx": 587.672,
         "contentHeightPx": 986.453,
+        "role": "body",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -112,6 +119,7 @@
         "intentionalBlank": false,
         "usedHeightPx": 517.594,
         "contentHeightPx": 986.453,
+        "role": "section-divider",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -123,6 +131,7 @@
         "intentionalBlank": false,
         "usedHeightPx": 565.907,
         "contentHeightPx": 986.453,
+        "role": "body",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -134,6 +143,7 @@
         "intentionalBlank": false,
         "usedHeightPx": 522.563,
         "contentHeightPx": 986.453,
+        "role": "body",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -145,6 +155,7 @@
         "intentionalBlank": false,
         "usedHeightPx": 627.422,
         "contentHeightPx": 986.453,
+        "role": "body",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -156,6 +167,7 @@
         "intentionalBlank": false,
         "usedHeightPx": 480.485,
         "contentHeightPx": 986.453,
+        "role": "body",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -167,6 +179,7 @@
         "intentionalBlank": false,
         "usedHeightPx": 695.969,
         "contentHeightPx": 986.453,
+        "role": "references",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -178,6 +191,7 @@
         "intentionalBlank": false,
         "usedHeightPx": 500.656,
         "contentHeightPx": 986.453,
+        "role": "body",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -529,157 +543,236 @@
     "htmlPages": [
       {
         "id": "page-001",
-        "role": "body",
+        "role": "cover",
         "text": "合成示例 · SYNTHETIC 区域算力资源池 创业评估 Regional Compute Capacity Pool Venture Assessment 一份面向投资人、管理层与战略团队的决策草案 黄金小册基准 v1.0 2026年10月 仅用于版式与阅读体验评估 不构成市场事实或投资建议",
-        "visibleHtml": "<div class=\"cover-mark\"> </div><span class=\"synthetic\">合成示例 · SYNTHETIC </span><h1>区域算力资源池<br>创业评估 </h1><p class=\"deck\">Regional Compute Capacity Pool Venture Assessment<br>一份面向投资人、管理层与战略团队的决策草案 </p><div class=\"cover-meta\"><div>黄金小册基准 v1.0<br>2026 年 10 月 </div><div>仅用于版式与阅读体验评估<br>不构成市场事实或投资建议 </div> </div>"
+        "visibleHtml": "<div class=\"cover-mark\"> </div><span class=\"synthetic\">合成示例 · SYNTHETIC </span><h1>区域算力资源池<br>创业评估 </h1><p class=\"deck\">Regional Compute Capacity Pool Venture Assessment<br>一份面向投资人、管理层与战略团队的决策草案 </p><div class=\"cover-meta\"><div>黄金小册基准 v1.0<br>2026 年 10 月 </div><div>仅用于版式与阅读体验评估<br>不构成市场事实或投资建议 </div> </div>",
+        "extractorOrderExclusions": []
       },
       {
         "id": "page-002",
-        "role": "body",
+        "role": "toc",
         "text": "Contents / 合成示例 从机会假设走到可验证的放行门槛04章节16页01判断与机会定义04 02需求、经济性与路径比较06 03经营边界、风险与执行10 04来源、口径与限制15决策级别 有条件启动验证 不批准重资产扩容。 继续门槛55% 锁定率 同时满足交付与单位贡献。 停止条件 < 32% 连续八周低于即停止扩容。 [8] 02 / 16",
-        "visibleHtml": "<div class=\"eyebrow\">Contents / 合成示例 </div><h2>从机会假设走到可验证的放行门槛 </h2><div class=\"toc-grid\"><div><div class=\"toc-no\">04 </div><p class=\"note\">章节<br>16 页 </p> </div><div class=\"toc-list\"><div class=\"toc-item\"><strong>01　判断与机会定义</strong><span>04 </span> </div><div class=\"toc-item\"><strong>02　需求、经济性与路径比较</strong><span>06 </span> </div><div class=\"toc-item\"><strong>03　经营边界、风险与执行</strong><span>10 </span> </div><div class=\"toc-item\"><strong>04　来源、口径与限制</strong><span>15 </span> </div> </div> </div><div class=\"toc-brief\"><div><span class=\"label\">决策级别 </span><strong>有条件启动验证</strong><p>不批准重资产扩容。 </p> </div><div><span class=\"label\">继续门槛 </span><strong>55% 锁定率</strong><p>同时满足交付与单位贡献。 </p> </div><div><span class=\"label\">停止条件 </span><strong>&lt; 32%</strong><p>连续八周低于即停止扩容。 </p> </div> </div><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-manifest\">[8]</a></sup><div class=\"folio\">02 / 16 </div>"
+        "visibleHtml": "<div class=\"eyebrow\">Contents / 合成示例 </div><h2>从机会假设走到可验证的放行门槛 </h2><div class=\"toc-grid\"><div><div class=\"toc-no\">04 </div><p class=\"note\">章节<br>16 页 </p> </div><div class=\"toc-list\"><div class=\"toc-item\"><strong>01　判断与机会定义</strong><span>04 </span> </div><div class=\"toc-item\"><strong>02　需求、经济性与路径比较</strong><span>06 </span> </div><div class=\"toc-item\"><strong>03　经营边界、风险与执行</strong><span>10 </span> </div><div class=\"toc-item\"><strong>04　来源、口径与限制</strong><span>15 </span> </div> </div> </div><div class=\"toc-brief\"><div><span class=\"label\">决策级别 </span><strong>有条件启动验证</strong><p>不批准重资产扩容。 </p> </div><div><span class=\"label\">继续门槛 </span><strong>55% 锁定率</strong><p>同时满足交付与单位贡献。 </p> </div><div><span class=\"label\">停止条件 </span><strong>&lt; 32%</strong><p>连续八周低于即停止扩容。 </p> </div> </div><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-manifest\">[8]</a></sup><div class=\"folio\">02 / 16 </div>",
+        "extractorOrderExclusions": [
+          "[8]",
+          "02 / 16"
+        ]
       },
       {
         "id": "page-003",
         "role": "body",
         "text": "区域算力资源池创业评估 执行摘要 · 合成示例 机会存在，但只有在锁定率与电力价差同时成立时才值得启动 建议把项目定义为“带约束的容量聚合服务”，先证明可售负载，再投入重资产节点。 01先售后建 首批客户意向覆盖不少于可用容量的一半，再触发节点采购。 02不赌单一套利 收益模型同时依赖调度服务费、容量承诺费与峰谷优化。 03按门槛放行90天试点只回答需求真实性、交付稳定性与单位经济三件事。 试点预算上限 ¥ 4.8m 合成示例；不含自建机房 目标锁定率 ≥ 55% 合成示例；签约容量/可用容量 停止线 < 32% 连续8周低于即停止扩容 证据79% 合成访谈负载可接受排队或离线执行 解释2.1元 合成模型单位贡献为正，但对闲置高度敏感 决策90天 先以停止门验证锁定率，再决定是否扩容 [1] 03 / 16",
-        "visibleHtml": "<div class=\"running\"><span>区域算力资源池创业评估 </span><span>执行摘要 · 合成示例 </span> </div><h2>机会存在，但只有在锁定率与电力价差同时成立时才值得启动 </h2><div class=\"summary-grid\"><div><p class=\"thesis\">建议把项目定义为“带约束的容量聚合服务”，先证明可售负载，再投入重资产节点。 </p><div class=\"decision\">01 <div><h3>先售后建 </h3><p>首批客户意向覆盖不少于可用容量的一半，再触发节点采购。 </p> </div> </div><div class=\"decision\">02 <div><h3>不赌单一套利 </h3><p>收益模型同时依赖调度服务费、容量承诺费与峰谷优化。 </p> </div> </div><div class=\"decision\">03 <div><h3>按门槛放行 </h3><p>90 天试点只回答需求真实性、交付稳定性与单位经济三件事。 </p> </div> </div> </div><aside class=\"metric-rail\"><div class=\"metric\"><div class=\"label\">试点预算上限 </div><div class=\"big\">¥ 4.8m </div><p class=\"note\">合成示例；不含自建机房 </p> </div><div class=\"metric\"><div class=\"label\">目标锁定率 </div><div class=\"big\">≥ 55% </div><p class=\"note\">合成示例；签约容量/可用容量 </p> </div><div class=\"metric\"><div class=\"label\">停止线 </div><div class=\"big\">&lt; 32% </div><p class=\"note\">连续 8 周低于即停止扩容 </p> </div></aside> </div><div class=\"logic-chain\" aria-label=\"证据到决策\"><div><span class=\"label\">证据 </span><strong>79%</strong><p>合成访谈负载可接受排队或离线执行 </p> </div><div><span class=\"label\">解释 </span><strong>2.1 元</strong><p>合成模型单位贡献为正，但对闲置高度敏感 </p> </div><div><span class=\"label\">决策 </span><strong>90 天</strong><p>先以停止门验证锁定率，再决定是否扩容 </p> </div> </div><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-rc24\">[1]</a></sup><div class=\"folio\">03 / 16 </div>"
+        "visibleHtml": "<div class=\"running\"><span>区域算力资源池创业评估 </span><span>执行摘要 · 合成示例 </span> </div><h2>机会存在，但只有在锁定率与电力价差同时成立时才值得启动 </h2><div class=\"summary-grid\"><div><p class=\"thesis\">建议把项目定义为“带约束的容量聚合服务”，先证明可售负载，再投入重资产节点。 </p><div class=\"decision\">01 <div><h3>先售后建 </h3><p>首批客户意向覆盖不少于可用容量的一半，再触发节点采购。 </p> </div> </div><div class=\"decision\">02 <div><h3>不赌单一套利 </h3><p>收益模型同时依赖调度服务费、容量承诺费与峰谷优化。 </p> </div> </div><div class=\"decision\">03 <div><h3>按门槛放行 </h3><p>90 天试点只回答需求真实性、交付稳定性与单位经济三件事。 </p> </div> </div> </div><aside class=\"metric-rail\"><div class=\"metric\"><div class=\"label\">试点预算上限 </div><div class=\"big\">¥ 4.8m </div><p class=\"note\">合成示例；不含自建机房 </p> </div><div class=\"metric\"><div class=\"label\">目标锁定率 </div><div class=\"big\">≥ 55% </div><p class=\"note\">合成示例；签约容量/可用容量 </p> </div><div class=\"metric\"><div class=\"label\">停止线 </div><div class=\"big\">&lt; 32% </div><p class=\"note\">连续 8 周低于即停止扩容 </p> </div></aside> </div><div class=\"logic-chain\" aria-label=\"证据到决策\"><div><span class=\"label\">证据 </span><strong>79%</strong><p>合成访谈负载可接受排队或离线执行 </p> </div><div><span class=\"label\">解释 </span><strong>2.1 元</strong><p>合成模型单位贡献为正，但对闲置高度敏感 </p> </div><div><span class=\"label\">决策 </span><strong>90 天</strong><p>先以停止门验证锁定率，再决定是否扩容 </p> </div> </div><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-rc24\">[1]</a></sup><div class=\"folio\">03 / 16 </div>",
+        "extractorOrderExclusions": [
+          "[1]",
+          "03 / 16"
+        ]
       },
       {
         "id": "page-004",
-        "role": "body",
+        "role": "section-divider",
         "text": "01判断与机会定义 路径决策 · 合成示例 只有付费锁量、可迁移负载与正单位贡献同时成立，才进入容量采购 路径决策树｜每个节点都对应可观察证据与停止动作01｜付费锁量 ≥ 40% 否：停止采购；是：进入迁移验证。 02｜三类作业成功率 ≥ 97% 否：修复交付，不延长采购承诺；是：核对经济性。 03｜单位贡献 ≥ 1.5元 否：停止扩容；是：提交区域复制投资案。 客户证据 带金额订单 意向不能替代付款节点与退出条款。 交付证据 可回切 失败作业能回到原环境并核对数据。 经济证据 逐客户贡献 不以平均毛利掩盖头部客户亏损。 把宏观增长叙事降维为三道门；任一门失败都停止新增承诺。 [8] 04 / 16",
-        "visibleHtml": "<div class=\"running\"><span>01 判断与机会定义 </span><span>路径决策 · 合成示例 </span> </div><h2>只有付费锁量、可迁移负载与正单位贡献同时成立，才进入容量采购 </h2><figure aria-labelledby=\"p04-cap\"><figcaption id=\"p04-cap\" class=\"chart-sub\">路径决策树｜每个节点都对应可观察证据与停止动作</figcaption><div class=\"decision-path\"><div><strong>01｜付费锁量 ≥ 40%</strong><p>否：停止采购；是：进入迁移验证。 </p> </div><div><strong>02｜三类作业成功率 ≥ 97%</strong><p>否：修复交付，不延长采购承诺；是：核对经济性。 </p> </div><div><strong>03｜单位贡献 ≥ 1.5 元</strong><p>否：停止扩容；是：提交区域复制投资案。 </p> </div> </div></figure><div class=\"evidence-band\"><div><span class=\"label\">客户证据 </span><strong>带金额订单</strong><p>意向不能替代付款节点与退出条款。 </p> </div><div><span class=\"label\">交付证据 </span><strong>可回切</strong><p>失败作业能回到原环境并核对数据。 </p> </div><div><span class=\"label\">经济证据 </span><strong>逐客户贡献</strong><p>不以平均毛利掩盖头部客户亏损。 </p> </div> </div><p class=\"takeaway\">把宏观增长叙事降维为三道门；任一门失败都停止新增承诺。 </p><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-manifest\">[8]</a></sup><div class=\"folio\">04 / 16 </div>"
+        "visibleHtml": "<div class=\"running\"><span>01 判断与机会定义 </span><span>路径决策 · 合成示例 </span> </div><h2>只有付费锁量、可迁移负载与正单位贡献同时成立，才进入容量采购 </h2><figure aria-labelledby=\"p04-cap\"><figcaption id=\"p04-cap\" class=\"chart-sub\">路径决策树｜每个节点都对应可观察证据与停止动作</figcaption><div class=\"decision-path\"><div><strong>01｜付费锁量 ≥ 40%</strong><p>否：停止采购；是：进入迁移验证。 </p> </div><div><strong>02｜三类作业成功率 ≥ 97%</strong><p>否：修复交付，不延长采购承诺；是：核对经济性。 </p> </div><div><strong>03｜单位贡献 ≥ 1.5 元</strong><p>否：停止扩容；是：提交区域复制投资案。 </p> </div> </div></figure><div class=\"evidence-band\"><div><span class=\"label\">客户证据 </span><strong>带金额订单</strong><p>意向不能替代付款节点与退出条款。 </p> </div><div><span class=\"label\">交付证据 </span><strong>可回切</strong><p>失败作业能回到原环境并核对数据。 </p> </div><div><span class=\"label\">经济证据 </span><strong>逐客户贡献</strong><p>不以平均毛利掩盖头部客户亏损。 </p> </div> </div><p class=\"takeaway\">把宏观增长叙事降维为三道门；任一门失败都停止新增承诺。 </p><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-manifest\">[8]</a></sup><div class=\"folio\">04 / 16 </div>",
+        "extractorOrderExclusions": [
+          "路径决策树｜每个节点都对应可观察证据与停止动作",
+          "把宏观增长叙事降维为三道门；任一门失败都停止新增承诺。",
+          "[8]",
+          "04 / 16"
+        ]
       },
       {
         "id": "page-005",
         "role": "body",
         "text": "01判断与机会定义 需求结构 · 合成示例 可迁移批处理负载贡献过半，实时推理不应成为首期主战场 首批访谈样本的可迁移需求结构 合成示例｜n=24家｜占预计月度 GPU 小时 批处理训练58% 离线推理21% 研发测试13% 实时推理8% 为什么这决定产品边界 批处理作业允许跨节点调度，能吸收供给碎片；实时服务则要求稳定时延与冗余。 反证条件 如果客户的容器、数据或网络不能迁移，即使报价更低也不会形成真实需求。 极端标签测试 “跨可用区、含敏感数据、不可中断、需99.99% 响应保障的实时多模态推理” 证据强度19 / 24合成样本中，19家存在至少一种可排队负载。 限制 小样本 访谈意愿不能替代真实迁移与付费行为。 产品含义 先做批处理 首期围绕容忍排队、允许检查点恢复的作业。 [1] 05 / 16",
-        "visibleHtml": "<div class=\"running\"><span>01 判断与机会定义 </span><span>需求结构 · 合成示例 </span> </div><h2>可迁移批处理负载贡献过半，实时推理不应成为首期主战场 </h2><div class=\"split\"><figure class=\"exhibit\" aria-labelledby=\"p05-cap\"><figcaption id=\"p05-cap\"><span class=\"chart-title\">首批访谈样本的可迁移需求结构 </span><span class=\"chart-sub\">合成示例｜n=24 家｜占预计月度 GPU 小时 </span></figcaption><div class=\"bar-row\"><span>批处理训练 </span><div class=\"bar-track\"><div class=\"bar\" style=\"width:58%\"> </div> </div><span class=\"num\">58% </span> </div><div class=\"bar-row\"><span>离线推理 </span><div class=\"bar-track\"><div class=\"bar\" style=\"width:21%\"> </div> </div><span class=\"num\">21% </span> </div><div class=\"bar-row\"><span>研发测试 </span><div class=\"bar-track\"><div class=\"bar\" style=\"width:13%\"> </div> </div><span class=\"num\">13% </span> </div><div class=\"bar-row\"><span>实时推理 </span><div class=\"bar-track\"><div class=\"bar\" style=\"width:8%\"> </div> </div><span class=\"num\">8% </span> </div></figure><aside class=\"side-argument\"><h3>为什么这决定产品边界 </h3><p>批处理作业允许跨节点调度，能吸收供给碎片；实时服务则要求稳定时延与冗余。 </p><h3>反证条件 </h3><p>如果客户的容器、数据或网络不能迁移，即使报价更低也不会形成真实需求。 </p><h3>极端标签测试 </h3><p class=\"accent\">“跨可用区、含敏感数据、不可中断、需 99.99% 响应保障的实时多模态推理” </p></aside> </div><div class=\"evidence-band\"><div><span class=\"label\">证据强度 </span><strong>19 / 24</strong><p>合成样本中，19 家存在至少一种可排队负载。 </p> </div><div><span class=\"label\">限制 </span><strong>小样本</strong><p>访谈意愿不能替代真实迁移与付费行为。 </p> </div><div><span class=\"label\">产品含义 </span><strong>先做批处理</strong><p>首期围绕容忍排队、允许检查点恢复的作业。 </p> </div> </div><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-rc24\">[1]</a></sup><div class=\"folio\">05 / 16 </div>"
+        "visibleHtml": "<div class=\"running\"><span>01 判断与机会定义 </span><span>需求结构 · 合成示例 </span> </div><h2>可迁移批处理负载贡献过半，实时推理不应成为首期主战场 </h2><div class=\"split\"><figure class=\"exhibit\" aria-labelledby=\"p05-cap\"><figcaption id=\"p05-cap\"><span class=\"chart-title\">首批访谈样本的可迁移需求结构 </span><span class=\"chart-sub\">合成示例｜n=24 家｜占预计月度 GPU 小时 </span></figcaption><div class=\"bar-row\"><span>批处理训练 </span><div class=\"bar-track\"><div class=\"bar\" style=\"width:58%\"> </div> </div><span class=\"num\">58% </span> </div><div class=\"bar-row\"><span>离线推理 </span><div class=\"bar-track\"><div class=\"bar\" style=\"width:21%\"> </div> </div><span class=\"num\">21% </span> </div><div class=\"bar-row\"><span>研发测试 </span><div class=\"bar-track\"><div class=\"bar\" style=\"width:13%\"> </div> </div><span class=\"num\">13% </span> </div><div class=\"bar-row\"><span>实时推理 </span><div class=\"bar-track\"><div class=\"bar\" style=\"width:8%\"> </div> </div><span class=\"num\">8% </span> </div></figure><aside class=\"side-argument\"><h3>为什么这决定产品边界 </h3><p>批处理作业允许跨节点调度，能吸收供给碎片；实时服务则要求稳定时延与冗余。 </p><h3>反证条件 </h3><p>如果客户的容器、数据或网络不能迁移，即使报价更低也不会形成真实需求。 </p><h3>极端标签测试 </h3><p class=\"accent\">“跨可用区、含敏感数据、不可中断、需 99.99% 响应保障的实时多模态推理” </p></aside> </div><div class=\"evidence-band\"><div><span class=\"label\">证据强度 </span><strong>19 / 24</strong><p>合成样本中，19 家存在至少一种可排队负载。 </p> </div><div><span class=\"label\">限制 </span><strong>小样本</strong><p>访谈意愿不能替代真实迁移与付费行为。 </p> </div><div><span class=\"label\">产品含义 </span><strong>先做批处理</strong><p>首期围绕容忍排队、允许检查点恢复的作业。 </p> </div> </div><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-rc24\">[1]</a></sup><div class=\"folio\">05 / 16 </div>",
+        "extractorOrderExclusions": [
+          "合成示例｜n=24 家｜占预计月度 GPU 小时",
+          "[1]",
+          "05 / 16"
+        ]
       },
       {
         "id": "page-006",
         "role": "body",
         "text": "02需求、经济性与路径比较 单位经济 · 合成示例 每 GPU 小时2.1元的贡献空间，主要由采购折扣而非调度效率创造 单 GPU 小时贡献桥 合成示例｜人民币元 / GPU 小时｜增减项从上一累计值起落8.6客户单价 −5.4容量采购 −0.7调度损耗 −0.4网络与 服务2.1单位贡献 同口径核对表 项目 元 / GPUh 占收入 客户单价8.60 100.0% 容量采购 −5.40 −62.8% 调度损耗 −0.70 −8.1% 网络与服务 −0.40 −4.7% 单位贡献2.10 24.4% 核对：8.60 − 5.40 − 0.70 − 0.40 = 2.10。数字右对齐，小数位统一。 [2] 06 / 16",
-        "visibleHtml": "<div class=\"running\"><span>02 需求、经济性与路径比较 </span><span>单位经济 · 合成示例 </span> </div><h2>每 GPU 小时 2.1 元的贡献空间，主要由采购折扣而非调度效率创造 </h2><div class=\"chart-table\"><figure aria-labelledby=\"p06-cap\"><figcaption id=\"p06-cap\"><span class=\"chart-title\">单 GPU 小时贡献桥 </span><span class=\"chart-sub\">合成示例｜人民币元 / GPU 小时｜增减项从上一累计值起落 </span></figcaption><svg class=\"waterfall-svg\" viewBox=\"0 0 520 300\" role=\"img\" aria-label=\"客户单价8.6元，依次扣减容量采购5.4元、调度损耗0.7元、网络与服务0.4元，得到单位贡献2.1元\"><line x1=\"10\" y1=\"235\" x2=\"510\" y2=\"235\" class=\"axis\"></line><g data-waterfall-step=\"\" data-start=\"0\" data-end=\"8.6\"><rect x=\"20\" y=\"30\" width=\"70\" height=\"205\" class=\"wf-positive\"></rect><text x=\"55\" y=\"22\">8.6</text><text x=\"55\" y=\"264\">客户单价</text></g><line x1=\"90\" y1=\"30\" x2=\"120\" y2=\"30\" class=\"connector\"></line><g data-waterfall-step=\"\" data-start=\"8.6\" data-end=\"3.2\"><rect x=\"120\" y=\"30\" width=\"70\" height=\"129\" class=\"wf-negative\"></rect><text x=\"155\" y=\"22\">−5.4</text><text x=\"155\" y=\"264\">容量采购</text></g><line x1=\"190\" y1=\"159\" x2=\"220\" y2=\"159\" class=\"connector\"></line><g data-waterfall-step=\"\" data-start=\"3.2\" data-end=\"2.5\"><rect x=\"220\" y=\"159\" width=\"70\" height=\"17\" class=\"wf-negative\"></rect><text x=\"255\" y=\"151\">−0.7</text><text x=\"255\" y=\"264\">调度损耗</text></g><line x1=\"290\" y1=\"176\" x2=\"320\" y2=\"176\" class=\"connector\"></line><g data-waterfall-step=\"\" data-start=\"2.5\" data-end=\"2.1\"><rect x=\"320\" y=\"176\" width=\"70\" height=\"9\" class=\"wf-negative\"></rect><text x=\"355\" y=\"168\">−0.4</text><text x=\"355\" y=\"258\">网络与</text><text x=\"355\" y=\"275\">服务</text></g><line x1=\"390\" y1=\"185\" x2=\"420\" y2=\"185\" class=\"connector\"></line><g data-waterfall-step=\"\" data-start=\"0\" data-end=\"2.1\"><rect x=\"420\" y=\"185\" width=\"70\" height=\"50\" class=\"wf-total\"></rect><text x=\"455\" y=\"177\">2.1</text><text x=\"455\" y=\"258\">单位贡献</text></g></svg></figure><div><div class=\"chart-title\">同口径核对表 </div><table><thead><tr><th>项目 </th><th class=\"num\">元 / GPUh </th><th class=\"num\">占收入 </th></tr></thead><tbody><tr><td>客户单价 </td><td class=\"num\">8.60 </td><td class=\"num\">100.0% </td></tr><tr><td>容量采购 </td><td class=\"num\">−5.40 </td><td class=\"num\">−62.8% </td></tr><tr><td>调度损耗 </td><td class=\"num\">−0.70 </td><td class=\"num\">−8.1% </td></tr><tr><td>网络与服务 </td><td class=\"num\">−0.40 </td><td class=\"num\">−4.7% </td></tr><tr class=\"em-row\"><td>单位贡献 </td><td class=\"num\">2.10 </td><td class=\"num\">24.4% </td></tr></tbody></table><p class=\"note\" style=\"margin-top:6mm\">核对：8.60 − 5.40 − 0.70 − 0.40 = 2.10。数字右对齐，小数位统一。 </p> </div> </div><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-ue\">[2]</a></sup><div class=\"folio\">06 / 16 </div>"
+        "visibleHtml": "<div class=\"running\"><span>02 需求、经济性与路径比较 </span><span>单位经济 · 合成示例 </span> </div><h2>每 GPU 小时 2.1 元的贡献空间，主要由采购折扣而非调度效率创造 </h2><div class=\"chart-table\"><figure aria-labelledby=\"p06-cap\"><figcaption id=\"p06-cap\"><span class=\"chart-title\">单 GPU 小时贡献桥 </span><span class=\"chart-sub\">合成示例｜人民币元 / GPU 小时｜增减项从上一累计值起落 </span></figcaption><svg class=\"waterfall-svg\" viewBox=\"0 0 520 300\" role=\"img\" aria-label=\"客户单价8.6元，依次扣减容量采购5.4元、调度损耗0.7元、网络与服务0.4元，得到单位贡献2.1元\"><line x1=\"10\" y1=\"235\" x2=\"510\" y2=\"235\" class=\"axis\"></line><g data-waterfall-step=\"\" data-start=\"0\" data-end=\"8.6\"><rect x=\"20\" y=\"30\" width=\"70\" height=\"205\" class=\"wf-positive\"></rect><text x=\"55\" y=\"22\">8.6</text><text x=\"55\" y=\"264\">客户单价</text></g><line x1=\"90\" y1=\"30\" x2=\"120\" y2=\"30\" class=\"connector\"></line><g data-waterfall-step=\"\" data-start=\"8.6\" data-end=\"3.2\"><rect x=\"120\" y=\"30\" width=\"70\" height=\"129\" class=\"wf-negative\"></rect><text x=\"155\" y=\"22\">−5.4</text><text x=\"155\" y=\"264\">容量采购</text></g><line x1=\"190\" y1=\"159\" x2=\"220\" y2=\"159\" class=\"connector\"></line><g data-waterfall-step=\"\" data-start=\"3.2\" data-end=\"2.5\"><rect x=\"220\" y=\"159\" width=\"70\" height=\"17\" class=\"wf-negative\"></rect><text x=\"255\" y=\"151\">−0.7</text><text x=\"255\" y=\"264\">调度损耗</text></g><line x1=\"290\" y1=\"176\" x2=\"320\" y2=\"176\" class=\"connector\"></line><g data-waterfall-step=\"\" data-start=\"2.5\" data-end=\"2.1\"><rect x=\"320\" y=\"176\" width=\"70\" height=\"9\" class=\"wf-negative\"></rect><text x=\"355\" y=\"168\">−0.4</text><text x=\"355\" y=\"258\">网络与</text><text x=\"355\" y=\"275\">服务</text></g><line x1=\"390\" y1=\"185\" x2=\"420\" y2=\"185\" class=\"connector\"></line><g data-waterfall-step=\"\" data-start=\"0\" data-end=\"2.1\"><rect x=\"420\" y=\"185\" width=\"70\" height=\"50\" class=\"wf-total\"></rect><text x=\"455\" y=\"177\">2.1</text><text x=\"455\" y=\"258\">单位贡献</text></g></svg></figure><div><div class=\"chart-title\">同口径核对表 </div><table><thead><tr><th>项目 </th><th class=\"num\">元 / GPUh </th><th class=\"num\">占收入 </th></tr></thead><tbody><tr><td>客户单价 </td><td class=\"num\">8.60 </td><td class=\"num\">100.0% </td></tr><tr><td>容量采购 </td><td class=\"num\">−5.40 </td><td class=\"num\">−62.8% </td></tr><tr><td>调度损耗 </td><td class=\"num\">−0.70 </td><td class=\"num\">−8.1% </td></tr><tr><td>网络与服务 </td><td class=\"num\">−0.40 </td><td class=\"num\">−4.7% </td></tr><tr class=\"em-row\"><td>单位贡献 </td><td class=\"num\">2.10 </td><td class=\"num\">24.4% </td></tr></tbody></table><p class=\"note\" style=\"margin-top:6mm\">核对：8.60 − 5.40 − 0.70 − 0.40 = 2.10。数字右对齐，小数位统一。 </p> </div> </div><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-ue\">[2]</a></sup><div class=\"folio\">06 / 16 </div>",
+        "extractorOrderExclusions": [
+          "合成示例｜人民币元 / GPU 小时｜增减项从上一累计值起落",
+          "[2]",
+          "06 / 16"
+        ]
       },
       {
         "id": "page-007",
         "role": "body",
         "text": "02需求、经济性与路径比较 商业路径 · 合成示例 “轻资产聚合 + 保底容量”在验证速度与交付控制之间最均衡 三种进入路径的同口径比较；资本单位为百万元人民币，评分为合成判断 比较维度 纯撮合平台 聚合 + 保底容量 自建区域节点 前期资本1.0低2.4中低4.8高 交付控制2/5弱4/5可控5/5强 验证周期6周 最快12周 可接受36周 最慢 关键失败模式 供给质量不可控 保底容量闲置 重资产先于需求 选择依据12周 在客户耐心窗口内取得真实交付证据。 核心代价2.4m 需承担保底容量闲置，而非零资本验证。 退出条件 < 40% 锁定率不足即停止采购，不转为自建。 推荐路径不是终局答案，而是最便宜地验证“客户是否为可控交付付费”。 [2] 07 / 16",
-        "visibleHtml": "<div class=\"running\"><span>02 需求、经济性与路径比较 </span><span>商业路径 · 合成示例 </span> </div><h2>“轻资产聚合 + 保底容量”在验证速度与交付控制之间最均衡 </h2><figure aria-labelledby=\"p07-cap\"><figcaption id=\"p07-cap\" class=\"chart-sub\">三种进入路径的同口径比较；资本单位为百万元人民币，评分为合成判断</figcaption><div class=\"matrix\"><div class=\"cell head\">比较维度 </div><div class=\"cell head\">纯撮合平台 </div><div class=\"cell head best\">聚合 + 保底容量 </div><div class=\"cell head\">自建区域节点 </div><div class=\"cell\">前期资本 </div><div class=\"cell\"><span class=\"score\">1.0 </span>低 </div><div class=\"cell best\"><span class=\"score\">2.4 </span>中低 </div><div class=\"cell\"><span class=\"score\">4.8 </span>高 </div><div class=\"cell\">交付控制 </div><div class=\"cell\"><span class=\"score\">2/5 </span>弱 </div><div class=\"cell best\"><span class=\"score\">4/5 </span>可控 </div><div class=\"cell\"><span class=\"score\">5/5 </span>强 </div><div class=\"cell\">验证周期 </div><div class=\"cell\"><span class=\"score\">6 周 </span>最快 </div><div class=\"cell best\"><span class=\"score\">12 周 </span>可接受 </div><div class=\"cell\"><span class=\"score\">36 周 </span>最慢 </div><div class=\"cell\">关键失败模式 </div><div class=\"cell\">供给质量不可控 </div><div class=\"cell best\">保底容量闲置 </div><div class=\"cell\">重资产先于需求 </div> </div></figure><div class=\"evidence-band\"><div><span class=\"label\">选择依据 </span><strong>12 周</strong><p>在客户耐心窗口内取得真实交付证据。 </p> </div><div><span class=\"label\">核心代价 </span><strong>2.4m</strong><p>需承担保底容量闲置，而非零资本验证。 </p> </div><div><span class=\"label\">退出条件 </span><strong>&lt; 40%</strong><p>锁定率不足即停止采购，不转为自建。 </p> </div> </div><p class=\"takeaway\">推荐路径不是终局答案，而是最便宜地验证“客户是否为可控交付付费”。 </p><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-ue\">[2]</a></sup><div class=\"folio\">07 / 16 </div>"
+        "visibleHtml": "<div class=\"running\"><span>02 需求、经济性与路径比较 </span><span>商业路径 · 合成示例 </span> </div><h2>“轻资产聚合 + 保底容量”在验证速度与交付控制之间最均衡 </h2><figure aria-labelledby=\"p07-cap\"><figcaption id=\"p07-cap\" class=\"chart-sub\">三种进入路径的同口径比较；资本单位为百万元人民币，评分为合成判断</figcaption><div class=\"matrix\"><div class=\"cell head\">比较维度 </div><div class=\"cell head\">纯撮合平台 </div><div class=\"cell head best\">聚合 + 保底容量 </div><div class=\"cell head\">自建区域节点 </div><div class=\"cell\">前期资本 </div><div class=\"cell\"><span class=\"score\">1.0 </span>低 </div><div class=\"cell best\"><span class=\"score\">2.4 </span>中低 </div><div class=\"cell\"><span class=\"score\">4.8 </span>高 </div><div class=\"cell\">交付控制 </div><div class=\"cell\"><span class=\"score\">2/5 </span>弱 </div><div class=\"cell best\"><span class=\"score\">4/5 </span>可控 </div><div class=\"cell\"><span class=\"score\">5/5 </span>强 </div><div class=\"cell\">验证周期 </div><div class=\"cell\"><span class=\"score\">6 周 </span>最快 </div><div class=\"cell best\"><span class=\"score\">12 周 </span>可接受 </div><div class=\"cell\"><span class=\"score\">36 周 </span>最慢 </div><div class=\"cell\">关键失败模式 </div><div class=\"cell\">供给质量不可控 </div><div class=\"cell best\">保底容量闲置 </div><div class=\"cell\">重资产先于需求 </div> </div></figure><div class=\"evidence-band\"><div><span class=\"label\">选择依据 </span><strong>12 周</strong><p>在客户耐心窗口内取得真实交付证据。 </p> </div><div><span class=\"label\">核心代价 </span><strong>2.4m</strong><p>需承担保底容量闲置，而非零资本验证。 </p> </div><div><span class=\"label\">退出条件 </span><strong>&lt; 40%</strong><p>锁定率不足即停止采购，不转为自建。 </p> </div> </div><p class=\"takeaway\">推荐路径不是终局答案，而是最便宜地验证“客户是否为可控交付付费”。 </p><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-ue\">[2]</a></sup><div class=\"folio\">07 / 16 </div>",
+        "extractorOrderExclusions": [
+          "三种进入路径的同口径比较；资本单位为百万元人民币，评分为合成判断",
+          "推荐路径不是终局答案，而是最便宜地验证“客户是否为可控交付付费”。",
+          "[2]",
+          "07 / 16"
+        ]
       },
       {
         "id": "page-008",
         "role": "body",
         "text": "02需求、经济性与路径比较 文字证据 · 合成示例 客户愿意换供应商的前提是迁移风险可逆，而不是单纯低价 “ 价格低15% 不是决定因素；我们需要先看到失败作业能回到原环境，并且成本口径每天可核对。 模拟访谈摘录 C-07制造业算法团队负责人（合成示例） 证据如何改变判断 观察 模拟受访者把“可回切”和“可核账”置于降价之前。 解释 切换风险来自不可逆的运营损失，不只是单价差异。 决策 迁移回滚、账单可解释性应早于自动竞价。 限制 单一访谈不能代表总体，必须用付费试点检验。 把“便宜”改写为“可逆、可核、可停”，才能形成可信的采购理由。 [5] 08 / 16",
-        "visibleHtml": "<div class=\"running\"><span>02 需求、经济性与路径比较 </span><span>文字证据 · 合成示例 </span> </div><h2>客户愿意换供应商的前提是迁移风险可逆，而不是单纯低价 </h2><div class=\"quote-layout\"><blockquote><div class=\"quote-mark\">“ </div><p class=\"quote\">价格低 15% 不是决定因素；我们需要先看到失败作业能回到原环境，并且成本口径每天可核对。 </p><footer class=\"note\">模拟访谈摘录 C-07<br>制造业算法团队负责人（合成示例）</footer></blockquote><aside class=\"evidence-notes\"><div class=\"label\">证据如何改变判断 </div><dl><dt>观察</dt><dd>模拟受访者把“可回切”和“可核账”置于降价之前。</dd><dt>解释</dt><dd>切换风险来自不可逆的运营损失，不只是单价差异。</dd><dt>决策</dt><dd>迁移回滚、账单可解释性应早于自动竞价。</dd><dt>限制</dt><dd>单一访谈不能代表总体，必须用付费试点检验。</dd></dl><div class=\"rule\"> </div><p class=\"takeaway\">把“便宜”改写为“可逆、可核、可停”，才能形成可信的采购理由。 </p></aside> </div><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-c07\">[5]</a></sup><div class=\"folio\">08 / 16 </div>"
+        "visibleHtml": "<div class=\"running\"><span>02 需求、经济性与路径比较 </span><span>文字证据 · 合成示例 </span> </div><h2>客户愿意换供应商的前提是迁移风险可逆，而不是单纯低价 </h2><div class=\"quote-layout\"><blockquote><div class=\"quote-mark\">“ </div><p class=\"quote\">价格低 15% 不是决定因素；我们需要先看到失败作业能回到原环境，并且成本口径每天可核对。 </p><footer class=\"note\">模拟访谈摘录 C-07<br>制造业算法团队负责人（合成示例）</footer></blockquote><aside class=\"evidence-notes\"><div class=\"label\">证据如何改变判断 </div><dl><dt>观察</dt><dd>模拟受访者把“可回切”和“可核账”置于降价之前。</dd><dt>解释</dt><dd>切换风险来自不可逆的运营损失，不只是单价差异。</dd><dt>决策</dt><dd>迁移回滚、账单可解释性应早于自动竞价。</dd><dt>限制</dt><dd>单一访谈不能代表总体，必须用付费试点检验。</dd></dl><div class=\"rule\"> </div><p class=\"takeaway\">把“便宜”改写为“可逆、可核、可停”，才能形成可信的采购理由。 </p></aside> </div><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-c07\">[5]</a></sup><div class=\"folio\">08 / 16 </div>",
+        "extractorOrderExclusions": [
+          "把“便宜”改写为“可逆、可核、可停”，才能形成可信的采购理由。",
+          "[5]",
+          "08 / 16"
+        ]
       },
       {
         "id": "page-009",
         "role": "body",
         "text": "02需求、经济性与路径比较 敏感性 · 合成示例 锁定率为40% 时，只有最高采购折扣情景刚刚转正 年度 EBITDA 敏感性 合成示例｜百万元人民币｜行：锁定率；列：采购折扣5% 10% 15% 30% 锁定 −6.2 −5.0 −3.7 40% 锁定 −2.8 −1.1 0.7 55% 锁定1.0 3.4 5.8颜色深浅表示结果改善；数字正负提供灰度冗余。 证据4 / 9合成情景中仅四个组合为正，低锁定率下风险仍高。 边界 非预测 模型固定售价、服务成本与客户组合。 决策 先锁量 签约锁定率是放行门槛，采购折扣为第二杠杆。 [3] 09 / 16",
-        "visibleHtml": "<div class=\"running\"><span>02 需求、经济性与路径比较 </span><span>敏感性 · 合成示例 </span> </div><h2>锁定率为 40% 时，只有最高采购折扣情景刚刚转正 </h2><figure aria-labelledby=\"p09-cap\"><figcaption id=\"p09-cap\"><span class=\"chart-title\">年度 EBITDA 敏感性 </span><span class=\"chart-sub\">合成示例｜百万元人民币｜行：锁定率；列：采购折扣 </span></figcaption><div class=\"heatmap\" data-rows=\"3\" data-cols=\"3\"><div> </div><div>5% </div><div>10% </div><div>15% </div><div class=\"rowhead\">30% 锁定 </div><div class=\"h1\">−6.2 </div><div class=\"h1\">−5.0 </div><div class=\"h2\">−3.7 </div><div class=\"rowhead\">40% 锁定 </div><div class=\"h1\">−2.8 </div><div class=\"h2\">−1.1 </div><div class=\"h3\">0.7 </div><div class=\"rowhead\">55% 锁定 </div><div class=\"h2\">1.0 </div><div class=\"h3\">3.4 </div><div class=\"h4\">5.8 </div> </div><div class=\"legend\"><span class=\"swatch\"> </span><span>颜色深浅表示结果改善；数字正负提供灰度冗余。 </span> </div></figure><div class=\"evidence-band\"><div><span class=\"label\">证据 </span><strong>4 / 9</strong><p>合成情景中仅四个组合为正，低锁定率下风险仍高。 </p> </div><div><span class=\"label\">边界 </span><strong>非预测</strong><p>模型固定售价、服务成本与客户组合。 </p> </div><div><span class=\"label\">决策 </span><strong>先锁量</strong><p>签约锁定率是放行门槛，采购折扣为第二杠杆。 </p> </div> </div><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-sens\">[3]</a></sup><div class=\"folio\">09 / 16 </div>"
+        "visibleHtml": "<div class=\"running\"><span>02 需求、经济性与路径比较 </span><span>敏感性 · 合成示例 </span> </div><h2>锁定率为 40% 时，只有最高采购折扣情景刚刚转正 </h2><figure aria-labelledby=\"p09-cap\"><figcaption id=\"p09-cap\"><span class=\"chart-title\">年度 EBITDA 敏感性 </span><span class=\"chart-sub\">合成示例｜百万元人民币｜行：锁定率；列：采购折扣 </span></figcaption><div class=\"heatmap\" data-rows=\"3\" data-cols=\"3\"><div> </div><div>5% </div><div>10% </div><div>15% </div><div class=\"rowhead\">30% 锁定 </div><div class=\"h1\">−6.2 </div><div class=\"h1\">−5.0 </div><div class=\"h2\">−3.7 </div><div class=\"rowhead\">40% 锁定 </div><div class=\"h1\">−2.8 </div><div class=\"h2\">−1.1 </div><div class=\"h3\">0.7 </div><div class=\"rowhead\">55% 锁定 </div><div class=\"h2\">1.0 </div><div class=\"h3\">3.4 </div><div class=\"h4\">5.8 </div> </div><div class=\"legend\"><span class=\"swatch\"> </span><span>颜色深浅表示结果改善；数字正负提供灰度冗余。 </span> </div></figure><div class=\"evidence-band\"><div><span class=\"label\">证据 </span><strong>4 / 9</strong><p>合成情景中仅四个组合为正，低锁定率下风险仍高。 </p> </div><div><span class=\"label\">边界 </span><strong>非预测</strong><p>模型固定售价、服务成本与客户组合。 </p> </div><div><span class=\"label\">决策 </span><strong>先锁量</strong><p>签约锁定率是放行门槛，采购折扣为第二杠杆。 </p> </div> </div><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-sens\">[3]</a></sup><div class=\"folio\">09 / 16 </div>",
+        "extractorOrderExclusions": [
+          "合成示例｜百万元人民币｜行：锁定率；列：采购折扣",
+          "[3]",
+          "09 / 16"
+        ]
       },
       {
         "id": "page-010",
-        "role": "body",
+        "role": "section-divider",
         "text": "03经营边界、风险与执行 承接边界 · 合成示例 首期只承接可观测、可迁移、可中断恢复的工作负载 承接条件 可接受证据 拒绝或停止信号 可观测 作业、资源与账单日志可逐日勾稽 成本只能月底汇总解释 可迁移 容器、数据与依赖可在约定窗口复制 迁移依赖未记录的人工操作 可恢复 失败后可回切并校验结果完整性 回切超过恢复目标或数据不一致 可隔离 租户、网络与数据边界通过测试 出现跨租户暴露或地域违规 可以承接 批处理训练 允许排队、检查点恢复与跨节点调度。 条件承接 离线推理 数据地域与回切路径需先验证。 首期拒绝 实时关键服务 时延、冗余与责任边界尚未闭环。 拒绝高风险负载不是损失需求，而是保护试点可验证性与事故边界。 [8] 10 / 16",
-        "visibleHtml": "<div class=\"running\"><span>03 经营边界、风险与执行 </span><span>承接边界 · 合成示例 </span> </div><h2>首期只承接可观测、可迁移、可中断恢复的工作负载 </h2><table class=\"boundary-table\"><thead><tr><th>承接条件 </th><th>可接受证据 </th><th>拒绝或停止信号 </th></tr></thead><tbody><tr><td>可观测 </td><td>作业、资源与账单日志可逐日勾稽 </td><td>成本只能月底汇总解释 </td></tr><tr><td>可迁移 </td><td>容器、数据与依赖可在约定窗口复制 </td><td>迁移依赖未记录的人工操作 </td></tr><tr><td>可恢复 </td><td>失败后可回切并校验结果完整性 </td><td>回切超过恢复目标或数据不一致 </td></tr><tr><td>可隔离 </td><td>租户、网络与数据边界通过测试 </td><td>出现跨租户暴露或地域违规 </td></tr></tbody></table><div class=\"evidence-band\"><div><span class=\"label\">可以承接 </span><strong>批处理训练</strong><p>允许排队、检查点恢复与跨节点调度。 </p> </div><div><span class=\"label\">条件承接 </span><strong>离线推理</strong><p>数据地域与回切路径需先验证。 </p> </div><div><span class=\"label\">首期拒绝 </span><strong>实时关键服务</strong><p>时延、冗余与责任边界尚未闭环。 </p> </div> </div><p class=\"takeaway\">拒绝高风险负载不是损失需求，而是保护试点可验证性与事故边界。 </p><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-manifest\">[8]</a></sup><div class=\"folio\">10 / 16 </div>"
+        "visibleHtml": "<div class=\"running\"><span>03 经营边界、风险与执行 </span><span>承接边界 · 合成示例 </span> </div><h2>首期只承接可观测、可迁移、可中断恢复的工作负载 </h2><table class=\"boundary-table\"><thead><tr><th>承接条件 </th><th>可接受证据 </th><th>拒绝或停止信号 </th></tr></thead><tbody><tr><td>可观测 </td><td>作业、资源与账单日志可逐日勾稽 </td><td>成本只能月底汇总解释 </td></tr><tr><td>可迁移 </td><td>容器、数据与依赖可在约定窗口复制 </td><td>迁移依赖未记录的人工操作 </td></tr><tr><td>可恢复 </td><td>失败后可回切并校验结果完整性 </td><td>回切超过恢复目标或数据不一致 </td></tr><tr><td>可隔离 </td><td>租户、网络与数据边界通过测试 </td><td>出现跨租户暴露或地域违规 </td></tr></tbody></table><div class=\"evidence-band\"><div><span class=\"label\">可以承接 </span><strong>批处理训练</strong><p>允许排队、检查点恢复与跨节点调度。 </p> </div><div><span class=\"label\">条件承接 </span><strong>离线推理</strong><p>数据地域与回切路径需先验证。 </p> </div><div><span class=\"label\">首期拒绝 </span><strong>实时关键服务</strong><p>时延、冗余与责任边界尚未闭环。 </p> </div> </div><p class=\"takeaway\">拒绝高风险负载不是损失需求，而是保护试点可验证性与事故边界。 </p><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-manifest\">[8]</a></sup><div class=\"folio\">10 / 16 </div>",
+        "extractorOrderExclusions": [
+          "拒绝高风险负载不是损失需求，而是保护试点可验证性与事故边界。",
+          "[8]",
+          "10 / 16"
+        ]
       },
       {
         "id": "page-011",
         "role": "body",
         "text": "03经营边界、风险与执行 尽调清单 · 合成示例 十二项放行证据中，商业与技术各有两项尚未闭环 表3A｜第1–7项 # 验证对象 所需证据 改变判断的信号 状态01付费意愿 带金额的试点订单与付款节点 客户只接受免费测试 △ 待闭环02需求持续性 连续12周作业队列 需求集中在一次性项目 — 已取样03迁移可逆 故障回切与数据校验记录 回切超过约定恢复时间 ═ 通过04供给稳定 三家节点的可用率日志 任何单点形成关键依赖 △ 待闭环05计费准确 作业日志、账单、发票三方勾稽 差异连续两周超过阈值 ═ 通过06安全隔离 租户隔离测试与漏洞清单 出现跨租户数据暴露 — 进行中07合规边界 数据类别与处理地域映射 敏感数据必须跨域传输 — 进行中 灰度说明：通过═双线；待闭环△虚线；进行中—单线。状态不只依赖颜色。 已证明2项 迁移可逆与计费准确已有合成验证记录。 直接阻塞2项 付费订单和多节点供给尚未闭环。 下一动作 不扩容 先补订单与供给日志，再评价商业复制。 [4] 11 / 16",
-        "visibleHtml": "<div class=\"running\"><span>03 经营边界、风险与执行 </span><span>尽调清单 · 合成示例 </span> </div><h2>十二项放行证据中，商业与技术各有两项尚未闭环 </h2><span class=\"continued\">表 3A｜第 1–7 项 </span><table class=\"dense-table\"><thead><tr><th style=\"width:7%\"># </th><th style=\"width:19%\">验证对象 </th><th style=\"width:31%\">所需证据 </th><th style=\"width:28%\">改变判断的信号 </th><th style=\"width:15%\">状态 </th></tr></thead><tbody><tr><td>01 </td><td>付费意愿 </td><td>带金额的试点订单与付款节点 </td><td>客户只接受免费测试 </td><td><span class=\"status mid\">△ 待闭环 </span> </td></tr><tr><td>02 </td><td>需求持续性 </td><td>连续 12 周作业队列 </td><td>需求集中在一次性项目 </td><td><span class=\"status low\">— 已取样 </span> </td></tr><tr><td>03 </td><td>迁移可逆 </td><td>故障回切与数据校验记录 </td><td>回切超过约定恢复时间 </td><td><span class=\"status high\">═ 通过 </span> </td></tr><tr><td>04 </td><td>供给稳定 </td><td>三家节点的可用率日志 </td><td>任何单点形成关键依赖 </td><td><span class=\"status mid\">△ 待闭环 </span> </td></tr><tr><td>05 </td><td>计费准确 </td><td>作业日志、账单、发票三方勾稽 </td><td>差异连续两周超过阈值 </td><td><span class=\"status high\">═ 通过 </span> </td></tr><tr><td>06 </td><td>安全隔离 </td><td>租户隔离测试与漏洞清单 </td><td>出现跨租户数据暴露 </td><td><span class=\"status low\">— 进行中 </span> </td></tr><tr><td>07 </td><td>合规边界 </td><td>数据类别与处理地域映射 </td><td>敏感数据必须跨域传输 </td><td><span class=\"status low\">— 进行中 </span> </td></tr></tbody></table><p class=\"note\" style=\"margin-top:5mm\">灰度说明：通过═双线；待闭环△虚线；进行中—单线。状态不只依赖颜色。 </p><div class=\"evidence-band compact\"><div><span class=\"label\">已证明 </span><strong>2 项</strong><p>迁移可逆与计费准确已有合成验证记录。 </p> </div><div><span class=\"label\">直接阻塞 </span><strong>2 项</strong><p>付费订单和多节点供给尚未闭环。 </p> </div><div><span class=\"label\">下一动作 </span><strong>不扩容</strong><p>先补订单与供给日志，再评价商业复制。 </p> </div> </div><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-dd\">[4]</a></sup><div class=\"folio\">11 / 16 </div>"
+        "visibleHtml": "<div class=\"running\"><span>03 经营边界、风险与执行 </span><span>尽调清单 · 合成示例 </span> </div><h2>十二项放行证据中，商业与技术各有两项尚未闭环 </h2><span class=\"continued\">表 3A｜第 1–7 项 </span><table class=\"dense-table\"><thead><tr><th style=\"width:7%\"># </th><th style=\"width:19%\">验证对象 </th><th style=\"width:31%\">所需证据 </th><th style=\"width:28%\">改变判断的信号 </th><th style=\"width:15%\">状态 </th></tr></thead><tbody><tr><td>01 </td><td>付费意愿 </td><td>带金额的试点订单与付款节点 </td><td>客户只接受免费测试 </td><td><span class=\"status mid\">△ 待闭环 </span> </td></tr><tr><td>02 </td><td>需求持续性 </td><td>连续 12 周作业队列 </td><td>需求集中在一次性项目 </td><td><span class=\"status low\">— 已取样 </span> </td></tr><tr><td>03 </td><td>迁移可逆 </td><td>故障回切与数据校验记录 </td><td>回切超过约定恢复时间 </td><td><span class=\"status high\">═ 通过 </span> </td></tr><tr><td>04 </td><td>供给稳定 </td><td>三家节点的可用率日志 </td><td>任何单点形成关键依赖 </td><td><span class=\"status mid\">△ 待闭环 </span> </td></tr><tr><td>05 </td><td>计费准确 </td><td>作业日志、账单、发票三方勾稽 </td><td>差异连续两周超过阈值 </td><td><span class=\"status high\">═ 通过 </span> </td></tr><tr><td>06 </td><td>安全隔离 </td><td>租户隔离测试与漏洞清单 </td><td>出现跨租户数据暴露 </td><td><span class=\"status low\">— 进行中 </span> </td></tr><tr><td>07 </td><td>合规边界 </td><td>数据类别与处理地域映射 </td><td>敏感数据必须跨域传输 </td><td><span class=\"status low\">— 进行中 </span> </td></tr></tbody></table><p class=\"note\" style=\"margin-top:5mm\">灰度说明：通过═双线；待闭环△虚线；进行中—单线。状态不只依赖颜色。 </p><div class=\"evidence-band compact\"><div><span class=\"label\">已证明 </span><strong>2 项</strong><p>迁移可逆与计费准确已有合成验证记录。 </p> </div><div><span class=\"label\">直接阻塞 </span><strong>2 项</strong><p>付费订单和多节点供给尚未闭环。 </p> </div><div><span class=\"label\">下一动作 </span><strong>不扩容</strong><p>先补订单与供给日志，再评价商业复制。 </p> </div> </div><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-dd\">[4]</a></sup><div class=\"folio\">11 / 16 </div>",
+        "extractorOrderExclusions": [
+          "表 3A｜第 1–7 项",
+          "[4]",
+          "11 / 16"
+        ]
       },
       {
         "id": "page-012",
         "role": "body",
         "text": "03经营边界、风险与执行 尽调清单 · 合成示例 运营证据比技术演示更滞后，应在扩容前补齐责任与退出机制 表3A（续）｜第8–12项 # 验证对象 所需证据 改变判断的信号 状态08事故响应 演练记录、升级路径、客户通知模板 责任边界在事故后才协商 △ 待闭环09供应商退出 容量迁移与数据销毁证明 退出依赖供应商单方配合 △ 待闭环10毛利质量 逐客户贡献与退款损失 头部客户贡献为负 — 已取样11现金周期 预收、采购、账期的周度桥接 采购预付早于客户回款 ═ 通过12团队能力7×24值守排班与关键岗位备份 故障处置依赖单一创始人 — 进行中 当前可放行5 / 12通过或已形成足够样本 扩容前必须闭环4项 订单、供给、事故、退出 技术可运行不等于业务可扩张；缺少事故和退出证据时，只能保持受控试点。 [4] 12 / 16",
-        "visibleHtml": "<div class=\"running\"><span>03 经营边界、风险与执行 </span><span>尽调清单 · 合成示例 </span> </div><h2>运营证据比技术演示更滞后，应在扩容前补齐责任与退出机制 </h2><span class=\"continued\">表 3A（续）｜第 8–12 项 </span><table class=\"dense-table\"><thead><tr><th style=\"width:7%\"># </th><th style=\"width:19%\">验证对象 </th><th style=\"width:31%\">所需证据 </th><th style=\"width:28%\">改变判断的信号 </th><th style=\"width:15%\">状态 </th></tr></thead><tbody><tr><td>08 </td><td>事故响应 </td><td>演练记录、升级路径、客户通知模板 </td><td>责任边界在事故后才协商 </td><td><span class=\"status mid\">△ 待闭环 </span> </td></tr><tr><td>09 </td><td>供应商退出 </td><td>容量迁移与数据销毁证明 </td><td>退出依赖供应商单方配合 </td><td><span class=\"status mid\">△ 待闭环 </span> </td></tr><tr><td>10 </td><td>毛利质量 </td><td>逐客户贡献与退款损失 </td><td>头部客户贡献为负 </td><td><span class=\"status low\">— 已取样 </span> </td></tr><tr><td>11 </td><td>现金周期 </td><td>预收、采购、账期的周度桥接 </td><td>采购预付早于客户回款 </td><td><span class=\"status high\">═ 通过 </span> </td></tr><tr><td>12 </td><td>团队能力 </td><td>7×24 值守排班与关键岗位备份 </td><td>故障处置依赖单一创始人 </td><td><span class=\"status low\">— 进行中 </span> </td></tr></tbody></table><div style=\"display:grid;grid-template-columns:1fr 1fr;gap:10mm;margin-top:11mm\"><div><div class=\"label\">当前可放行 </div><div class=\"big\">5 / 12 </div><p class=\"note\">通过或已形成足够样本 </p> </div><div><div class=\"label\">扩容前必须闭环 </div><div class=\"big\">4 项 </div><p class=\"note\">订单、供给、事故、退出 </p> </div> </div><p class=\"takeaway\" style=\"margin-top:9mm\">技术可运行不等于业务可扩张；缺少事故和退出证据时，只能保持受控试点。 </p><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-dd\">[4]</a></sup><div class=\"folio\">12 / 16 </div>"
+        "visibleHtml": "<div class=\"running\"><span>03 经营边界、风险与执行 </span><span>尽调清单 · 合成示例 </span> </div><h2>运营证据比技术演示更滞后，应在扩容前补齐责任与退出机制 </h2><span class=\"continued\">表 3A（续）｜第 8–12 项 </span><table class=\"dense-table\"><thead><tr><th style=\"width:7%\"># </th><th style=\"width:19%\">验证对象 </th><th style=\"width:31%\">所需证据 </th><th style=\"width:28%\">改变判断的信号 </th><th style=\"width:15%\">状态 </th></tr></thead><tbody><tr><td>08 </td><td>事故响应 </td><td>演练记录、升级路径、客户通知模板 </td><td>责任边界在事故后才协商 </td><td><span class=\"status mid\">△ 待闭环 </span> </td></tr><tr><td>09 </td><td>供应商退出 </td><td>容量迁移与数据销毁证明 </td><td>退出依赖供应商单方配合 </td><td><span class=\"status mid\">△ 待闭环 </span> </td></tr><tr><td>10 </td><td>毛利质量 </td><td>逐客户贡献与退款损失 </td><td>头部客户贡献为负 </td><td><span class=\"status low\">— 已取样 </span> </td></tr><tr><td>11 </td><td>现金周期 </td><td>预收、采购、账期的周度桥接 </td><td>采购预付早于客户回款 </td><td><span class=\"status high\">═ 通过 </span> </td></tr><tr><td>12 </td><td>团队能力 </td><td>7×24 值守排班与关键岗位备份 </td><td>故障处置依赖单一创始人 </td><td><span class=\"status low\">— 进行中 </span> </td></tr></tbody></table><div style=\"display:grid;grid-template-columns:1fr 1fr;gap:10mm;margin-top:11mm\"><div><div class=\"label\">当前可放行 </div><div class=\"big\">5 / 12 </div><p class=\"note\">通过或已形成足够样本 </p> </div><div><div class=\"label\">扩容前必须闭环 </div><div class=\"big\">4 项 </div><p class=\"note\">订单、供给、事故、退出 </p> </div> </div><p class=\"takeaway\" style=\"margin-top:9mm\">技术可运行不等于业务可扩张；缺少事故和退出证据时，只能保持受控试点。 </p><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-dd\">[4]</a></sup><div class=\"folio\">12 / 16 </div>",
+        "extractorOrderExclusions": [
+          "表 3A（续）｜第 8–12 项",
+          "技术可运行不等于业务可扩张；缺少事故和退出证据时，只能保持受控试点。",
+          "[4]",
+          "12 / 16"
+        ]
       },
       {
         "id": "page-013",
         "role": "body",
         "text": "03经营边界、风险与执行 风险地图 · 合成示例 供给集中与安全事故同时具备高概率、高影响，应优先消减 定性风险排序；编号表示处置优先级，概率与影响文字提供灰度冗余 影响 → 01供给集中 概率高 / 影响高02安全事故 概率中 / 影响高03需求波动 概率高 / 影响中04账单争议 概率低 / 影响中05团队流失 概率低 / 影响低 发生概率 → [6] 13 / 16",
-        "visibleHtml": "<div class=\"running\"><span>03 经营边界、风险与执行 </span><span>风险地图 · 合成示例 </span> </div><h2>供给集中与安全事故同时具备高概率、高影响，应优先消减 </h2><figure aria-labelledby=\"p13-cap\"><figcaption id=\"p13-cap\" class=\"chart-sub\">定性风险排序；编号表示处置优先级，概率与影响文字提供灰度冗余</figcaption><div class=\"axis-y\">影响 → </div><div class=\"risk-map\"><div class=\"risk-dot priority-1\" style=\"left:65%;bottom:72%\"><b>01</b> 供给集中<br><span class=\"note\">概率高 / 影响高 </span> </div><div class=\"risk-dot priority-2\" style=\"left:52%;bottom:56%\"><b>02</b> 安全事故<br><span class=\"note\">概率中 / 影响高 </span> </div><div class=\"risk-dot\" style=\"left:70%;bottom:28%\"><b>03</b> 需求波动<br><span class=\"note\">概率高 / 影响中 </span> </div><div class=\"risk-dot\" style=\"left:20%;bottom:40%\"><b>04</b> 账单争议<br><span class=\"note\">概率低 / 影响中 </span> </div><div class=\"risk-dot\" style=\"left:28%;bottom:14%\"><b>05</b> 团队流失<br><span class=\"note\">概率低 / 影响低 </span> </div> </div><div class=\"axis-x\">发生概率 → </div></figure><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-risk\">[6]</a></sup><div class=\"folio\">13 / 16 </div>"
+        "visibleHtml": "<div class=\"running\"><span>03 经营边界、风险与执行 </span><span>风险地图 · 合成示例 </span> </div><h2>供给集中与安全事故同时具备高概率、高影响，应优先消减 </h2><figure aria-labelledby=\"p13-cap\"><figcaption id=\"p13-cap\" class=\"chart-sub\">定性风险排序；编号表示处置优先级，概率与影响文字提供灰度冗余</figcaption><div class=\"axis-y\">影响 → </div><div class=\"risk-map\"><div class=\"risk-dot priority-1\" style=\"left:65%;bottom:72%\"><b>01</b> 供给集中<br><span class=\"note\">概率高 / 影响高 </span> </div><div class=\"risk-dot priority-2\" style=\"left:52%;bottom:56%\"><b>02</b> 安全事故<br><span class=\"note\">概率中 / 影响高 </span> </div><div class=\"risk-dot\" style=\"left:70%;bottom:28%\"><b>03</b> 需求波动<br><span class=\"note\">概率高 / 影响中 </span> </div><div class=\"risk-dot\" style=\"left:20%;bottom:40%\"><b>04</b> 账单争议<br><span class=\"note\">概率低 / 影响中 </span> </div><div class=\"risk-dot\" style=\"left:28%;bottom:14%\"><b>05</b> 团队流失<br><span class=\"note\">概率低 / 影响低 </span> </div> </div><div class=\"axis-x\">发生概率 → </div></figure><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-risk\">[6]</a></sup><div class=\"folio\">13 / 16 </div>",
+        "extractorOrderExclusions": [
+          "定性风险排序；编号表示处置优先级，概率与影响文字提供灰度冗余",
+          "影响 →",
+          "发生概率 →",
+          "[6]",
+          "13 / 16"
+        ]
       },
       {
         "id": "page-014",
         "role": "body",
         "text": "03经营边界、风险与执行90天路线图 · 合成示例 用三道停止门管理90天试点，而不是用里程碑掩盖失败01第0–30天｜锁定需求 完成8家客户迁移评估；签署含金额、容量和退出条款的试点订单。 门槛 A 签约锁定率 ≥ 40%；否则停止采购。 02第31–60天｜证明交付 运行三类可迁移作业；记录成功率、恢复时间、计费差异与人工干预。 门槛 B 作业成功率 ≥ 97%；严重事故为0。 03第61–90天｜核对经济性 按客户与供给节点拆解贡献；验证回款先于新增容量承诺。 门槛 C 单位贡献 ≥ 1.5元；锁定率 ≥ 55%。 只有三道门全部通过，才提交区域复制投资案；任何一门失败都先修复，不自动延期。 [7] 14 / 16",
-        "visibleHtml": "<div class=\"running\"><span>03 经营边界、风险与执行 </span><span>90 天路线图 · 合成示例 </span> </div><h2>用三道停止门管理 90 天试点，而不是用里程碑掩盖失败 </h2><div class=\"roadmap\"><div class=\"stage\"><div class=\"stage-no\">01 </div><div><h3>第 0–30 天｜锁定需求 </h3><p>完成 8 家客户迁移评估；签署含金额、容量和退出条款的试点订单。 </p> </div><div class=\"gate\"><strong>门槛 A</strong><br>签约锁定率 ≥ 40%；否则停止采购。 </div> </div><div class=\"stage\"><div class=\"stage-no\">02 </div><div><h3>第 31–60 天｜证明交付 </h3><p>运行三类可迁移作业；记录成功率、恢复时间、计费差异与人工干预。 </p> </div><div class=\"gate\"><strong>门槛 B</strong><br>作业成功率 ≥ 97%；严重事故为 0。 </div> </div><div class=\"stage\"><div class=\"stage-no\">03 </div><div><h3>第 61–90 天｜核对经济性 </h3><p>按客户与供给节点拆解贡献；验证回款先于新增容量承诺。 </p> </div><div class=\"gate\"><strong>门槛 C</strong><br>单位贡献 ≥ 1.5 元；锁定率 ≥ 55%。 </div> </div> </div><p class=\"takeaway\">只有三道门全部通过，才提交区域复制投资案；任何一门失败都先修复，不自动延期。 </p><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-pmo\">[7]</a></sup><div class=\"folio\">14 / 16 </div>"
+        "visibleHtml": "<div class=\"running\"><span>03 经营边界、风险与执行 </span><span>90 天路线图 · 合成示例 </span> </div><h2>用三道停止门管理 90 天试点，而不是用里程碑掩盖失败 </h2><div class=\"roadmap\"><div class=\"stage\"><div class=\"stage-no\">01 </div><div><h3>第 0–30 天｜锁定需求 </h3><p>完成 8 家客户迁移评估；签署含金额、容量和退出条款的试点订单。 </p> </div><div class=\"gate\"><strong>门槛 A</strong><br>签约锁定率 ≥ 40%；否则停止采购。 </div> </div><div class=\"stage\"><div class=\"stage-no\">02 </div><div><h3>第 31–60 天｜证明交付 </h3><p>运行三类可迁移作业；记录成功率、恢复时间、计费差异与人工干预。 </p> </div><div class=\"gate\"><strong>门槛 B</strong><br>作业成功率 ≥ 97%；严重事故为 0。 </div> </div><div class=\"stage\"><div class=\"stage-no\">03 </div><div><h3>第 61–90 天｜核对经济性 </h3><p>按客户与供给节点拆解贡献；验证回款先于新增容量承诺。 </p> </div><div class=\"gate\"><strong>门槛 C</strong><br>单位贡献 ≥ 1.5 元；锁定率 ≥ 55%。 </div> </div> </div><p class=\"takeaway\">只有三道门全部通过，才提交区域复制投资案；任何一门失败都先修复，不自动延期。 </p><sup class=\"citation-markers\" aria-label=\"Sources\"><a class=\"citation-marker\" href=\"#ref-pmo\">[7]</a></sup><div class=\"folio\">14 / 16 </div>",
+        "extractorOrderExclusions": [
+          "01",
+          "02",
+          "03",
+          "只有三道门全部通过，才提交区域复制投资案；任何一门失败都先修复，不自动延期。",
+          "[7]",
+          "14 / 16"
+        ]
       },
       {
         "id": "page-015",
         "role": "references",
         "text": "04来源、口径与限制 References · 合成示例 来源清单：数据、访谈与验证夹具 [1] RC-24合成访谈样本24家虚构组织的需求结构、迁移约束与采购偏好。 local://golden-fixture/research/RC-24/interview-summary.json [2] UE-v1合成单位经济模型 客户单价、容量采购、调度损耗、网络与服务成本。 local://golden-fixture/models/unit-economics-v1.csv [3] SENS-v1合成敏感性模型 锁定率 × 采购折扣二维情景；其他变量固定。 local://golden-fixture/models/sensitivity-v1.csv [4] DD-v1合成尽调台账 十二项商业、技术、合规与运营证据状态。 local://golden-fixture/diligence/register-v1.json [5] 模拟客户访谈 C-07长引文、身份标签与限制声明夹具。 local://golden-fixture/interviews/C-07.json [6] RISK-v1合成风险工作坊 风险位置为定性分级，非统计概率。 [7] PMO-v1合成实施计划90天活动、责任、继续门槛与停止条件。 [8] Golden report manifest 页面角色、决策结构与合成夹具声明。 来源安全区：本页为显式 full-bibliography 变体；条目与定位保持同页，未加载外部资源。 15 / 16",
-        "visibleHtml": "<div class=\"running\"><span>04 来源、口径与限制 </span><span>References · 合成示例 </span> </div><h2>来源清单：数据、访谈与验证夹具 </h2><div class=\"refs\"><div class=\"ref\" id=\"ref-rc24\">[1] <div><strong>RC-24 合成访谈样本</strong><br>24 家虚构组织的需求结构、迁移约束与采购偏好。<div class=\"url\">local://golden-fixture/research/RC-24/interview-summary.json </div> </div> </div><div class=\"ref\" id=\"ref-ue\">[2] <div><strong>UE-v1 合成单位经济模型</strong><br>客户单价、容量采购、调度损耗、网络与服务成本。<div class=\"url\">local://golden-fixture/models/unit-economics-v1.csv </div> </div> </div><div class=\"ref\" id=\"ref-sens\">[3] <div><strong>SENS-v1 合成敏感性模型</strong><br>锁定率 × 采购折扣二维情景；其他变量固定。<div class=\"url\">local://golden-fixture/models/sensitivity-v1.csv </div> </div> </div><div class=\"ref\" id=\"ref-dd\">[4] <div><strong>DD-v1 合成尽调台账</strong><br>十二项商业、技术、合规与运营证据状态。<div class=\"url\">local://golden-fixture/diligence/register-v1.json </div> </div> </div><div class=\"ref\" id=\"ref-c07\">[5] <div><strong>模拟客户访谈 C-07</strong><br>长引文、身份标签与限制声明夹具。<div class=\"url\">local://golden-fixture/interviews/C-07.json </div> </div> </div><div class=\"ref\" id=\"ref-risk\">[6] <div><strong>RISK-v1 合成风险工作坊</strong><br>风险位置为定性分级，非统计概率。 </div> </div><div class=\"ref\" id=\"ref-pmo\">[7] <div><strong>PMO-v1 合成实施计划</strong><br>90 天活动、责任、继续门槛与停止条件。 </div> </div><div class=\"ref\" id=\"ref-manifest\">[8] <div><strong>Golden report manifest</strong><br>页面角色、决策结构与合成夹具声明。 </div> </div> </div><div class=\"source\">来源安全区：本页为显式 full-bibliography 变体；条目与定位保持同页，未加载外部资源。 </div><div class=\"folio\">15 / 16 </div>"
+        "visibleHtml": "<div class=\"running\"><span>04 来源、口径与限制 </span><span>References · 合成示例 </span> </div><h2>来源清单：数据、访谈与验证夹具 </h2><div class=\"refs\"><div class=\"ref\" id=\"ref-rc24\">[1] <div><strong>RC-24 合成访谈样本</strong><br>24 家虚构组织的需求结构、迁移约束与采购偏好。<div class=\"url\">local://golden-fixture/research/RC-24/interview-summary.json </div> </div> </div><div class=\"ref\" id=\"ref-ue\">[2] <div><strong>UE-v1 合成单位经济模型</strong><br>客户单价、容量采购、调度损耗、网络与服务成本。<div class=\"url\">local://golden-fixture/models/unit-economics-v1.csv </div> </div> </div><div class=\"ref\" id=\"ref-sens\">[3] <div><strong>SENS-v1 合成敏感性模型</strong><br>锁定率 × 采购折扣二维情景；其他变量固定。<div class=\"url\">local://golden-fixture/models/sensitivity-v1.csv </div> </div> </div><div class=\"ref\" id=\"ref-dd\">[4] <div><strong>DD-v1 合成尽调台账</strong><br>十二项商业、技术、合规与运营证据状态。<div class=\"url\">local://golden-fixture/diligence/register-v1.json </div> </div> </div><div class=\"ref\" id=\"ref-c07\">[5] <div><strong>模拟客户访谈 C-07</strong><br>长引文、身份标签与限制声明夹具。<div class=\"url\">local://golden-fixture/interviews/C-07.json </div> </div> </div><div class=\"ref\" id=\"ref-risk\">[6] <div><strong>RISK-v1 合成风险工作坊</strong><br>风险位置为定性分级，非统计概率。 </div> </div><div class=\"ref\" id=\"ref-pmo\">[7] <div><strong>PMO-v1 合成实施计划</strong><br>90 天活动、责任、继续门槛与停止条件。 </div> </div><div class=\"ref\" id=\"ref-manifest\">[8] <div><strong>Golden report manifest</strong><br>页面角色、决策结构与合成夹具声明。 </div> </div> </div><div class=\"source\">来源安全区：本页为显式 full-bibliography 变体；条目与定位保持同页，未加载外部资源。 </div><div class=\"folio\">15 / 16 </div>",
+        "extractorOrderExclusions": [
+          "15 / 16"
+        ]
       },
       {
         "id": "page-016",
         "role": "body",
         "text": "04方法、口径与限制 Methods & limitations · 合成示例 方法与限制：结论来自受控合成证据，门槛只用于验证报告结构 方法 证据到决策 以24家合成访谈划分可迁移负载。 按统一 GPU 小时口径核对收入、采购与损耗。 用锁定率 × 采购折扣情景测试经济边界。 以订单、交付、贡献三道门形成90天验证路径。 限制 不能外推为市场事实 样本、订单、成本与风险位置均为合成夹具。 访谈意愿不能替代真实付款、迁移和续约行为。 敏感性结果固定售价、服务成本与客户组合。 定性风险级别不是统计概率。 覆盖 需求 + 交付 + 经济 三类证据共同决定是否继续。 最大缺口 真实行为 需用带金额订单与迁移日志替代意向。 使用边界 仅作版式评估 不得引用为商业事实或投资建议。 像素稳定、几何合格与证据完整是三个独立门槛；本基准已通过当前 QA 与视觉审批。 全部内容为合成示例。HTML、PDF 与逐页 PNG 已按同一批准摘要归档。 16 / 16",
-        "visibleHtml": "<div class=\"running\"><span>04 方法、口径与限制 </span><span>Methods &amp; limitations · 合成示例 </span> </div><h2>方法与限制：结论来自受控合成证据，门槛只用于验证报告结构 </h2><div class=\"method-box\"><div><div class=\"label\">方法 </div><h3>证据到决策 </h3><ul><li>以 24 家合成访谈划分可迁移负载。 </li><li>按统一 GPU 小时口径核对收入、采购与损耗。 </li><li>用锁定率 × 采购折扣情景测试经济边界。 </li><li>以订单、交付、贡献三道门形成 90 天验证路径。 </li></ul> </div><div><div class=\"label\">限制 </div><h3>不能外推为市场事实 </h3><ul><li>样本、订单、成本与风险位置均为合成夹具。 </li><li>访谈意愿不能替代真实付款、迁移和续约行为。 </li><li>敏感性结果固定售价、服务成本与客户组合。 </li><li>定性风险级别不是统计概率。 </li></ul> </div> </div><div class=\"evidence-band\"><div><span class=\"label\">覆盖 </span><strong>需求 + 交付 + 经济</strong><p>三类证据共同决定是否继续。 </p> </div><div><span class=\"label\">最大缺口 </span><strong>真实行为</strong><p>需用带金额订单与迁移日志替代意向。 </p> </div><div><span class=\"label\">使用边界 </span><strong>仅作版式评估</strong><p>不得引用为商业事实或投资建议。 </p> </div> </div><p class=\"takeaway\">像素稳定、几何合格与证据完整是三个独立门槛；本基准已通过当前 QA 与视觉审批。 </p><div class=\"method-footnote\">全部内容为合成示例。HTML、PDF 与逐页 PNG 已按同一批准摘要归档。 </div><div class=\"folio\">16 / 16 </div>"
+        "visibleHtml": "<div class=\"running\"><span>04 方法、口径与限制 </span><span>Methods &amp; limitations · 合成示例 </span> </div><h2>方法与限制：结论来自受控合成证据，门槛只用于验证报告结构 </h2><div class=\"method-box\"><div><div class=\"label\">方法 </div><h3>证据到决策 </h3><ul><li>以 24 家合成访谈划分可迁移负载。 </li><li>按统一 GPU 小时口径核对收入、采购与损耗。 </li><li>用锁定率 × 采购折扣情景测试经济边界。 </li><li>以订单、交付、贡献三道门形成 90 天验证路径。 </li></ul> </div><div><div class=\"label\">限制 </div><h3>不能外推为市场事实 </h3><ul><li>样本、订单、成本与风险位置均为合成夹具。 </li><li>访谈意愿不能替代真实付款、迁移和续约行为。 </li><li>敏感性结果固定售价、服务成本与客户组合。 </li><li>定性风险级别不是统计概率。 </li></ul> </div> </div><div class=\"evidence-band\"><div><span class=\"label\">覆盖 </span><strong>需求 + 交付 + 经济</strong><p>三类证据共同决定是否继续。 </p> </div><div><span class=\"label\">最大缺口 </span><strong>真实行为</strong><p>需用带金额订单与迁移日志替代意向。 </p> </div><div><span class=\"label\">使用边界 </span><strong>仅作版式评估</strong><p>不得引用为商业事实或投资建议。 </p> </div> </div><p class=\"takeaway\">像素稳定、几何合格与证据完整是三个独立门槛；本基准已通过当前 QA 与视觉审批。 </p><div class=\"method-footnote\">全部内容为合成示例。HTML、PDF 与逐页 PNG 已按同一批准摘要归档。 </div><div class=\"folio\">16 / 16 </div>",
+        "extractorOrderExclusions": [
+          "像素稳定、几何合格与证据完整是三个独立门槛；本基准已通过当前 QA 与视觉审批。",
+          "16 / 16"
+        ]
       }
     ],
     "pdfPages": [
       {
         "id": "page-001",
-        "text": "合成示例 · SYNTHETIC 区域算力资源池创业评估 Regional Compute Capacity Pool Venture Assessment 一份面向投资人、管理层与战略团队的决策草案⻩金小册基准 v1.0仅用于版式与阅读体验评估2026年10月不构成市场事实或投资建议"
+        "text": "合成示例 · SYNTHETIC 区域算力资源池创业评估 Regional Compute Capacity Pool Venture Assessment 一份面向投资人、管理层与战略团队的决策草案⻩金小册基准 v1.0 2026年10月仅用于版式与阅读体验评估不构成市场事实或投资建议"
       },
       {
         "id": "page-002",
-        "text": "C o n te n ts / 合成示例从机会假设走到可验证的放行门槛04 01判断与机会定义04章节16页02需求、经济性与路径比较06 03经营边界、风险与执行10 04来源、口径与限制15决策级别继续门槛停止条件有条件启动验证55% 锁定率 < 32% 不批准重资产扩容。 同时满足交付与单位贡献。 连续八周低于即停止扩容。 [8] 02 / 16"
+        "text": "Contents / 合成示例从机会假设走到可验证的放行门槛04章节16页01判断与机会定义04 02需求、经济性与路径比较06 03经营边界、风险与执行10 04来源、口径与限制15决策级别有条件启动验证不批准重资产扩容。 继续门槛55% 锁定率同时满足交付与单位贡献。 停止条件 < 32% 连续八周低于即停止扩容。 [8] 02 / 16"
       },
       {
         "id": "page-003",
-        "text": "区域算力资源池创业评估执行摘要 · 合成示例机会存在,但只有在锁定率与电力价差同时成立时才值得启动试点预算上限建议把项目定义为“带约束的容量聚合服务”,先证明可售负载,再投入重资 ¥ 4.8m 产节点。 合成示例;不含自建机房目标锁定率01先售后建首批客户意向覆盖不少于可用容量的一半,再触发节点采购。 ≥ 55% 合成示例;签约容量/可用容量02不赌单一套利停止线收益模型同时依赖调度服务费、容量承诺费与峰谷优化。 03按门槛放行 < 32% 连续8周低于即停止扩容90天试点只回答需求真实性、交付稳定性与单位经济三件事。 证据解释决策79% 2.1元90天合成访谈负载可接受排队或离线执行合成模型单位贡献为正,但对闲置高先以停止门验证锁定率,再决定是否度敏感扩容 [1] 03 / 16"
+        "text": "区域算力资源池创业评估执行摘要 · 合成示例机会存在,但只有在锁定率与电力价差同时成立时才值得启动建议把项目定义为“带约束的容量聚合服务” ,先证明可售负载,再投入重资产节点。 01先售后建首批客户意向覆盖不少于可用容量的一半,再触发节点采购。 02不赌单一套利收益模型同时依赖调度服务费、容量承诺费与峰谷优化。 03按门槛放行90天试点只回答需求真实性、交付稳定性与单位经济三件事。 试点预算上限 ¥ 4.8m 合成示例;不含自建机房目标锁定率 ≥ 55% 合成示例;签约容量/可用容量停止线 < 32% 连续8周低于即停止扩容证据79% 合成访谈负载可接受排队或离线执行解释2.1元合成模型单位贡献为正,但对闲置高度敏感决策90天先以停止门验证锁定率,再决定是否扩容 [1] 03 / 16"
       },
       {
         "id": "page-004",
-        "text": "01判断与机会定义路径决策 · 合成示例只有付费锁量、可迁移负载与正单位贡献同时成立, 才进入容量采购路径决策树|每个节点都对应可观察证据与停止动作01|付费锁量 ≥ 40% 02|三类作业成功率03|单位贡献 ≥ 1.5否:停止采购;是:进入迁移验 ≥ 97% 元证。 否:修复交付,不延长采购承否:停止扩容;是:提交区域复诺;是:核对经济性。 制投资案。 客户证据交付证据经济证据带金额订单可回切逐客户贡献意向不能替代付款节点与退出条款。 失败作业能回到原环境并核对数据。 不以平均毛利掩盖头部客户亏损。 把宏观增长叙事降维为三道门;任一门失败都停止新增承诺。 [8] 04 / 16"
+        "text": "01判断与机会定义路径决策 · 合成示例只有付费锁量、可迁移负载与正单位贡献同时成立, 才进入容量采购路径决策树|每个节点都对应可观察证据与停止动作01|付费锁量 ≥ 40% 否:停止采购;是:进入迁移验证。 02|三类作业成功率 ≥ 97% 否:修复交付,不延长采购承诺;是:核对经济性。 03|单位贡献 ≥ 1.5元否:停止扩容;是:提交区域复制投资案。 客户证据带金额订单意向不能替代付款节点与退出条款。 交付证据可回切失败作业能回到原环境并核对数据。 经济证据逐客户贡献不以平均毛利掩盖头部客户亏损。 把宏观增长叙事降维为三道门;任一门失败都停止新增承诺。 [8] 04 / 16"
       },
       {
         "id": "page-005",
-        "text": "01判断与机会定义需求结构 · 合成示例可迁移批处理负载贡献过半,实时推理不应成为首期主战场首批访谈样本的可迁移需求结构合成示例|n=24家|占预计月度 GPU 小时为什么这决定产品边界批处理作业允许跨节点调度,能吸收供批处理训练58% 给碎片;实时服务则要求稳定时延与冗余。 离线推理21% 反证条件研发测试13% 如果客户的容器、数据或网络不能迁移,即使报价更低也不会形成真实需实时推理8% 求。 极端标签测试 “跨可用区、含敏感数据、不可中断、 需99.99% 响应保障的实时多模态推理” 证据强度限制产品含义19 / 24小样本先做批处理合成样本中,19家存在至少一种可访谈意愿不能替代真实迁移与付费行首期围绕容忍排队、允许检查点恢复排队负载。 为。 的作业。 [1] 05 / 16"
+        "text": "01判断与机会定义需求结构 · 合成示例可迁移批处理负载贡献过半,实时推理不应成为首期主战场首批访谈样本的可迁移需求结构合成示例|n=24家|占预计月度 GPU 小时批处理训练58% 离线推理21% 研发测试13% 实时推理8% 为什么这决定产品边界批处理作业允许跨节点调度,能吸收供给碎片;实时服务则要求稳定时延与冗余。 反证条件如果客户的容器、数据或网络不能迁移,即使报价更低也不会形成真实需求。 极端标签测试 “跨可用区、含敏感数据、不可中断、 需99.99% 响应保障的实时多模态推理” 证据强度19 / 24合成样本中,19家存在至少一种可排队负载。 限制小样本访谈意愿不能替代真实迁移与付费行为。 产品含义先做批处理首期围绕容忍排队、允许检查点恢复的作业。 [1] 05 / 16"
       },
       {
         "id": "page-006",
-        "text": "02需求、经济性与路径比较单位经济 · 合成示例每 GPU 小时2.1元的贡献空间,主要由采购折扣而非调度效率创造单 GPU 小时贡献桥合成示例|人⺠币元 / GPU 小时|增减项从上同口径核对表一累计值起落项目元 / GPUh 占收入客户单价8.60 100.0% 容量采购 −5.40 −62.8% 8.6 −5.4调度损耗 −0.70 −8.1% 网络与服务 −0.40 −4.7% −0.7单位贡献2.10 24.4% −0.4 2.1核对:8.60 − 5.40 − 0.70 − 0.40 = 2.10。数字右对网络与单位贡献齐,小数位统一。 客户单价容量采购调度损耗服务 [2] 06 / 16"
+        "text": "02需求、经济性与路径比较单位经济 · 合成示例每 GPU 小时2.1元的贡献空间,主要由采购折扣而非调度效率创造单 GPU 小时贡献桥合成示例|人⺠币元 / GPU 小时|增减项从上一累计值起落8.6客户单价 −5.4容量采购 −0.7调度损耗 −0.4网络与服务2.1单位贡献同口径核对表项目元 / GPUh 占收入客户单价8.60 100.0% 容量采购 −5.40 −62.8% 调度损耗 −0.70 −8.1% 网络与服务 −0.40 −4.7% 单位贡献2.10 24.4% 核对:8.60 − 5.40 − 0.70 − 0.40 = 2.10。数字右对齐,小数位统一。 [2] 06 / 16"
       },
       {
         "id": "page-007",
-        "text": "02需求、经济性与路径比较商业路径 · 合成示例 “轻资产聚合 + 保底容量”在验证速度与交付控制之间最均衡三种进入路径的同口径比较;资本单位为百万元人⺠币,评分为合成判断比较维度纯撮合平台聚合 + 保底容量自建区域节点前期资本1.0 2.4 4.8低中低高交付控制2/5 4/5 5/5弱可控强验证周期6周12周36周最快可接受最慢关键失败模式供给质量不可控保底容量闲置重资产先于需求选择依据核心代价退出条件12周2.4m < 40% 在客户耐心窗口内取得真实交付证需承担保底容量闲置,而非零资本验锁定率不足即停止采购,不转为自据。 证。 建。 推荐路径不是终局答案,而是最便宜地验证“客户是否为可控交付付费”。 [2] 07 / 16"
+        "text": "02需求、经济性与路径比较商业路径 · 合成示例 “轻资产聚合 + 保底容量”在验证速度与交付控制之间最均衡三种进入路径的同口径比较;资本单位为百万元人⺠币,评分为合成判断比较维度纯撮合平台聚合 + 保底容量自建区域节点前期资本1.0低2.4中低4.8高交付控制2/5弱4/5可控5/5强验证周期6周最快12周可接受36周最慢关键失败模式供给质量不可控保底容量闲置重资产先于需求选择依据12周在客户耐心窗口内取得真实交付证据。 核心代价2.4m 需承担保底容量闲置,而非零资本验证。 退出条件 < 40% 锁定率不足即停止采购,不转为自建。 推荐路径不是终局答案,而是最便宜地验证“客户是否为可控交付付费” 。 [2] 07 / 16"
       },
       {
         "id": "page-008",
-        "text": "02需求、经济性与路径比较文字证据 · 合成示例客户愿意换供应商的前提是迁移风险可逆,而不是单纯低价 “ 证据如何改变判断观察价格低15% 不是决定模拟受访者把“可回切”和“可核账”置于降价之前。 解释因素;我们需要先看到切换风险来自不可逆的运营损失,不只是单价差异。 失败作业能回到原环决策境,并且成本口径每天迁移回滚、账单可解释性应早于自动竞价。 可核对。 限制单一访谈不能代表总体,必须用付费试点检验。 模拟访谈摘录 C-07制造业算法团队负责人(合成示例) 把“便宜”改写为“可逆、可核、可停”,才能形成可信的采购理由。 [5] 08 / 16"
+        "text": "02需求、经济性与路径比较文字证据 · 合成示例客户愿意换供应商的前提是迁移风险可逆,而不是单纯低价 “ 价格低15% 不是决定因素;我们需要先看到失败作业能回到原环境,并且成本口径每天可核对。 模拟访谈摘录 C-07制造业算法团队负责人(合成示例) 证据如何改变判断观察模拟受访者把“可回切”和“可核账”置于降价之前。 解释切换风险来自不可逆的运营损失,不只是单价差异。 决策迁移回滚、账单可解释性应早于自动竞价。 限制单一访谈不能代表总体,必须用付费试点检验。 把“便宜”改写为“可逆、可核、可停” ,才能形成可信的采购理由。 [5] 08 / 16"
       },
       {
         "id": "page-009",
-        "text": "02需求、经济性与路径比较敏感性 · 合成示例锁定率为40% 时,只有最高采购折扣情景刚刚转正年度 EBITDA 敏感性合成示例|百万元人⺠币|行:锁定率;列:采购折扣5% 10% 15% 30% 锁定 −6.2 −5.0 −3.7 40% 锁定 −2.8 −1.1 0.7 55% 锁定1.0 3.4 5.8颜色深浅表示结果改善;数字正负提供灰度冗余。 证据边界决策4/9非预测先锁量合成情景中仅四个组合为正,低锁定模型固定售价、服务成本与客户组签约锁定率是放行门槛,采购折扣为率下风险仍高。 合。 第二杠杆。 [3] 09 / 16"
+        "text": "02需求、经济性与路径比较敏感性 · 合成示例锁定率为40% 时,只有最高采购折扣情景刚刚转正年度 EBITDA 敏感性合成示例|百万元人⺠币|行:锁定率;列:采购折扣5% 10% 15% 30% 锁定 −6.2 −5.0 −3.7 40% 锁定 −2.8 −1.1 0.7 55% 锁定1.0 3.4 5.8颜色深浅表示结果改善;数字正负提供灰度冗余。 证据4 / 9合成情景中仅四个组合为正,低锁定率下风险仍高。 边界非预测模型固定售价、服务成本与客户组合。 决策先锁量签约锁定率是放行门槛,采购折扣为第二杠杆。 [3] 09 / 16"
       },
       {
         "id": "page-010",
-        "text": "03经营边界、风险与执行承接边界 · 合成示例首期只承接可观测、可迁移、可中断恢复的工作负载承接条件可接受证据拒绝或停止信号可观测作业、资源与账单日志可逐日勾稽成本只能月底汇总解释可迁移容器、数据与依赖可在约定窗口复制迁移依赖未记录的人工操作可恢复失败后可回切并校验结果完整性回切超过恢复目标或数据不一致可隔离租户、网络与数据边界通过测试出现跨租户暴露或地域违规可以承接条件承接首期拒绝批处理训练离线推理实时关键服务允许排队、检查点恢复与跨节点调数据地域与回切路径需先验证。 时延、冗余与责任边界尚未闭环。 度。 拒绝高风险负载不是损失需求,而是保护试点可验证性与事故边界。 [8] 10 / 16"
+        "text": "03经营边界、风险与执行承接边界 · 合成示例首期只承接可观测、可迁移、可中断恢复的工作负载承接条件可接受证据拒绝或停止信号可观测作业、资源与账单日志可逐日勾稽成本只能月底汇总解释可迁移容器、数据与依赖可在约定窗口复制迁移依赖未记录的人工操作可恢复失败后可回切并校验结果完整性回切超过恢复目标或数据不一致可隔离租户、网络与数据边界通过测试出现跨租户暴露或地域违规可以承接批处理训练允许排队、检查点恢复与跨节点调度。 条件承接离线推理数据地域与回切路径需先验证。 首期拒绝实时关键服务时延、冗余与责任边界尚未闭环。 拒绝高风险负载不是损失需求,而是保护试点可验证性与事故边界。 [8] 10 / 16"
       },
       {
         "id": "page-011",
-        "text": "03经营边界、风险与执行尽调清单 · 合成示例十二项放行证据中,商业与技术各有两项尚未闭环表3A|第1–7项 # 验证对象所需证据改变判断的信号状态01付费意愿带金额的试点订单与付款节点客户只接受免费测试 △ 待闭环02需求持续性连续12周作业队列需求集中在一次性项目 ― 已取样03迁移可逆故障回切与数据校验记录回切超过约定恢复时间 ═ 通过04供给稳定三家节点的可用率日志任何单点形成关键依赖 △ 待闭环05计费准确作业日志、账单、发票三方勾稽差异连续两周超过阈值 ═ 通过06安全隔离租户隔离测试与漏洞清单出现跨租户数据暴露 ― 进行中07合规边界数据类别与处理地域映射敏感数据必须跨域传输 ― 进行中灰度说明:通过═双线;待闭环△虚线;进行中―单线。状态不只依赖颜色。 已证明直接阻塞下一动作2项2项不扩容迁移可逆与计费准确已有合成验证记付费订单和多节点供给尚未闭环。 先补订单与供给日志,再评价商业复录。 制。 [4] 11 / 16"
+        "text": "表3A|第1–7项03经营边界、风险与执行尽调清单 · 合成示例十二项放行证据中,商业与技术各有两项尚未闭环 # 验证对象所需证据改变判断的信号状态01付费意愿带金额的试点订单与付款节点客户只接受免费测试 △ 待闭环02需求持续性连续12周作业队列需求集中在一次性项目 ― 已取样03迁移可逆故障回切与数据校验记录回切超过约定恢复时间 ═ 通过04供给稳定三家节点的可用率日志任何单点形成关键依赖 △ 待闭环05计费准确作业日志、账单、发票三方勾稽差异连续两周超过阈值 ═ 通过06安全隔离租户隔离测试与漏洞清单出现跨租户数据暴露 ― 进行中07合规边界数据类别与处理地域映射敏感数据必须跨域传输 ― 进行中灰度说明:通过═双线;待闭环△虚线;进行中―单线。状态不只依赖颜色。 已证明2项迁移可逆与计费准确已有合成验证记录。 直接阻塞2项付费订单和多节点供给尚未闭环。 下一动作不扩容先补订单与供给日志,再评价商业复制。 [4] 11 / 16"
       },
       {
         "id": "page-012",
-        "text": "03经营边界、风险与执行尽调清单 · 合成示例运营证据比技术演示更滞后,应在扩容前补齐责任与退出机制表3A(续)|第8–12项 # 验证对象所需证据改变判断的信号状态08事故响应演练记录、升级路径、客户通知模板责任边界在事故后才协商 △ 待闭环09供应商退出容量迁移与数据销毁证明退出依赖供应商单方配合 △ 待闭环10毛利质量逐客户贡献与退款损失头部客户贡献为负 ― 已取样11现金周期预收、采购、账期的周度桥接采购预付早于客户回款 ═ 通过12团队能力7×24值守排班与关键岗位备份故障处置依赖单一创始人 ― 进行中当前可放行扩容前必须闭环5 / 12 4项通过或已形成足够样本订单、供给、事故、退出技术可运行不等于业务可扩张;缺少事故和退出证据时,只能保持受控试点。 [4] 12 / 16"
+        "text": "表3A(续)|第8–12项03经营边界、风险与执行尽调清单 · 合成示例运营证据比技术演示更滞后,应在扩容前补齐责任与退出机制 # 验证对象所需证据改变判断的信号状态08事故响应演练记录、升级路径、客户通知模板责任边界在事故后才协商 △ 待闭环09供应商退出容量迁移与数据销毁证明退出依赖供应商单方配合 △ 待闭环10毛利质量逐客户贡献与退款损失头部客户贡献为负 ― 已取样11现金周期预收、采购、账期的周度桥接采购预付早于客户回款 ═ 通过12团队能力7×24值守排班与关键岗位备份故障处置依赖单一创始人 ― 进行中当前可放行5 / 12通过或已形成足够样本扩容前必须闭环4项订单、供给、事故、退出技术可运行不等于业务可扩张;缺少事故和退出证据时,只能保持受控试点。 [4] 12 / 16"
       },
       {
         "id": "page-013",
-        "text": "03经营边界、风险与执行风险地图 · 合成示例供给集中与安全事故同时具备高概率、高影响,应优先消减定性风险排序;编号表示处置优先级,概率与影响文字提供灰度冗余01供给集中概率高 / 影响高影响 → 02安全事故概率中 / 影响高04账单争议概率低 / 影响中03需求波动概率高 / 影响中05团队流失概率低 / 影响低发生概率 → [6] 13 / 16"
+        "text": "03经营边界、风险与执行风险地图 · 合成示例供给集中与安全事故同时具备高概率、高影响,应优先消减定性风险排序;编号表示处置优先级,概率与影响文字提供灰度冗余发生概率 → [6] 影响 → 01供给集中概率高 / 影响高02安全事故概率中 / 影响高03需求波动概率高 / 影响中04账单争议概率低 / 影响中05团队流失概率低 / 影响低13 / 16"
       },
       {
         "id": "page-014",
-        "text": "03经营边界、风险与执行90天路线图 · 合成示例用三道停止门管理90天试点,而不是用里程碑掩盖失败第0–30天|锁定需求门槛 A 01完成8家客户迁移评估;签署含金额、容量和退出条款的试签约锁定率 ≥ 40%;否则停止采购。 点订单。 第31–60天|证明交付门槛 B 02运行三类可迁移作业;记录成功率、恢复时间、计费差异与作业成功率 ≥ 97%;严重事故为0。 人工干预。 第61–90天|核对经济性门槛 C 03按客户与供给节点拆解贡献;验证回款先于新增容量承诺。 单位贡献 ≥ 1.5元;锁定率 ≥ 55%。 只有三道门全部通过,才提交区域复制投资案;任何一门失败都先修复,不自动延期。 [7] 14 / 16"
+        "text": "03经营边界、风险与执行90天路线图 · 合成示例用三道停止门管理90天试点,而不是用里程碑掩盖失败只有三道门全部通过,才提交区域复制投资案;任何一门失败都先修复,不自动延期。 [7] 第0–30天|锁定需求完成8家客户迁移评估;签署含金额、容量和退出条款的试点订单。 门槛 A 签约锁定率 ≥ 40%;否则停止采购。 第31–60天|证明交付运行三类可迁移作业;记录成功率、恢复时间、计费差异与人工干预。 门槛 B 作业成功率 ≥ 97%;严重事故为0。 第61–90天|核对经济性按客户与供给节点拆解贡献;验证回款先于新增容量承诺。 门槛 C 单位贡献 ≥ 1.5元;锁定率 ≥ 55%。 01 02 03 14 / 16"
       },
       {
         "id": "page-015",
@@ -687,7 +780,7 @@
       },
       {
         "id": "page-016",
-        "text": "04方法、口径与限制 Methods & limitations · 合成示例方法与限制:结论来自受控合成证据,门槛只用于验证报告结构方法限制证据到决策不能外推为市场事实以24家合成访谈划分可迁移负载。 样本、订单、成本与风险位置均为合成夹具。 按统一 GPU 小时口径核对收入、采购与损耗。 访谈意愿不能替代真实付款、迁移和续约行为。 用锁定率 × 采购折扣情景测试经济边界。 敏感性结果固定售价、服务成本与客户组合。 以订单、交付、贡献三道门形成90天验证路径。 定性风险级别不是统计概率。 覆盖最大缺口使用边界需求 + 交付 + 经真实行为仅作版式评估济需用带金额订单与迁移日志替代意不得引用为商业事实或投资建议。 向。 三类证据共同决定是否继续。 像素稳定、几何合格与证据完整是三个独立门槛;本基准已通过当前 QA 与视觉审批。 全部内容为合成示例。HTML、PDF 与逐页 PNG 已按同一批准摘要归档。 16 / 16"
+        "text": "04方法、口径与限制 Methods & limitations · 合成示例方法与限制:结论来自受控合成证据,门槛只用于验证报告结构方法证据到决策以24家合成访谈划分可迁移负载。 按统一 GPU 小时口径核对收入、采购与损耗。 用锁定率 × 采购折扣情景测试经济边界。 以订单、交付、贡献三道门形成90天验证路径。 限制不能外推为市场事实样本、订单、成本与风险位置均为合成夹具。 访谈意愿不能替代真实付款、迁移和续约行为。 敏感性结果固定售价、服务成本与客户组合。 定性风险级别不是统计概率。 覆盖需求 + 交付 + 经济三类证据共同决定是否继续。 最大缺口真实行为需用带金额订单与迁移日志替代意向。 使用边界仅作版式评估不得引用为商业事实或投资建议。 像素稳定、几何合格与证据完整是三个独立门槛;本基准已通过当前 QA 与视觉审批。 全部内容为合成示例。HTML、PDF 与逐页 PNG 已按同一批准摘要归档。 16 / 16"
       }
     ],
     "appendixDestinations": [

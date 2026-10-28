@@ -92,11 +92,11 @@ fs.writeFileSync(compiledHtml, html);
         const flow = [...p.children].filter(node => !node.matches('.folio,.source,.citation-markers') && !['absolute', 'fixed'].includes(getComputedStyle(node).position));
         const used = flow.length ? Math.max(...flow.map(node => node.getBoundingClientRect().bottom)) - top : 0;
         const role = p.dataset.pageRole;
-        const whitespaceReason = role === 'cover' ? 'Cover isolates the decision title and publication identity' : role === 'toc' ? 'Contents page preserves a short navigational reading path' : undefined;
-        const whitespaceRole = role === 'cover' ? 'cover' : role === 'toc' ? 'toc' : undefined;
+        const whitespaceJustification = role === 'cover' ? 'cover-identity' : role === 'toc' ? 'toc-navigation' : undefined;
         return {id: `page-${String(index + 1).padStart(3, '0')}`, number: index + 1, intentionalBlank: false,
           usedHeightPx: Math.max(0, Math.ceil(used * 1000) / 1000), contentHeightPx: Math.ceil(contentHeight * 1000) / 1000,
-          ...(whitespaceReason ? {whitespaceReason, whitespaceRole} : {}), geometry: {widthMm: 210, heightMm: 297}};
+          role: role === 'cover' ? 'cover' : role === 'toc' ? 'toc' : role === 'section' ? 'section-divider' : role === 'references' ? 'references' : 'body',
+          ...(whitespaceJustification ? {whitespaceJustification} : {}), geometry: {widthMm: 210, heightMm: 297}};
       })};
   });
   const expectedIds = report.pages.map(p => p.id);
@@ -149,7 +149,7 @@ fs.writeFileSync(compiledHtml, html);
   geometry.pages = remapPages(geometry.pages);
   media.htmlPages = remapPages(media.htmlPages);
   media.pdfPages = remapPages(media.pdfPages);
-  media.htmlPages.forEach((page, index) => { page.role = report.pages[index].role === 'references' ? 'references' : 'body'; });
+  media.htmlPages.forEach((page, index) => { const role = report.pages[index].role; page.role = role === 'cover' ? 'cover' : role === 'toc' ? 'toc' : role === 'section' ? 'section-divider' : role === 'references' ? 'references' : 'body'; });
   media.appendixDestinations = [...html.matchAll(/class="ref"\s+id="([^"]+)"/g)].map(match => match[1]);
   const approvedPages = JSON.parse(fs.readFileSync(path.join(here, "approved-page-baseline.json"), "utf8")).artifacts.pagePngSha256;
   const candidatePages = Object.fromEntries(pngs.map((name, index) => [stablePageId(index), shaFile(path.join(build, name))]));

@@ -2,9 +2,9 @@
   "schemaVersion": "1.0",
   "status": "approved",
   "approvedBy": "codex-visual-review",
-  "approvedAt": "2026-10-28T17:00:00+10:30",
-  "candidateDigest": "658791735b252b33d95f220e7f30f7cfe2fdaba6edc519d0077ca9279fbd026f",
-  "changeReason": "Task 5 review closure：保留真实空白率计分并核对 QA 最弱页 page-001；页面像素未变化",
+  "approvedAt": "2026-10-28T18:00:00+10:30",
+  "candidateDigest": "0225e35b6fb307fec5307afec5371d93fec2e31488064ea020a54216a8e03ac3",
+  "changeReason": "Task 5 final review：严格有序文本核对与渲染角色绑定通过；页面像素未变化",
   "qaWorstPage": "page-001",
   "contentApproval": {
     "status": "approved",
@@ -79,6 +79,14 @@
       "approvedAt": "2026-10-28T17:00:00+10:30",
       "candidateDigest": "658791735b252b33d95f220e7f30f7cfe2fdaba6edc519d0077ca9279fbd026f",
       "reason": "Task 5 review closure：保留真实空白率计分并核对 QA 最弱页 page-001；页面像素未变化",
+      "observedPages": ["p01-p16 whole-book contact sheet", "page-001 QA-selected worst page", "p14 roadmap", "p16 methods and limitations"]
+    },
+    {
+      "type": "baseline-update",
+      "approvedBy": "codex-visual-review",
+      "approvedAt": "2026-10-28T18:00:00+10:30",
+      "candidateDigest": "0225e35b6fb307fec5307afec5371d93fec2e31488064ea020a54216a8e03ac3",
+      "reason": "Task 5 final review：严格有序文本核对与渲染角色绑定通过；页面像素未变化",
       "observedPages": ["p01-p16 whole-book contact sheet", "page-001 QA-selected worst page", "p14 roadmap", "p16 methods and limitations"]
     }
   ]

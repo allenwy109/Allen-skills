@@ -42,6 +42,7 @@ def good_evidence():
             "pageCount": 1,
             "pages": [{
                 "id": "page-001", "number": 1, "intentionalBlank": False,
+                "role": "body",
                 "usedHeightPx": 500, "contentHeightPx": 986,
                 "geometry": {"widthMm": 210, "heightMm": 297},
             }],
@@ -111,11 +112,13 @@ class A4QualityGateTest(unittest.TestCase):
 
     def test_intentional_whitespace_is_allowed_only_with_a_specific_reason(self):
         evidence = good_evidence()
-        evidence["pagination"]["pages"][0].update(usedHeightPx=450, whitespaceRole="chapter-close", whitespaceReason="Chapter close preserves the next decision tree with its governing question")
+        evidence["pagination"]["pages"][0].update(usedHeightPx=450, role="section-divider", whitespaceJustification="section-transition")
+        evidence["media"]["htmlPages"][0]["role"] = "section-divider"
         result = run_qa(evidence)
         self.assertNotIn("REPORT_NONFUNCTIONAL_WHITESPACE", {item["code"] for item in result["blocking"]})
 
-        evidence["pagination"]["pages"][0].update(usedHeightPx=90, whitespaceRole="invented")
+        evidence["pagination"]["pages"][0].update(usedHeightPx=207, role="cover", whitespaceJustification="cover-identity")
+        evidence["media"]["htmlPages"][0]["role"] = "body"
         result = run_qa(evidence)
         self.assertIn("REPORT_NONFUNCTIONAL_WHITESPACE", {item["code"] for item in result["blocking"]})
         self.assertGreaterEqual(result["audit"]["worstPage"]["score"], .9)
@@ -124,6 +127,10 @@ class A4QualityGateTest(unittest.TestCase):
         evidence = good_evidence()
         evidence["media"]["htmlPages"][0]["text"] = "A B C"
         evidence["media"]["pdfPages"][0]["text"] = "C B A"
+        self.assertIn("REPORT_TEXT_MISMATCH", {item["code"] for item in run_qa(evidence)["blocking"]})
+
+        evidence["media"]["htmlPages"][0]["text"] = "First paragraph. Second paragraph."
+        evidence["media"]["pdfPages"][0]["text"] = "Second paragraph. First paragraph."
         self.assertIn("REPORT_TEXT_MISMATCH", {item["code"] for item in run_qa(evidence)["blocking"]})
     def test_real_evaluate_rejects_missing_and_mismatched_rendered_exhibits(self):
         evidence = good_evidence()
@@ -283,12 +290,12 @@ class A4QualityGateTest(unittest.TestCase):
         codes = {item["code"] for item in run_qa(evidence)["blocking"]}
         self.assertEqual({"REPORT_TEXT_MISMATCH", "REPORT_EXTERNAL_RESOURCE"}, codes)
 
-    def test_text_manifest_allows_pdf_reading_order_changes_without_content_loss(self):
+    def test_text_manifest_rejects_pdf_reading_order_changes(self):
         evidence = good_evidence()
         evidence["media"]["htmlPages"][0]["text"] = "左列事实 右列反证"
         evidence["media"]["pdfPages"][0]["text"] = "右列反证 左列事实"
         codes = {item["code"] for item in run_qa(evidence)["blocking"]}
-        self.assertNotIn("REPORT_TEXT_MISMATCH", codes)
+        self.assertIn("REPORT_TEXT_MISMATCH", codes)
 
     def test_text_manifest_normalizes_pdfkit_cjk_and_punctuation_variants(self):
         evidence = good_evidence()
@@ -572,9 +579,9 @@ class A4QualityGateTest(unittest.TestCase):
 
         evidence = good_evidence()
         evidence["pagination"]["pageCount"] = 2
-        evidence["pagination"]["pages"].append({"id": "page-002", "number": 2, "intentionalBlank": False, "usedHeightPx": 450, "contentHeightPx": 986, "whitespaceRole": "chapter-close", "whitespaceReason": "Visual regression fixture preserves the next governed chapter opening", "geometry": {"widthMm": 210, "heightMm": 297}})
+        evidence["pagination"]["pages"].append({"id": "page-002", "number": 2, "intentionalBlank": False, "role": "section-divider", "usedHeightPx": 450, "contentHeightPx": 986, "whitespaceJustification": "section-transition", "geometry": {"widthMm": 210, "heightMm": 297}})
         evidence["geometry"]["pages"].append({"id": "page-002", "mediaBoxMm": [210, 297], "overlaps": [], "clipped": [], "empty": False, "fonts": [{"role": "body", "minimumPt": 8.5}]})
-        evidence["media"]["htmlPages"].append({"id": "page-002", "role": "body", "text": "Second", "visibleHtml": "<p>Second</p>"})
+        evidence["media"]["htmlPages"].append({"id": "page-002", "role": "section-divider", "text": "Second", "visibleHtml": "<p>Second</p>"})
         evidence["media"]["pdfPages"].append({"id": "page-002", "text": "Second"})
         evidence["regression"] = regression
         blocked = run_qa(evidence)

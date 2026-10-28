@@ -465,7 +465,8 @@ def cmd_review(args):
             print(str(error), file=sys.stderr)
             return 1
         if qa["status"] == "failed":
-            print("REPORT_REVIEW_INVALID: author disposition did not clear visual QA", file=sys.stderr)
+            codes = "、".join(item["code"] for item in qa["blocking"])
+            print(f"REPORT_REVIEW_INVALID: author disposition did not clear visual QA ({codes})", file=sys.stderr)
             return 1
     else:
         try:
