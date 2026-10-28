@@ -90,6 +90,21 @@ class PackageSupportTest(unittest.TestCase):
         with self.assertRaisesRegex(P.PackageError, "sources.jsonl"):
             P.build(self.task, require_app=False)
 
+    def test_rejects_symlinks_that_escape_task_from_tree_and_audit_file(self):
+        with tempfile.TemporaryDirectory() as outside:
+            secret = pathlib.Path(outside) / "secret.json"
+            secret.write_text('{"secret":true}', encoding="utf-8")
+            tree_link = self.task / "04_analysis" / "escaped.json"
+            tree_link.symlink_to(secret)
+            with self.assertRaisesRegex(P.PackageError, "符号链接"):
+                P.build(self.task)
+            tree_link.unlink()
+
+            audit = self.task / "07_storyline/a4-work/artifact-manifest.json"
+            audit.symlink_to(secret)
+            with self.assertRaisesRegex(P.PackageError, "符号链接"):
+                P.build(self.task)
+
     def test_verify_rejects_missing_tampered_extra_and_manifest_mismatch(self):
         P.build(self.task)
         source = self.task / "08_deliverables/evidence-package"

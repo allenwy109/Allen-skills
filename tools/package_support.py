@@ -85,19 +85,39 @@ def is_private(rel, include_raw=False):
     return any(token in stem for token in PRIVATE_NAMES)
 
 
+def _require_safe(task, path):
+    path = pathlib.Path(path)
+    if path.is_symlink():
+        raise PackageError(f"证据包拒绝符号链接：{path.relative_to(task)}")
+    resolved = path.resolve()
+    if resolved != task and task not in resolved.parents:
+        raise PackageError(f"证据包路径越出任务目录：{path}")
+    relative = path.relative_to(task)
+    current = task
+    for part in relative.parts:
+        current /= part
+        if current.is_symlink():
+            raise PackageError(f"证据包拒绝符号链接：{relative}")
+
+
 def select_files(task, include_raw=False):
     selected = []
     for name in TOP_FILES:
         path = task / name
         if path.is_file():
+            _require_safe(task, path)
             selected.append(path)
     for root_name in TREE_ROOTS:
         root = task / root_name
         if not root.is_dir():
             continue
+        _require_safe(task, root)
         for path in sorted(root.rglob("*")):
+            if path.is_symlink():
+                raise PackageError(f"证据包拒绝符号链接：{path.relative_to(task)}")
             if not path.is_file() or path.suffix.lower() not in ALLOWED_SUFFIXES:
                 continue
+            _require_safe(task, path)
             rel = path.relative_to(task)
             if is_private(rel, include_raw):
                 continue
@@ -105,8 +125,19 @@ def select_files(task, include_raw=False):
     if include_raw:
         raw = task / "03_evidence" / "raw"
         if raw.is_dir():
-            selected.extend(p for p in sorted(raw.rglob("*")) if p.is_file())
-    selected.extend(task / name for name in AUDIT_FILES if (task / name).is_file())
+            for path in sorted(raw.rglob("*")):
+                if path.is_symlink():
+                    raise PackageError(f"证据包拒绝符号链接：{path.relative_to(task)}")
+                if path.is_file():
+                    _require_safe(task, path)
+                    selected.append(path)
+    for name in AUDIT_FILES:
+        path = task / name
+        if path.is_symlink():
+            raise PackageError(f"证据包拒绝符号链接：{name}")
+        if path.is_file():
+            _require_safe(task, path)
+            selected.append(path)
     return sorted(set(selected), key=lambda p: p.relative_to(task).as_posix())
 
 
@@ -178,7 +209,7 @@ def verify(package_dir):
     return {"package": str(package), "verified": True}
 
 
-def build(task_dir, include_raw=False, require_app=True):
+def build(task_dir, include_raw=False, require_app=True, output_root=None, record_acceptance=True):
     task = pathlib.Path(task_dir).resolve()
     app_id, app_label = read_app(task, require_app)
     if not (task / "03_evidence" / "ledger" / "sources.jsonl").is_file():
@@ -187,7 +218,7 @@ def build(task_dir, include_raw=False, require_app=True):
     if not files:
         raise PackageError("没有可打包的支撑文件")
 
-    deliverables = task / "08_deliverables"
+    deliverables = pathlib.Path(output_root).resolve() if output_root else task / "08_deliverables"
     deliverables.mkdir(parents=True, exist_ok=True)
     output = deliverables / "evidence-package.zip"
     destination = deliverables / "evidence-package"
@@ -240,20 +271,20 @@ def build(task_dir, include_raw=False, require_app=True):
                 archive.write(path, f"evidence-package/{path.relative_to(destination).as_posix()}")
     tmp.replace(output)
 
-    entry = Acceptance(task).record(
-        {
-            "id": "evidence-" + app_id.removeprefix("allen-"),
-            "kind": "support_package",
-            "title": f"{app_label}证据包",
-            "files": ["08_deliverables/evidence-package.zip"],
-            "upstream_checks": [
-                {"name": "support manifest", "result": "passed", "detail": f"已登记 {len(files)} 个支撑文件"},
-                {"name": "raw material policy", "result": "passed", "detail": "原始材料按显式选项处理"},
-            ],
-            "number_trace": {"checked": 0, "untraced": []},
-        }
-    )
-    return {"output": str(output), "files": len(files), "acceptance_id": entry["id"], "status": entry["status"]}
+    record = {
+        "id": "evidence-" + app_id.removeprefix("allen-"),
+        "kind": "support_package",
+        "title": f"{app_label}证据包",
+        "files": ["08_deliverables/evidence-package.zip"],
+        "upstream_checks": [
+            {"name": "support manifest", "result": "passed", "detail": f"已登记 {len(files)} 个支撑文件"},
+            {"name": "raw material policy", "result": "passed", "detail": "原始材料按显式选项处理"},
+        ],
+        "number_trace": {"checked": 0, "untraced": []},
+    }
+    entry = Acceptance(task).record(record) if record_acceptance else {"id": record["id"], "status": "staged"}
+    return {"output": str(output), "directory": str(destination), "files": len(files),
+            "acceptance_id": entry["id"], "status": entry["status"], "acceptance_record": record}
 
 
 def main(argv=None):

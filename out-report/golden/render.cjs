@@ -58,7 +58,17 @@ fs.writeFileSync(compiledHtml, html);
   const requests = [];
   page.on("request", req => { if (/^https?:/.test(req.url())) requests.push(req.url()); });
   await page.goto(`file://${compiledHtml}`, {waitUntil: "networkidle"});
-  await page.evaluate(() => document.fonts.ready);
+  const loadFonts = () => page.evaluate(async () => {
+    await Promise.all([
+      document.fonts.load('400 10.75pt "NotoSansSC"'),
+      document.fonts.load('600 10.75pt "NotoSansSC"'),
+      document.fonts.load('600 10.75pt "NotoSerifSC"'),
+    ]);
+    await document.fonts.ready;
+  });
+  await loadFonts();
+  await page.reload({waitUntil: "networkidle"});
+  await loadFonts();
   await page.emulateMedia({media: "print"});
   const layoutQa = await page.evaluate(() => {
     const pages = [...document.querySelectorAll("section.page[data-page-id]")];

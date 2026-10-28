@@ -37,6 +37,12 @@ def run(*args):
 def make_task(root, change=None):
     task = pathlib.Path(root) / "task"
     F.make_storyline_package(task)
+    out_report.Ledger(task).patch("sources", "M001", {
+        "author_org": "FORBIDDEN_AUTHOR", "publisher": "FORBIDDEN_PUBLISHER",
+        "published": "2026-03-28", "accessed": "2026-10-22T10:00:00+08:00",
+        "grade": "S", "conflict_of_interest": "FORBIDDEN_CONFLICT",
+        "access_note": "FORBIDDEN_INTERNAL_AUDIT",
+    })
     if change:
         source = task / "07_storyline/slides.json"
         doc = json.loads(source.read_text(encoding="utf-8"))
@@ -242,8 +248,29 @@ class A4OutReportPipelineTest(unittest.TestCase):
         self.assertTrue(out_report.package_support.verify(evidence)["verified"])
         client_html = (out / "report.html").read_text(encoding="utf-8")
         self.assertIn('class="citation-marker"', client_html)
-        for forbidden in ("https://", "Grade A", "2026-01-15T", "conflict_of_interest"):
+        for forbidden in ("https://", "http://", "www.", "example.com/report", "FORBIDDEN_AUTHOR", "FORBIDDEN_PUBLISHER",
+                          "2026-03-28", "2026-10-22T10:00:00+08:00", "Grade S", "FORBIDDEN_CONFLICT",
+                          "FORBIDDEN_INTERNAL_AUDIT", "conflict_of_interest", "access_note"):
             self.assertNotIn(forbidden, client_html)
+
+        seeded = {
+            out / "report.html": b"OLD CLIENT HTML",
+            out / "report.pdf": b"OLD CLIENT PDF",
+            self.task / "08_deliverables/evidence-package.zip": b"OLD EVIDENCE ZIP",
+            self.task / "08_deliverables/evidence-package/package-manifest.json": b"OLD EVIDENCE MANIFEST",
+        }
+        for path, content in seeded.items():
+            path.write_bytes(content)
+        before = {path.relative_to(self.task).as_posix(): path.read_bytes() for path in seeded}
+        sources_file = self.task / "03_evidence/ledger/sources.jsonl"
+        valid_sources = sources_file.read_bytes()
+        sources_file.write_text("not-json\n", encoding="utf-8")
+        failed = run("package", self.task)
+        self.assertEqual(1, failed.returncode)
+        self.assertIn("EVIDENCE_PACKAGE_FAILED", failed.stderr)
+        after = {path.relative_to(self.task).as_posix(): path.read_bytes() for path in seeded}
+        self.assertEqual(before, after)
+        sources_file.write_bytes(valid_sources)
         entry = next(item for item in Acceptance(self.task).load()["deliverables"] if item["id"] == "report-main")
         names = [check["name"] for check in entry["upstream_checks"]]
         self.assertEqual(names, ["storyline", "coverage", "pagination", "geometry", "visual-regression", "author-review", "independent-review"])

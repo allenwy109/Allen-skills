@@ -127,6 +127,8 @@ class GoldenReportContractTest(unittest.TestCase):
         self.assertIn('process.env.GOLDEN_DIR', renderer)
         self.assertNotRegex(renderer, r'path\.join\(runtime,\s*["\']out-report["\']')
         self.assertIn('document.fonts.ready', renderer)
+        self.assertIn('document.fonts.load', renderer)
+        self.assertIn('page.reload', renderer)
         self.assertEqual(ROOT, GOLDEN.parents[1])
 
     def test_body_pages_use_compact_markers_and_full_references_stay_in_appendix(self):

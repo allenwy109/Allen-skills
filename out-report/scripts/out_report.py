@@ -318,6 +318,36 @@ def replace_delivery(destination, sources):
             shutil.rmtree(backup)
 
 
+def publish_deliverables(staged_root, deliverables, names):
+    """Publish a staged set together and restore all prior artifacts on failure."""
+    staged_root = pathlib.Path(staged_root)
+    deliverables = pathlib.Path(deliverables)
+    rollback = pathlib.Path(tempfile.mkdtemp(prefix=".delivery-rollback-", dir=deliverables))
+    moved_old = []
+    moved_new = []
+    try:
+        for name in names:
+            current = deliverables / name
+            if current.exists():
+                os.replace(current, rollback / name)
+                moved_old.append(name)
+        for name in names:
+            os.replace(staged_root / name, deliverables / name)
+            moved_new.append(name)
+    except Exception:
+        for name in reversed(moved_new):
+            current = deliverables / name
+            if current.is_dir():
+                shutil.rmtree(current)
+            elif current.exists():
+                current.unlink()
+        for name in moved_old:
+            os.replace(rollback / name, deliverables / name)
+        raise
+    finally:
+        shutil.rmtree(rollback, ignore_errors=True)
+
+
 def cmd_render(args):
     work = work_dir(args.task)
     if not (work / "render-document.json").is_file():
@@ -492,14 +522,20 @@ def cmd_package(args):
         print("REPORT_QA_FAILED: " + "、".join(item["code"] for item in qa["blocking"]), file=sys.stderr)
         return 1
     build = work / "build"
-    out = client_report_dir(task)
+    deliverables = task / "08_deliverables"
+    deliverables.mkdir(parents=True, exist_ok=True)
     sources = {"report.html": build / "report.html", "report.pdf": build / "report.pdf"}
-    replace_delivery(out, sources)
-    try:
-        evidence = package_support.build(task, require_app=False)
-    except (package_support.PackageError, OSError, ValueError, zipfile.BadZipFile) as error:
-        print(f"EVIDENCE_PACKAGE_FAILED: {error}", file=sys.stderr)
-        return 1
+    with tempfile.TemporaryDirectory(prefix=".delivery-stage-", dir=deliverables) as temporary:
+        staged = pathlib.Path(temporary)
+        replace_delivery(staged / "client-report", sources)
+        try:
+            evidence = package_support.build(task, require_app=False, output_root=staged, record_acceptance=False)
+        except (package_support.PackageError, OSError, ValueError, zipfile.BadZipFile) as error:
+            print(f"EVIDENCE_PACKAGE_FAILED: {error}", file=sys.stderr)
+            return 1
+        publish_deliverables(staged, deliverables, ("client-report", "evidence-package", "evidence-package.zip"))
+    out = deliverables / "client-report"
+    Acceptance(task).record(evidence["acceptance_record"])
     checks = [
         storyline_check(task), *diligence_checks(task),
         {"name": "coverage", "result": "passed", "detail": "input/output sets equal; duplicates rejected"},
@@ -516,7 +552,7 @@ def cmd_package(args):
         "files": [str((out / name).relative_to(task)) for name in sources], "upstream_checks": checks, "reviewer": acceptance_reviewer,
     })
     print(f"已打包 A4 报告：{out}")
-    print(f"已打包证据包：{evidence['output']}")
+    print(f"已打包证据包：{deliverables / 'evidence-package.zip'}")
     print(f"统一验收状态：{entry['status']}")
     return 0 if entry["status"] == "passed" else 1
 
