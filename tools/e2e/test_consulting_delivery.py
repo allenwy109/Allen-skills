@@ -201,6 +201,8 @@ class ConsultingDeliveryContractTest(unittest.TestCase):
             }
             for label, pattern in forbidden.items():
                 self.assertIsNone(re.search(pattern, client_body, re.IGNORECASE), label)
+            self.assertIn('class="citation-marker" href="#source-M001">[1]</a>', client_body)
+            self.assertEqual(1, client_body.count('class="compact-source-anchor" id="source-M001"'))
             exhibit = re.search(r'<[^>]+data-exhibit-kind="decision-tree"[^>]*>.*?</[^>]+>', html, re.DOTALL)
             self.assertIsNotNone(exhibit, "canonical decision-tree exhibit missing")
             exhibit_page = html[html.rfind('<section class="page"', 0, exhibit.start()):html.find('</section>', exhibit.end())]

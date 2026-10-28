@@ -194,7 +194,8 @@ def render_document(report, task):
             "blocks": [], "references": report["references"],
         }})
     document = {"title": report["metadata"]["title"], "components": components}
-    if report["metadata"].get("bibliography_policy") == "full" and "citation_registry" in report:
+    document["citation_mode"] = report["metadata"].get("bibliography_policy", "evidence_package")
+    if "citation_registry" in report:
         document["citation_registry"] = report["citation_registry"]
     return document
 

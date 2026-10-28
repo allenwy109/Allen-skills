@@ -146,7 +146,7 @@ function pdfBackend() {
         : kinds.length === 1 && kinds[0] === 'section-title' ? 'section-divider' : 'body';
       const appendixDestinations = role === 'references'
         ? [...visible.querySelectorAll('[data-source-record][id], .ref[id]')].map(node => node.id)
-        : [];
+        : [...section.querySelectorAll('.compact-source-anchor[data-source-record][id]')].map(node => node.id);
       const extractorOrderExclusions = [...section.querySelectorAll('.chart-sub,.axis-x,.axis-y,.takeaway,.continued,.citation-markers,.folio,.stage-no,.toc-page')]
         .filter(node => getComputedStyle(node).display !== 'none').map(node => node.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean);
       return {

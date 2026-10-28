@@ -105,10 +105,10 @@ function citationContext(document) {
   const referenceIds = references.map(item => item.id);
   const counts = new Map();
   for (const sourceId of referenceIds) counts.set(sourceId, (counts.get(sourceId) || 0) + 1);
-  if (bodyIds.some(sourceId => counts.get(sourceId) !== 1) || referenceIds.some(sourceId => counts.get(sourceId) !== 1)) {
+  if (hasAppendix && (bodyIds.some(sourceId => counts.get(sourceId) !== 1) || referenceIds.some(sourceId => counts.get(sourceId) !== 1))) {
     throw reportError('REPORT_CITATION_MISMATCH', 'body sources and appendix targets must match, with one target per source');
   }
-  const ordered = [...bodyIds, ...[...new Set(referenceIds.filter(sourceId => !seen.has(sourceId)))].sort()];
+  const ordered = hasAppendix ? [...bodyIds, ...[...new Set(referenceIds.filter(sourceId => !seen.has(sourceId)))].sort()] : bodyIds;
   const generated = ordered.map((source_id, index) => ({ source_id, number: index + 1, appendix_anchor: `source-${source_id}` }));
   if (document.citation_registry) {
     const supplied = document.citation_registry;
@@ -160,11 +160,13 @@ async function measure(fragments, css, chromium) {
   }
 }
 
-function renderPages(pages, navigation, title, css) {
-  let html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${escapeHtml(title || 'Report')}</title><style>${css}</style></head><body>${pages.map(page => {
+function renderPages(pages, navigation, title, css, citationContext, citationMode) {
+  const compactAnchors = citationMode === 'evidence_package' ? citationContext.citationRegistry.map(citation =>
+    `<span hidden class="compact-source-anchor" id="${escapeHtml(citation.appendix_anchor)}" data-source-record="${escapeHtml(citation.source_id)}"></span>`).join('') : '';
+  let html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${escapeHtml(title || 'Report')}</title><style>${css}</style></head><body>${pages.map((page, index) => {
     if (page.intentionalBlank) return `<section class="page intentional-blank" data-page-id="${page.id}" aria-label="Intentionally blank page"><span>本页有意留白</span><span class="folio">${page.number}</span></section>`;
     const content = page.items.map(item => `<div class="page-item">${item.html}</div>`).join('');
-    return `<section class="page" data-page-id="${page.id}"><div class="page__body">${content}</div><span class="folio">${page.number}</span></section>`;
+    return `<section class="page" data-page-id="${page.id}">${index === 0 ? compactAnchors : ''}<div class="page__body">${content}</div><span class="folio">${page.number}</span></section>`;
   }).join('')}</body></html>`;
   html = html.replace(/\{\{PAGE:([^}]+)\}\}/g, (_, id) => {
     const number = navigation.anchorToPage[id] || navigation.componentToPage[id];
@@ -247,7 +249,7 @@ async function renderDocument(document) {
   }
   const pages = paginateMeasured(fragments, measured.contentHeightPx);
   const navigation = resolveNavigation(pages);
-  const html = renderPages(pages, navigation, document.title, css);
+  const html = renderPages(pages, navigation, document.title, css, context, document.citation_mode);
   const tableContinuations = pages.flatMap(page => page.items.filter(item => item.table).map(item => ({
     componentId: item.originalId, page: page.number, startRow: item.startRow, endRow: item.endRow, rowCount: item.rowCount,
   })));

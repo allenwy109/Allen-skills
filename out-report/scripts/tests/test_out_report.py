@@ -171,11 +171,12 @@ class A4OutReportPipelineTest(unittest.TestCase):
         html = (self.work / "build/report.html").read_text(encoding="utf-8")
         self.assertIn("收入从 1800 万元增至 3200 万元", html)
         self.assertNotIn('<li class="summary-item">cl-0001</li>', html)
-        self.assertNotIn('class="citation-marker"', html)
+        self.assertIn('class="citation-marker" href="#source-M001">[1]</a>', html)
+        self.assertIn('class="compact-source-anchor" id="source-M001"', html)
         self.assertNotIn('data-component-kind="references-appendix"', html)
         self.assertNotIn("https://", html)
         self.assertNotIn("source-strip", html)
-        self.assertEqual(0, html.count('id="source-M001"'))
+        self.assertEqual(1, html.count('id="source-M001"'))
         pdf = self.work / "build/report.pdf"
         self.assertTrue(pdf.is_file())
         info = subprocess.run(["pdfinfo", str(pdf)], capture_output=True, text=True, check=True).stdout
@@ -190,7 +191,7 @@ class A4OutReportPipelineTest(unittest.TestCase):
                            capture_output=True, text=True, check=True)
             annotations = xml.read_text(encoding="utf-8")
             self.assertRegex(annotations, r'<a href="report\.html#2">')
-            self.assertNotRegex(annotations, r'>\[1\]</a>')
+            self.assertRegex(annotations, r'<a href="report\.html#\d+">\[1\]</a>')
         self.assertFalse((self.story / "forge-work/pages.html").exists())
 
         regression = json.loads((self.work / "visual-regression.json").read_text(encoding="utf-8"))
@@ -314,7 +315,8 @@ class A4OutReportPipelineTest(unittest.TestCase):
         self.assertTrue((self.task / "08_deliverables/evidence-package.zip").is_file())
         self.assertTrue(out_report.package_support.verify(evidence)["verified"])
         client_html = (out / "report.html").read_text(encoding="utf-8")
-        self.assertNotIn('class="citation-marker"', client_html)
+        self.assertIn('class="citation-marker" href="#source-M001">[1]</a>', client_html)
+        self.assertIn('class="compact-source-anchor" id="source-M001"', client_html)
         self.assertNotIn('data-component-kind="references-appendix"', client_html)
         for forbidden in ("https://", "http://", "www.", "example.com/report", "FORBIDDEN_AUTHOR", "FORBIDDEN_PUBLISHER",
                           "2026-03-28", "2026-10-22T10:00:00+08:00", "Grade S", "FORBIDDEN_CONFLICT",
