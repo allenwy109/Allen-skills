@@ -117,7 +117,7 @@ class A4PaginationTest(unittest.TestCase):
         self.assertIn('data-cross-reference="finding">1</span>', result["html"])
 
     def test_boundary_places_next_component_on_new_page_without_overflow(self):
-        components = [component(f"c-{index}") for index in range(1, 9)]
+        components = [component(f"c-{index}", repeat_reason="Repeated evidence cards exercise the physical page boundary only") for index in range(1, 9)]
         result = render({"title": "Boundary", "components": components})
         self.assertGreater(result["manifest"]["pageCount"], 1)
         self.assertTrue(all(page["usedHeightPx"] <= page["contentHeightPx"] + 1 for page in result["manifest"]["pages"]))
@@ -234,9 +234,10 @@ class A4PaginationTest(unittest.TestCase):
         self.assertEqual(1, result["manifest"]["blockToPage"]["finding"])
 
     def test_duplicate_titles_and_unjustified_repeated_primary_structures_fail(self):
-        duplicate_block = block("two")
-        duplicate_block["content"]["title"] = "Block one"
-        duplicate = [component("one", blocks=[block("one"), duplicate_block])]
+        first = component("one")
+        second = component("two")
+        second["payload"]["blocks"][0]["content"]["title"] = "  BLOCK one  "
+        duplicate = [first, second]
         process = subprocess.run(
             ["node", str(RENDER)], cwd=ROOT, input=json.dumps({"title": "Duplicate", "components": duplicate}),
             capture_output=True, text=True,
@@ -244,7 +245,7 @@ class A4PaginationTest(unittest.TestCase):
         self.assertNotEqual(0, process.returncode)
         self.assertIn("REPORT_DUPLICATE_TITLE", process.stderr)
 
-        repeated = [component("one", primary_structure="claim-stack"), component("two", primary_structure="claim-stack")]
+        repeated = [component("one"), component("two")]
         process = subprocess.run(
             ["node", str(RENDER)], cwd=ROOT, input=json.dumps({"title": "Repeated", "components": repeated}),
             capture_output=True, text=True,
@@ -253,7 +254,6 @@ class A4PaginationTest(unittest.TestCase):
         self.assertIn("REPORT_REPEATED_PRIMARY_STRUCTURE", process.stderr)
 
         repeated[1]["payload"]["repeat_reason"] = "Same decision matrix continued across a semantic table boundary"
-        repeated[1]["payload"]["repeat_approved"] = True
         self.assertEqual(1, render({"title": "Approved repeat", "components": repeated})["manifest"]["pageCount"])
 
     def test_file_mode_writes_html_and_pagination_manifest(self):

@@ -122,6 +122,8 @@ def _component_for_block(block, section, index, report, metrics):
     if displays:
         block["content"]["visual"] = "、".join(displays)
     base = {"id": f"{section['id']}-item-{index:02d}", "title": block["content"]["title"], "blocks": [block]}
+    if index > 1 and section.get("repeat_reason"):
+        base["repeat_reason"] = section["repeat_reason"]
     source_groups = [{"source_id": binding["source_id"], "locators": binding["locators"]}
                      for binding in block["source_bindings"]]
     semantic_type = block["content"].get("semantic_type")
@@ -161,10 +163,9 @@ def render_document(report, task):
             "qualification": claim.get("limitation") or "需要结合正文边界判断",
         })
     answer = answer_claims[0]["statement"] if answer_claims else report["executive_summary"].get("question", "")
-    reasons = [item["text"] for item in summary_items[:3]]
-    while len(reasons) < 3:
-        reasons.append(["适用边界仍需核实", "关键风险仍需闭环", "继续条件仍需验证"][len(reasons)])
-    decision_summary = report["executive_summary"].get("decision_structure", {})
+    decision_summary = report["executive_summary"].get("decision_structure")
+    if not isinstance(decision_summary, dict):
+        raise to_report.ReportError("REPORT_COMPONENT_CONTRACT", "executive_summary.decision_structure is required; storyline must supply all six decision parts")
     components = [
         {"kind": "cover", "payload": {"id": "cover", "title": report["metadata"]["title"], "layout_id": "overview-detail",
                                          "title_groups": [{"title": report["metadata"]["title"]}], "blocks": []}},
@@ -174,12 +175,12 @@ def render_document(report, task):
         {"kind": "executive-summary", "payload": {"id": "executive-summary", "title": "执行摘要", "layout_id": "overview-detail", "blocks": [],
                                                      "answers": [answer] if answer else [],
                                                      "summary_items": summary_items,
-                                                     "decision_level": decision_summary.get("decision_level") or answer,
-                                                     "decisive_reasons": decision_summary.get("decisive_reasons") or reasons,
-                                                     "largest_upside": decision_summary.get("largest_upside") or "通过受控验证保留可行机会",
-                                                     "largest_risk": decision_summary.get("largest_risk") or "证据不足时过早扩大投入",
-                                                     "immediate_actions": decision_summary.get("immediate_actions") or ["完成关键证据缺口验证"],
-                                                     "thresholds": decision_summary.get("thresholds") or {"continue": "关键证据达到正文约定门槛", "stop": "关键证据未达到正文约定门槛"}}},
+                                                     "decision_level": decision_summary.get("decision_level"),
+                                                     "decisive_reasons": decision_summary.get("decisive_reasons"),
+                                                     "largest_upside": decision_summary.get("largest_upside"),
+                                                     "largest_risk": decision_summary.get("largest_risk"),
+                                                     "immediate_actions": decision_summary.get("immediate_actions"),
+                                                     "thresholds": decision_summary.get("thresholds")}},
     ]
     for section_index, section in enumerate(report["sections"], 1):
         chapter_id = f"chapter-{section_index:02d}"
@@ -478,11 +479,14 @@ def cmd_review(args):
 
 def storyline_check(task):
     script = SKILL_DIR.parent / "core-storyline/scripts/storyline.py"
-    result = subprocess.run([sys.executable, str(script), "check", str(task), "--json"], capture_output=True, text=True)
+    env = dict(os.environ, ALLEN_RUNTIME=str(SKILL_DIR.parent))
+    result = subprocess.run([sys.executable, str(script), "check", str(task), "--json"], capture_output=True, text=True, env=env)
     try:
         value = json.loads(result.stdout)
-        return {"name": "storyline", "result": "passed" if value["passed"] else "failed",
-                "detail": f"errors={len(value['errors'])}; warnings={len(value['warnings'])}"}
+        detail = f"errors={len(value['errors'])}; warnings={len(value['warnings'])}"
+        if value["errors"]:
+            detail += "; " + str(value["errors"][0])[:350]
+        return {"name": "storyline", "result": "passed" if value["passed"] else "failed", "detail": detail}
     except (ValueError, KeyError):
         return {"name": "storyline", "result": "failed", "detail": (result.stdout + result.stderr)[-500:]}
 
@@ -566,6 +570,8 @@ def cmd_package(args):
     print(f"已打包 A4 报告：{out}")
     print(f"已打包证据包：{deliverables / 'evidence-package.zip'}")
     print(f"统一验收状态：{entry['status']}")
+    if entry["status"] == "failed":
+        print("REPORT_ACCEPTANCE_FAILED: " + "；".join(entry["failures"]), file=sys.stderr)
     return 0 if entry["status"] == "passed" else 1
 
 

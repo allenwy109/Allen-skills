@@ -26,7 +26,18 @@
    "executive_summary": {"type": "object", "required": true, "fields": {
     "question": {"type": "string", "required": true},
     "answer_claim_refs": {"type": "array", "required": true, "items": {"type": "string"}},
-    "a_card_refs": {"type": "array", "required": true, "items": {"type": "string"}}
+    "a_card_refs": {"type": "array", "required": true, "items": {"type": "string"}},
+    "decision_structure": {"type": "object", "required": true, "fields": {
+     "decision_level": {"type": "string", "required": true},
+     "decisive_reasons": {"type": "array", "required": true, "min_items": 3, "max_items": 3, "items": {"type": "string"}},
+     "largest_upside": {"type": "string", "required": true},
+     "largest_risk": {"type": "string", "required": true},
+     "immediate_actions": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}},
+     "thresholds": {"type": "object", "required": true, "fields": {
+      "continue": {"type": "string", "required": true},
+      "stop": {"type": "string", "required": true}
+     }}
+    }}
    }},
    "registry": {"type": "object", "required": true, "fields": {
     "claim_ids": {"type": "array", "required": true, "items": {"type": "string"}},
@@ -44,6 +55,7 @@
    "sections": {"type": "array", "required": true, "items": {"type": "object", "fields": {
     "id": {"type": "string", "required": true},
     "title": {"type": "string", "required": true},
+    "repeat_reason": {"type": "string"},
     "blocks": {"type": "array", "required": true, "items": {"type": "object", "fields": {
      "id": {"type": "string", "required": true},
      "kind": {"type": "string", "enum": "block_kind", "required": true},

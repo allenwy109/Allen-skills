@@ -64,9 +64,9 @@ function renderedExhibitIssues(html, location) {
 }
 
 function normalizedText(value) {
-  return String(value || '').normalize('NFKC').replaceAll('戶', '户').replaceAll('⻓', '长').replaceAll('⻅', '见')
+  return String(value || '').normalize('NFKC').replaceAll('戶', '户').replaceAll('⻩', '黄').replaceAll('⺠', '民').replaceAll('⻓', '长').replaceAll('⻅', '见')
     .replaceAll('⻚', '页').replaceAll('⻆', '角').replaceAll('⻔', '门').replaceAll('⻛', '风').replaceAll('⻬', '齐')
-    .replace(/‒/g, '–').replace(/[，,]/g, ',').replace(/[；;]/g, ';').replace(/[：:]/g, ':').replace(/[｜|]/g, '|').replace(/\s+/g, ' ').trim()
+    .replaceAll('客戶', '客户').replace(/[‒–—―]/g, '–').replace(/[，,]/g, ',').replace(/[；;]/g, ';').replace(/[：:]/g, ':').replace(/[｜|]/g, '|').replace(/\s+/g, ' ').trim()
     .replace(/(?<=\p{Script=Han})\s+(?=[\p{Script=Han}\d])|(?<=\d)\s+(?=\p{Script=Han})/gu, '')
     .replace(/-\s+(?=[A-Za-z0-9])/g, '-');
 }
@@ -366,8 +366,9 @@ function evaluate(evidence) {
   warnings.sort(sorter);
   const pageScores = paginationPages.map(page => {
     const issues = [...blocking, ...warnings].filter(item => item.location === page.id);
-    const unusedRatio = finiteNumber(page.usedHeightPx) && finiteNumber(page.contentHeightPx) && page.contentHeightPx > 0 ? Math.max(0, 1 - page.usedHeightPx / page.contentHeightPx) : 0;
-    return { id: page.id, score: issues.length * 100 + Math.round(unusedRatio * 1000) / 1000, issueCodes: issues.map(item => item.code).sort(), unusedRatio: Math.round(unusedRatio * 1000) / 1000 };
+    const measuredUnusedRatio = finiteNumber(page.usedHeightPx) && finiteNumber(page.contentHeightPx) && page.contentHeightPx > 0 ? Math.max(0, 1 - page.usedHeightPx / page.contentHeightPx) : 0;
+    const unusedRatio = String(page.whitespaceReason || '').trim().length >= 24 ? 0 : measuredUnusedRatio;
+    return { id: page.id, score: issues.length * 100 + Math.round(unusedRatio * 1000) / 1000, issueCodes: issues.map(item => item.code).sort(), unusedRatio: Math.round(measuredUnusedRatio * 1000) / 1000 };
   }).sort((left, right) => right.score - left.score || left.id.localeCompare(right.id));
   return {
     schemaVersion: '1.0',
@@ -392,4 +393,4 @@ if (require.main === module) {
   try { main(); } catch (error) { process.stderr.write(`${error.code || 'REPORT_QA_FAILED'}: ${error.message}\n`); process.exit(1); }
 }
 
-module.exports = { A4, COVERAGE_SETS, MEDIA_TOLERANCE_MM, evaluate, evidenceErrors, deriveDifferences, validateExhibitDeclaration, renderedExhibitIssues };
+module.exports = { A4, COVERAGE_SETS, MEDIA_TOLERANCE_MM, evaluate, evidenceErrors, deriveDifferences, validateExhibitDeclaration, renderedExhibitIssues, normalizedText, textFingerprint };

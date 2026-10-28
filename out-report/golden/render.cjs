@@ -22,6 +22,9 @@ const replaceExact = (text, placeholder, value) => {
   if (count(text, placeholder) !== 1) throw new Error(`${placeholder} must occur exactly once`);
   return text.replace(placeholder, value);
 };
+const stablePageId = index => `page-${String(index + 1).padStart(3, "0")}`;
+const canonicalJson = value => JSON.stringify(value, (_, current) => current && typeof current === 'object' && !Array.isArray(current)
+  ? Object.fromEntries(Object.entries(current).sort(([left], [right]) => left.localeCompare(right))) : current);
 
 // Resolve every dependency and validate every maintenance input before writing build output.
 for (const value of Object.values(files)) if (!fs.existsSync(value)) throw new Error(`Missing source: ${value}`);
@@ -82,7 +85,18 @@ fs.writeFileSync(compiledHtml, html);
       const overlap = (a, b) => a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
       if ((source && folio && overlap(source.getBoundingClientRect(), folio.getBoundingClientRect())) || (source && takeaway && overlap(source.getBoundingClientRect(), takeaway.getBoundingClientRect()))) sourceFooterOverlapPageIds.push(page.dataset.pageId);
     }
-    return {pageCount: pages.length, pageIds: pages.map(p => p.dataset.pageId), overflowPageIds, sourceFooterOverlapPageIds};
+    return {pageCount: pages.length, pageIds: pages.map(p => p.dataset.pageId), overflowPageIds, sourceFooterOverlapPageIds,
+      pages: pages.map((p, index) => {
+        const box = p.getBoundingClientRect(), style = getComputedStyle(p);
+        const top = box.top + parseFloat(style.paddingTop), contentHeight = box.height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+        const flow = [...p.children].filter(node => !node.matches('.folio,.source,.citation-markers') && !['absolute', 'fixed'].includes(getComputedStyle(node).position));
+        const used = flow.length ? Math.max(...flow.map(node => node.getBoundingClientRect().bottom)) - top : 0;
+        const role = p.dataset.pageRole;
+        const whitespaceReason = role === 'cover' ? 'Cover isolates the decision title and publication identity' : role === 'toc' ? 'Contents page preserves a short navigational reading path' : undefined;
+        return {id: `page-${String(index + 1).padStart(3, '0')}`, number: index + 1, intentionalBlank: false,
+          usedHeightPx: Math.max(0, Math.ceil(used * 1000) / 1000), contentHeightPx: Math.ceil(contentHeight * 1000) / 1000,
+          ...(whitespaceReason ? {whitespaceReason} : {}), geometry: {widthMm: 210, heightMm: 297}};
+      })};
   });
   const expectedIds = report.pages.map(p => p.id);
   if (JSON.stringify(layoutQa.pageIds) !== JSON.stringify(expectedIds)) throw new Error("DOM page IDs differ from manifest");
@@ -120,6 +134,45 @@ fs.writeFileSync(compiledHtml, html);
     accessibility: candidate.accessibility,
   };
   candidate.candidateDigest = shaBuffer(JSON.stringify(digestInput));
+  const qaExport = path.join(build, "qa-export");
+  fs.rmSync(qaExport, {recursive: true, force: true});
+  const a4Scripts = [path.join(here, "../scripts/a4"), path.join(process.cwd(), "out-report/scripts/a4"), path.join(runtime, "out-report/scripts/a4")]
+    .find(candidate => fs.existsSync(path.join(candidate, "export.cjs")));
+  if (!a4Scripts) throw new Error("A4 QA scripts not found");
+  cp.execFileSync("node", [path.join(a4Scripts, "export.cjs"), compiledHtml, qaExport], {
+    env: {...process.env, ALLEN_RUNTIME: runtime}, stdio: "pipe",
+  });
+  const geometry = JSON.parse(fs.readFileSync(path.join(qaExport, "geometry-manifest.json"), "utf8"));
+  const media = JSON.parse(fs.readFileSync(path.join(qaExport, "media-manifest.json"), "utf8"));
+  const remapPages = pages => pages.map((page, index) => ({...page, id: stablePageId(index)}));
+  geometry.pages = remapPages(geometry.pages);
+  media.htmlPages = remapPages(media.htmlPages);
+  media.pdfPages = remapPages(media.pdfPages);
+  media.htmlPages.forEach((page, index) => { page.role = report.pages[index].role === 'references' ? 'references' : 'body'; });
+  media.appendixDestinations = [...html.matchAll(/class="ref"\s+id="([^"]+)"/g)].map(match => match[1]);
+  const approvedPages = JSON.parse(fs.readFileSync(path.join(here, "approved-page-baseline.json"), "utf8")).artifacts.pagePngSha256;
+  const candidatePages = Object.fromEntries(pngs.map((name, index) => [stablePageId(index), shaFile(path.join(build, name))]));
+  const pageSequence = value => Object.entries(value).map(([id, digest]) => ({id, digest}));
+  const differences = [...new Set([...Object.keys(approvedPages), ...Object.keys(candidatePages)])].sort().flatMap(pageId => {
+    const before = approvedPages[pageId] ?? null, after = candidatePages[pageId] ?? null;
+    return before === after ? [] : [{page: pageId, kind: before === null ? "added" : after === null ? "removed" : "changed", baseline: before, candidate: after}];
+  });
+  const regression = {
+    status: differences.length ? "different" : "identical",
+    baselineDigest: shaBuffer(canonicalJson(approvedPages)), candidateDigest: shaBuffer(canonicalJson(candidatePages)),
+    baselinePages: pageSequence(approvedPages), candidatePages: pageSequence(candidatePages), differences,
+    differenceDigest: shaBuffer(canonicalJson(differences)), baselineUpdated: false,
+  };
+  const emptyCoverage = Object.fromEntries(["claims", "a_cards", "panels", "relations", "metrics", "sources"].map(key => [key, []]));
+  const qaEvidence = {pagination: {pageCount: layoutQa.pageCount, maximumUnusedRatio: .56, pages: layoutQa.pages}, geometry,
+    coverage: {input: emptyCoverage, output: emptyCoverage}, media, regression};
+  const qaProcess = cp.spawnSync("node", [path.join(a4Scripts, "qa.cjs")], {input: JSON.stringify(qaEvidence), encoding: "utf8"});
+  if (qaProcess.status !== 0) throw new Error(`Golden QA execution failed: ${qaProcess.stderr}`);
+  const qaResult = JSON.parse(qaProcess.stdout);
+  fs.writeFileSync(path.join(here, "qa-evidence.json"), JSON.stringify(qaEvidence, null, 2) + "\n");
+  fs.writeFileSync(path.join(here, "qa-result.json"), JSON.stringify(qaResult, null, 2) + "\n");
+  fs.rmSync(qaExport, {recursive: true, force: true});
+  if (baseline.status === "approved" && qaResult.status !== "passed") throw new Error(`Approved golden must pass QA: ${JSON.stringify(qaResult.blocking)}`);
   if (baseline.status === "approved" && baseline.candidateDigest !== candidate.candidateDigest) {
     console.error(`approved baseline does not match the rendered candidate (approved=${baseline.candidateDigest}; rendered=${candidate.candidateDigest}); approval was not overwritten`);
     process.exit(2);

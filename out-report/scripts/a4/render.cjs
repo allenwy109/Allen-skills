@@ -195,20 +195,24 @@ async function renderDocument(document) {
       seen.add(key);
     }
   }
-  for (const component of document.components) {
+  {
     const seen = new Set();
-    for (const title of ((component && component.payload && component.payload.blocks) || []).map(block => String(block && block.content && block.content.title || '').trim()).filter(Boolean)) {
+    for (const title of document.components.flatMap(component => ((component && component.payload && component.payload.blocks) || [])
+      .map(block => String(block && block.content && block.content.title || '').trim())).filter(Boolean)) {
       const key = title.normalize('NFKC').toLocaleLowerCase();
-      if (seen.has(key)) throw reportError('REPORT_DUPLICATE_TITLE', `block title is duplicated in ${component.payload.id}: ${title}`);
+      if (seen.has(key)) throw reportError('REPORT_DUPLICATE_TITLE', `block title is duplicated: ${title}`);
       seen.add(key);
     }
   }
   for (let index = 1; index < document.components.length; index += 1) {
-    const previous = document.components[index - 1].payload || {};
-    const current = document.components[index].payload || {};
-    if (current.primary_structure && current.primary_structure === previous.primary_structure &&
-        (current.repeat_approved !== true || String(current.repeat_reason || '').trim().length < 24)) {
-      throw reportError('REPORT_REPEATED_PRIMARY_STRUCTURE', `${current.id || index} repeats ${current.primary_structure} without a specific reason`);
+    const previousComponent = document.components[index - 1];
+    const currentComponent = document.components[index];
+    const previous = previousComponent.payload || {};
+    const current = currentComponent.payload || {};
+    const previousStructure = `${previousComponent.kind}:${previous.layout_id || ''}`;
+    const currentStructure = `${currentComponent.kind}:${current.layout_id || ''}`;
+    if (currentStructure === previousStructure && String(current.repeat_reason || '').trim().length < 24) {
+      throw reportError('REPORT_REPEATED_PRIMARY_STRUCTURE', `${current.id || index} repeats ${currentStructure} without a specific reason`);
     }
   }
   const context = citationContext(document);

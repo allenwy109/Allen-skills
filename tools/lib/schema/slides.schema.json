@@ -48,6 +48,17 @@
       "constraints": {"type": "string", "required": true},
       "success_criteria": {"type": "string", "required": true}}},
      "answer_claim_refs": {"type": "array", "items": {"type": "string", "pattern": "^cl-[0-9]{4,}$"}},
+     "decision_structure": {"type": "object", "required": true, "fields": {
+      "decision_level": {"type": "string", "required": true},
+      "decisive_reasons": {"type": "array", "required": true, "min_items": 3, "max_items": 3, "items": {"type": "string"}},
+      "largest_upside": {"type": "string", "required": true},
+      "largest_risk": {"type": "string", "required": true},
+      "immediate_actions": {"type": "array", "required": true, "min_items": 1, "items": {"type": "string"}},
+      "thresholds": {"type": "object", "required": true, "fields": {
+       "continue": {"type": "string", "required": true},
+       "stop": {"type": "string", "required": true}
+      }}
+     }},
      "cover": {"type": "object", "fields": {
       "subtitle": {"type": "string"},
       "producer": {"type": "string"},

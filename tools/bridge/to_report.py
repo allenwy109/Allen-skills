@@ -423,7 +423,7 @@ def build(task, slides, sidecar=None, bibliography_policy=None):
                 "relation_refs": rel_refs,
                 "identity": sorted({claims[cid]["kind"] for cid in panel_claims}),
                 "content": {k: v for k, v in {
-                    "title": slide["action_title"], "subtitle": slide.get("subtitle"),
+                    "title": slide["action_title"] if panel["id"] == slide.get("anchor_panel") else panel["purpose"], "subtitle": slide.get("subtitle"),
                     "purpose": panel["purpose"], "form": panel["form"],
                     "relationship": panel["relationship"], "reason": panel["reason"],
                     "anchor": panel["id"] == slide.get("anchor_panel"),
@@ -441,8 +441,11 @@ def build(task, slides, sidecar=None, bibliography_policy=None):
             output_sources.update(panel_sources)
             output_panels.add(panel["id"])
         output_relations.update(r["id"] for r in relations)
-        sections.append({"id": f"section-{index:02d}", "title": slide.get("section") or slide["action_title"],
-                         "blocks": blocks, "relations": relations})
+        section = {"id": f"section-{index:02d}", "title": slide.get("section") or slide["action_title"],
+                   "blocks": blocks, "relations": relations}
+        if slide.get("visual_intent", {}).get("repetition_reason"):
+            section["repeat_reason"] = slide["visual_intent"]["repetition_reason"]
+        sections.append(section)
 
     expected = {
         "claims": sorted(set(claim_refs)), "a_cards": a_cards, "panels": sorted(panel_ids),
@@ -476,7 +479,8 @@ def build(task, slides, sidecar=None, bibliography_policy=None):
                                         "bibliography_policy": bibliography_policy or "evidence_package",
                                         "client_citations": "compact"}.items() if v is not None},
         "executive_summary": {"question": deck.get("brief", {}).get("question", deck["title"]),
-                              "answer_claim_refs": sorted(set(answer_claim_refs)), "a_card_refs": list(a_cards)},
+                              "answer_claim_refs": sorted(set(answer_claim_refs)), "a_card_refs": list(a_cards),
+                              "decision_structure": deck["decision_structure"]},
         "registry": {"claim_ids": sorted(set(expected["claims"]) | set(expected["answer_claims"])),
                      "metric_ids": list(expected["metrics"]),
                      "source_ids": list(expected["sources"]), "card_ids": list(expected["a_cards"]),

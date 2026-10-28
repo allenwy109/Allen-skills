@@ -125,6 +125,17 @@ class A4OutReportPipelineTest(unittest.TestCase):
             self.assertEqual(["应否进入该市场？"], summary["payload"]["answers"])
             self.assertEqual([], summary["payload"]["summary_items"])
 
+    def test_render_document_rejects_missing_decision_structure_without_synthesizing_copy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            task = make_task(temporary)
+            slides = json.loads((task / "07_storyline/slides.json").read_text(encoding="utf-8"))
+            report, _ = out_report.to_report.build(task, slides)
+            report["executive_summary"].pop("decision_structure")
+            with self.assertRaises(out_report.to_report.ReportError) as raised:
+                out_report.render_document(report, task)
+            self.assertEqual("REPORT_COMPONENT_CONTRACT", raised.exception.code)
+            self.assertIn("decision_structure", str(raised.exception))
+
     def test_explicit_full_bibliography_reaches_rendered_document(self):
         with tempfile.TemporaryDirectory() as temporary:
             task = make_task(temporary)
