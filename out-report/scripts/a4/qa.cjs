@@ -66,7 +66,9 @@ function renderedExhibitIssues(html, location) {
 function normalizedText(value) {
   return String(value || '').normalize('NFKC').replaceAll('戶', '户').replaceAll('⻩', '黄').replaceAll('⺠', '民').replaceAll('⻓', '长').replaceAll('⻅', '见')
     .replaceAll('⻚', '页').replaceAll('⻆', '角').replaceAll('⻔', '门').replaceAll('⻛', '风').replaceAll('⻬', '齐')
-    .replaceAll('客戶', '客户').replace(/[‒–—―]/g, '–').replace(/[，,]/g, ',').replace(/[；;]/g, ';').replace(/[：:]/g, ':').replace(/[｜|]/g, '|').replace(/\s+/g, ' ').trim()
+    .replaceAll('⻜', '飞').replaceAll('客戶', '客户').replace(/[‒–—―]/g, '–').replace(/[，,]/g, ',').replace(/[；;]/g, ';').replace(/[：:]/g, ':').replace(/[｜|]/g, '|')
+    .replace(/[。．]/g, '.').replace(/[？?]/g, '?').replace(/[！!]/g, '!').replace(/[（(]/g, '(').replace(/[）)]/g, ')')
+    .replace(/[“”„]/g, '"').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim()
     .replace(/(?<=\p{Script=Han})\s+(?=[\p{Script=Han}\d])|(?<=\d)\s+(?=\p{Script=Han})/gu, '')
     .replace(/-\s+(?=[A-Za-z0-9])/g, '-');
 }
@@ -76,7 +78,11 @@ function digest(value) {
 }
 
 function textFingerprint(value) {
-  return normalizedText(value).replace(/\s+/g, '');
+  const text = normalizedText(value);
+  const marker = /(?<![A-Za-z0-9])(\d+)[.)]\s*(?=\p{L})/gu;
+  const numbers = [...text.matchAll(marker)].map(match => Number(match[1]));
+  const orderedMarkers = numbers.length >= 2 && numbers.every((number, index) => number === index + 1);
+  return (orderedMarkers ? text.replace(marker, '') : text).replace(/\s+/g, '');
 }
 
 function canonicalJson(value) {
@@ -258,7 +264,7 @@ function evaluate(evidence) {
   blocking.push(...evidenceErrors(evidence));
 
   const maximumUnusedRatio = finiteNumber(pagination.maximumUnusedRatio) ? pagination.maximumUnusedRatio : 0.56;
-  const whitespaceJustifications = new Map([['cover', 'cover-identity'], ['toc', 'toc-navigation'], ['section-divider', 'section-transition']]);
+  const whitespaceJustifications = new Map([['cover', 'cover-identity'], ['cover-toc', 'cover-identity'], ['toc', 'toc-navigation'], ['section-divider', 'section-transition']]);
   const mediaRoles = new Map(((evidence.media && evidence.media.htmlPages) || []).map(page => [page.id, page.role]));
 
   for (const page of paginationPages) {

@@ -116,6 +116,16 @@ class A4PaginationTest(unittest.TestCase):
         self.assertNotIn("{{PAGE:", result["html"])
         self.assertIn('data-cross-reference="finding">1</span>', result["html"])
 
+    def test_cover_and_toc_share_authoritative_cover_toc_role_and_whitespace_reason(self):
+        cover = {"kind": "cover", "payload": {"id": "cover", "title": "Report", "layout_id": "overview-detail",
+                  "title_groups": [{"title": "Report"}], "blocks": []}}
+        toc = {"kind": "toc", "payload": {"id": "toc", "title": "目录", "layout_id": "full-evidence",
+                "entries": [{"title": "第一章", "destination": "cover"}], "blocks": []}}
+        result = render({"title": "Cover TOC", "components": [cover, toc]})
+        first = result["manifest"]["pages"][0]
+        self.assertEqual("cover-toc", first["role"])
+        self.assertEqual("cover-identity", first["whitespaceJustification"])
+
     def test_boundary_places_next_component_on_new_page_without_overflow(self):
         components = [component(f"c-{index}", repeat_reason="Repeated evidence cards exercise the physical page boundary only", repeat_approved=True) for index in range(1, 9)]
         result = render({"title": "Boundary", "components": components})

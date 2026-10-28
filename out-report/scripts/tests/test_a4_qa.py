@@ -123,11 +123,34 @@ class A4QualityGateTest(unittest.TestCase):
         self.assertIn("REPORT_NONFUNCTIONAL_WHITESPACE", {item["code"] for item in result["blocking"]})
         self.assertGreaterEqual(result["audit"]["worstPage"]["score"], .9)
 
+    def test_cover_toc_whitespace_requires_matching_authoritative_dom_role(self):
+        evidence = good_evidence()
+        evidence["pagination"]["pages"][0].update(
+            usedHeightPx=314, role="cover-toc", whitespaceJustification="cover-identity")
+        evidence["media"]["htmlPages"][0]["role"] = "cover-toc"
+        self.assertNotIn("REPORT_NONFUNCTIONAL_WHITESPACE", {
+            item["code"] for item in run_qa(evidence)["blocking"]})
+
+        evidence["media"]["htmlPages"][0]["role"] = "body"
+        self.assertIn("REPORT_NONFUNCTIONAL_WHITESPACE", {
+            item["code"] for item in run_qa(evidence)["blocking"]})
+
     def test_text_fingerprint_preserves_normalized_reading_order(self):
         evidence = good_evidence()
         evidence["media"]["htmlPages"][0]["text"] = "A B C"
         evidence["media"]["pdfPages"][0]["text"] = "C B A"
         self.assertIn("REPORT_TEXT_MISMATCH", {item["code"] for item in run_qa(evidence)["blocking"]})
+
+        evidence["media"]["htmlPages"][0]["text"] = "第一项 第二项 第三项"
+        evidence["media"]["pdfPages"][0]["text"] = "第一项 第三项"
+        self.assertIn("REPORT_TEXT_MISMATCH", {item["code"] for item in run_qa(evidence)["blocking"]})
+
+    def test_text_manifest_tolerates_pdf_extractor_punctuation_lines_and_list_markers(self):
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0]["text"] = "客户（首轮）。\n飞轮？ 第一项；第二项"
+        evidence["media"]["pdfPages"][0]["text"] = "客户(首轮). ⻜轮? 1. 第一项; 2. 第二项"
+        self.assertNotIn("REPORT_TEXT_MISMATCH", {
+            item["code"] for item in run_qa(evidence)["blocking"]})
 
         evidence["media"]["htmlPages"][0]["text"] = "First paragraph. Second paragraph."
         evidence["media"]["pdfPages"][0]["text"] = "Second paragraph. First paragraph."

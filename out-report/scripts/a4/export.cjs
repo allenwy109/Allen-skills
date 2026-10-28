@@ -140,10 +140,11 @@ function pdfBackend() {
       visible.removeAttribute('style');
       visible.remove();
       const kinds = [...new Set([...visible.querySelectorAll('[data-component-kind]')].map(node => node.dataset.componentKind))];
-      const role = visible.querySelector('[data-component-kind="references-appendix"]') ? 'references'
-        : kinds.length === 1 && kinds[0] === 'cover' ? 'cover'
+      const role = kinds.includes('cover') && kinds.every(kind => ['cover', 'toc'].includes(kind))
+        ? (kinds.includes('toc') ? 'cover-toc' : 'cover')
         : kinds.length === 1 && kinds[0] === 'toc' ? 'toc'
-        : kinds.length === 1 && kinds[0] === 'section-title' ? 'section-divider' : 'body';
+        : kinds.length === 1 && kinds[0] === 'section-title' ? 'section-divider'
+        : kinds.length === 1 && kinds[0] === 'references-appendix' ? 'references' : 'body';
       const appendixDestinations = role === 'references'
         ? [...visible.querySelectorAll('[data-source-record][id], .ref[id]')].map(node => node.id)
         : [...section.querySelectorAll('.compact-source-anchor[data-source-record][id]')].map(node => node.id);

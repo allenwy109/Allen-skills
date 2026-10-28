@@ -176,6 +176,19 @@ function renderPages(pages, navigation, title, css, citationContext, citationMod
   return html;
 }
 
+function pageRole(items) {
+  const kinds = [...new Set(items.map(item => item.kind))];
+  if (kinds.includes('cover') && kinds.every(kind => ['cover', 'toc'].includes(kind))) return kinds.includes('toc') ? 'cover-toc' : 'cover';
+  if (kinds.length === 1 && kinds[0] === 'toc') return 'toc';
+  if (kinds.length === 1 && kinds[0] === 'section-title') return 'section-divider';
+  if (kinds.length === 1 && kinds[0] === 'references-appendix') return 'references';
+  return 'body';
+}
+
+function whitespaceJustification(role) {
+  return ({ cover: 'cover-identity', 'cover-toc': 'cover-identity', toc: 'toc-navigation', 'section-divider': 'section-transition' })[role];
+}
+
 async function renderDocument(document) {
   if (!document || !Array.isArray(document.components)) throw reportError('REPORT_DOCUMENT_INVALID', 'components must be an array');
   const componentIds = document.components.map(component => component && component.payload && component.payload.id);
@@ -254,13 +267,17 @@ async function renderDocument(document) {
     componentId: item.originalId, page: page.number, startRow: item.startRow, endRow: item.endRow, rowCount: item.rowCount,
   })));
   const minimumFontPt = measured.items.length ? Math.min(...measured.items.map(item => item.minimumFontPt)) : 10.75;
-  const manifestPages = pages.map(page => ({
-    id: page.id, number: page.number, intentionalBlank: page.intentionalBlank,
-    role: (() => { const kinds = [...new Set(page.items.map(item => item.kind))]; return kinds.length === 1 && kinds[0] === 'cover' ? 'cover' : kinds.length === 1 && kinds[0] === 'toc' ? 'toc' : kinds.length === 1 && kinds[0] === 'section-title' ? 'section-divider' : kinds.length === 1 && kinds[0] === 'references-appendix' ? 'references' : 'body'; })(),
-    usedHeightPx: Math.round(page.usedHeightPx * 1000) / 1000,
-    contentHeightPx: measured.contentHeightPx,
-    geometry: PAGE,
-  }));
+  const manifestPages = pages.map(page => {
+    const role = pageRole(page.items);
+    const justification = whitespaceJustification(role);
+    return {
+      id: page.id, number: page.number, intentionalBlank: page.intentionalBlank, role,
+      ...(justification ? { whitespaceJustification: justification } : {}),
+      usedHeightPx: Math.round(page.usedHeightPx * 1000) / 1000,
+      contentHeightPx: measured.contentHeightPx,
+      geometry: PAGE,
+    };
+  });
   const pagesWithTable = pages.filter(page => page.items.some(item => item.table)).map(page => ({
     page: page.number, tableHeaderCount: page.items.filter(item => item.table).length,
   }));
