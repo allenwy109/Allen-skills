@@ -1,0 +1,28 @@
+{
+  "version": "1.0.0",
+  "comment": "Per-subquestion research coverage and saturation contract.",
+  "root": {
+    "type": "object",
+    "fields": {
+      "version": {"type": "integer", "required": true, "min": 1, "max": 1},
+      "subquestions": {"type": "array", "required": true, "items": {
+        "type": "object",
+        "fields": {
+          "id": {"type": "string", "required": true},
+          "question": {"type": "string", "required": true},
+          "material_pain": {"type": "boolean", "required": true},
+          "first_party_sources": {"type": "array", "required": true, "items": {"type": "string"}},
+          "user_voice": {"type": "array", "required": true, "items": {"type": "string"}},
+          "behavioral": {"type": "array", "required": true, "items": {"type": "string"}},
+          "transaction": {"type": "array", "required": true, "items": {"type": "string"}},
+          "counter_evidence": {"type": "array", "required": true, "items": {"type": "string"}},
+          "geography": {"type": "string", "required": true},
+          "time_period": {"type": "string", "required": true},
+          "saturated": {"type": "boolean", "required": true},
+          "limitations": {"type": "array", "required": true, "items": {"type": "string"}},
+          "unresolved_gaps": {"type": "array", "required": true, "items": {"type": "string"}}
+        }
+      }}
+    }
+  }
+}

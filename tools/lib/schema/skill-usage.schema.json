@@ -1,0 +1,26 @@
+{
+  "version": "1.0.0",
+  "comment": "Actual skill and method execution contract.",
+  "enums": {
+    "skill_status": {"values": ["adopted", "downgraded", "rejected"], "labels": {"adopted": "采用", "downgraded": "降级", "rejected": "拒绝"}},
+    "disposition": {"values": ["accepted", "needs_revision", "rejected"], "labels": {"accepted": "接受", "needs_revision": "需修改", "rejected": "拒绝"}}
+  },
+  "root": {
+    "type": "object",
+    "fields": {
+      "version": {"type": "integer", "required": true, "min": 1, "max": 1},
+      "skills": {"type": "array", "required": true, "items": {
+        "type": "object",
+        "fields": {
+          "skill": {"type": "string", "required": true},
+          "method_cards": {"type": "array", "required": true, "items": {"type": "string"}},
+          "prerequisites": {"type": "array", "required": true, "items": {"type": "string"}},
+          "status": {"type": "string", "required": true, "enum": "skill_status"},
+          "inputs": {"type": "array", "required": true, "items": {"type": "string"}},
+          "outputs": {"type": "array", "required": true, "items": {"type": "string"}},
+          "project_manager_disposition": {"type": "string", "required": true, "enum": "disposition"}
+        }
+      }}
+    }
+  }
+}
