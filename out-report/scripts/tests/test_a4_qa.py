@@ -152,6 +152,24 @@ class A4QualityGateTest(unittest.TestCase):
         self.assertNotIn("REPORT_TEXT_MISMATCH", {
             item["code"] for item in run_qa(evidence)["blocking"]})
 
+    def test_text_manifest_tolerates_multiple_reset_ordered_lists_only(self):
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0]["text"] = "方法 调研 建模 复核 限制 样本 经济 合规"
+        evidence["media"]["pdfPages"][0]["text"] = (
+            "方法 1. 调研 2. 建模 3. 复核 限制 1. 样本 2. 经济 3. 合规")
+        self.assertNotIn("REPORT_TEXT_MISMATCH", {
+            item["code"] for item in run_qa(evidence)["blocking"]})
+
+        evidence["media"]["htmlPages"][0]["text"] = "版本 1. 测试，增长 2.5%，2026 年"
+        evidence["media"]["pdfPages"][0]["text"] = "版本 2. 测试,增长 2.5%,2026 年"
+        self.assertIn("REPORT_TEXT_MISMATCH", {
+            item["code"] for item in run_qa(evidence)["blocking"]})
+
+        evidence["media"]["htmlPages"][0]["text"] = "方法 调研 建模 复核"
+        evidence["media"]["pdfPages"][0]["text"] = "方法 1. 调研 2. 复核 3. 建模"
+        self.assertIn("REPORT_TEXT_MISMATCH", {
+            item["code"] for item in run_qa(evidence)["blocking"]})
+
         evidence["media"]["htmlPages"][0]["text"] = "First paragraph. Second paragraph."
         evidence["media"]["pdfPages"][0]["text"] = "Second paragraph. First paragraph."
         self.assertIn("REPORT_TEXT_MISMATCH", {item["code"] for item in run_qa(evidence)["blocking"]})

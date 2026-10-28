@@ -79,9 +79,15 @@ function digest(value) {
 
 function textFingerprint(value) {
   const text = normalizedText(value);
-  const marker = /(?<![A-Za-z0-9])(\d+)[.)]\s*(?=\p{L})/gu;
+  const marker = /(?<![A-Za-z0-9])(\d+)[.)]\s+(?=\p{L})/gu;
   const numbers = [...text.matchAll(marker)].map(match => Number(match[1]));
-  const orderedMarkers = numbers.length >= 2 && numbers.every((number, index) => number === index + 1);
+  const groups = [];
+  for (const number of numbers) {
+    if (number === 1) groups.push([number]);
+    else if (groups.length) groups[groups.length - 1].push(number);
+  }
+  const orderedMarkers = groups.length > 0 && groups.every(group =>
+    group.length >= 2 && group.every((number, index) => number === index + 1));
   return (orderedMarkers ? text.replace(marker, '') : text).replace(/\s+/g, '');
 }
 
