@@ -56,6 +56,7 @@
     "id": {"type": "string", "required": true},
     "title": {"type": "string", "required": true},
     "repeat_reason": {"type": "string"},
+    "repeat_approved": {"type": "boolean"},
     "blocks": {"type": "array", "required": true, "items": {"type": "object", "fields": {
      "id": {"type": "string", "required": true},
      "kind": {"type": "string", "enum": "block_kind", "required": true},

@@ -2,10 +2,10 @@
   "schemaVersion": "1.0",
   "status": "approved",
   "approvedBy": "codex-visual-review",
-  "approvedAt": "2026-10-28T11:33:44+10:30",
-  "candidateDigest": "b7898b149b27d18a103d84f0036d85423763b77d8f2af30f68f5f4e96908d316",
-  "changeReason": "Task 5 QA closure：A4 字号、方法页、链接、文本一致性与整册视觉复核通过；QA 最弱页 page-014 已检查",
-  "qaWorstPage": "page-014",
+  "approvedAt": "2026-10-28T17:00:00+10:30",
+  "candidateDigest": "658791735b252b33d95f220e7f30f7cfe2fdaba6edc519d0077ca9279fbd026f",
+  "changeReason": "Task 5 review closure：保留真实空白率计分并核对 QA 最弱页 page-001；页面像素未变化",
+  "qaWorstPage": "page-001",
   "contentApproval": {
     "status": "approved",
     "approvedBy": "user",
@@ -72,6 +72,14 @@
       "candidateDigest": "b7898b149b27d18a103d84f0036d85423763b77d8f2af30f68f5f4e96908d316",
       "reason": "Task 5 QA closure：A4 字号、方法页、链接、文本一致性与整册视觉复核通过；QA 最弱页 page-014 已检查",
       "observedPages": ["p01-p16 whole-book contact sheet", "page-014 QA-selected worst page", "p15 bibliography", "p16 methods and limitations"]
+    },
+    {
+      "type": "baseline-update",
+      "approvedBy": "codex-visual-review",
+      "approvedAt": "2026-10-28T17:00:00+10:30",
+      "candidateDigest": "658791735b252b33d95f220e7f30f7cfe2fdaba6edc519d0077ca9279fbd026f",
+      "reason": "Task 5 review closure：保留真实空白率计分并核对 QA 最弱页 page-001；页面像素未变化",
+      "observedPages": ["p01-p16 whole-book contact sheet", "page-001 QA-selected worst page", "p14 roadmap", "p16 methods and limitations"]
     }
   ]
 }

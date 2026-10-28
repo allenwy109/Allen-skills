@@ -10,6 +10,7 @@
         "usedHeightPx": 330.465,
         "contentHeightPx": 925.981,
         "whitespaceReason": "Cover isolates the decision title and publication identity",
+        "whitespaceRole": "cover",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297
@@ -22,6 +23,7 @@
         "usedHeightPx": 512.203,
         "contentHeightPx": 986.453,
         "whitespaceReason": "Contents page preserves a short navigational reading path",
+        "whitespaceRole": "toc",
         "geometry": {
           "widthMm": 210,
           "heightMm": 297

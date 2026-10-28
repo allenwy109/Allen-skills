@@ -124,6 +124,7 @@ def _component_for_block(block, section, index, report, metrics):
     base = {"id": f"{section['id']}-item-{index:02d}", "title": block["content"]["title"], "blocks": [block]}
     if index > 1 and section.get("repeat_reason"):
         base["repeat_reason"] = section["repeat_reason"]
+        base["repeat_approved"] = section.get("repeat_approved") is True
     source_groups = [{"source_id": binding["source_id"], "locators": binding["locators"]}
                      for binding in block["source_bindings"]]
     semantic_type = block["content"].get("semantic_type")

@@ -204,16 +204,16 @@ async function renderDocument(document) {
       seen.add(key);
     }
   }
-  for (let index = 1; index < document.components.length; index += 1) {
-    const previousComponent = document.components[index - 1];
+  let seenStructures = new Map();
+  for (let index = 0; index < document.components.length; index += 1) {
     const currentComponent = document.components[index];
-    const previous = previousComponent.payload || {};
     const current = currentComponent.payload || {};
-    const previousStructure = `${previousComponent.kind}:${previous.layout_id || ''}`;
     const currentStructure = `${currentComponent.kind}:${current.layout_id || ''}`;
-    if (currentStructure === previousStructure && String(current.repeat_reason || '').trim().length < 24) {
+    if (currentComponent.kind === 'section-title') seenStructures = new Map();
+    if (seenStructures.has(currentStructure) && !(current.repeat_approved === true && String(current.repeat_reason || '').trim().length >= 24)) {
       throw reportError('REPORT_REPEATED_PRIMARY_STRUCTURE', `${current.id || index} repeats ${currentStructure} without a specific reason`);
     }
+    seenStructures.set(currentStructure, current.id || index);
   }
   const context = citationContext(document);
   const runtime = lockedRuntime();

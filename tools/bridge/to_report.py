@@ -292,6 +292,8 @@ def build(task, slides, sidecar=None, bibliography_policy=None):
     problems = schema_check.check_document(schema_check.load("slides.schema.json"), slides, "slides.json")
     if problems:
         raise ReportError("REPORT_COVERAGE_MISMATCH", problems)
+    if not isinstance(slides.get("deck", {}).get("decision_structure"), dict):
+        raise ReportError("REPORT_COVERAGE_MISMATCH", "reading report requires deck.decision_structure with all six decision parts")
 
     ledger = Ledger(task)
     problems = []
@@ -445,6 +447,7 @@ def build(task, slides, sidecar=None, bibliography_policy=None):
                    "blocks": blocks, "relations": relations}
         if slide.get("visual_intent", {}).get("repetition_reason"):
             section["repeat_reason"] = slide["visual_intent"]["repetition_reason"]
+            section["repeat_approved"] = slide["visual_intent"].get("repetition_approved") is True
         sections.append(section)
 
     expected = {

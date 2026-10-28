@@ -111,9 +111,20 @@ class A4QualityGateTest(unittest.TestCase):
 
     def test_intentional_whitespace_is_allowed_only_with_a_specific_reason(self):
         evidence = good_evidence()
-        evidence["pagination"]["pages"][0].update(usedHeightPx=200, whitespaceReason="Chapter close preserves the next decision tree with its governing question")
+        evidence["pagination"]["pages"][0].update(usedHeightPx=450, whitespaceRole="chapter-close", whitespaceReason="Chapter close preserves the next decision tree with its governing question")
         result = run_qa(evidence)
         self.assertNotIn("REPORT_NONFUNCTIONAL_WHITESPACE", {item["code"] for item in result["blocking"]})
+
+        evidence["pagination"]["pages"][0].update(usedHeightPx=90, whitespaceRole="invented")
+        result = run_qa(evidence)
+        self.assertIn("REPORT_NONFUNCTIONAL_WHITESPACE", {item["code"] for item in result["blocking"]})
+        self.assertGreaterEqual(result["audit"]["worstPage"]["score"], .9)
+
+    def test_text_fingerprint_preserves_normalized_reading_order(self):
+        evidence = good_evidence()
+        evidence["media"]["htmlPages"][0]["text"] = "A B C"
+        evidence["media"]["pdfPages"][0]["text"] = "C B A"
+        self.assertIn("REPORT_TEXT_MISMATCH", {item["code"] for item in run_qa(evidence)["blocking"]})
     def test_real_evaluate_rejects_missing_and_mismatched_rendered_exhibits(self):
         evidence = good_evidence()
         evidence["media"]["htmlPages"][0]["visibleHtml"] = (
@@ -561,7 +572,7 @@ class A4QualityGateTest(unittest.TestCase):
 
         evidence = good_evidence()
         evidence["pagination"]["pageCount"] = 2
-        evidence["pagination"]["pages"].append({"id": "page-002", "number": 2, "intentionalBlank": False, "usedHeightPx": 10, "contentHeightPx": 986, "whitespaceReason": "Visual regression fixture isolates an intentionally sparse second page", "geometry": {"widthMm": 210, "heightMm": 297}})
+        evidence["pagination"]["pages"].append({"id": "page-002", "number": 2, "intentionalBlank": False, "usedHeightPx": 450, "contentHeightPx": 986, "whitespaceRole": "chapter-close", "whitespaceReason": "Visual regression fixture preserves the next governed chapter opening", "geometry": {"widthMm": 210, "heightMm": 297}})
         evidence["geometry"]["pages"].append({"id": "page-002", "mediaBoxMm": [210, 297], "overlaps": [], "clipped": [], "empty": False, "fonts": [{"role": "body", "minimumPt": 8.5}]})
         evidence["media"]["htmlPages"].append({"id": "page-002", "role": "body", "text": "Second", "visibleHtml": "<p>Second</p>"})
         evidence["media"]["pdfPages"].append({"id": "page-002", "text": "Second"})

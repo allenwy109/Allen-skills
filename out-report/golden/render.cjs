@@ -93,9 +93,10 @@ fs.writeFileSync(compiledHtml, html);
         const used = flow.length ? Math.max(...flow.map(node => node.getBoundingClientRect().bottom)) - top : 0;
         const role = p.dataset.pageRole;
         const whitespaceReason = role === 'cover' ? 'Cover isolates the decision title and publication identity' : role === 'toc' ? 'Contents page preserves a short navigational reading path' : undefined;
+        const whitespaceRole = role === 'cover' ? 'cover' : role === 'toc' ? 'toc' : undefined;
         return {id: `page-${String(index + 1).padStart(3, '0')}`, number: index + 1, intentionalBlank: false,
           usedHeightPx: Math.max(0, Math.ceil(used * 1000) / 1000), contentHeightPx: Math.ceil(contentHeight * 1000) / 1000,
-          ...(whitespaceReason ? {whitespaceReason} : {}), geometry: {widthMm: 210, heightMm: 297}};
+          ...(whitespaceReason ? {whitespaceReason, whitespaceRole} : {}), geometry: {widthMm: 210, heightMm: 297}};
       })};
   });
   const expectedIds = report.pages.map(p => p.id);

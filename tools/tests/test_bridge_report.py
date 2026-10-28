@@ -27,6 +27,12 @@ class ReportContractTest(unittest.TestCase):
             self.build(slides)
         return cm.exception
 
+    def test_shared_slides_schema_allows_deck_without_report_decision_structure(self):
+        slides = copy.deepcopy(self.slides)
+        slides["deck"].pop("decision_structure")
+        self.assertEqual([], schema_check.check_document(schema_check.load("slides.schema.json"), slides, "slides.json"))
+        self.assertEqual("REPORT_COVERAGE_MISMATCH", self.error(slides).code)
+
     def test_build_preserves_panels_relations_anchor_and_coverage(self):
         self.ledger.patch("cards", "card-0001", {"source_refs": [{"source_id": "M001", "locator": "附录 A"}]})
         report, coverage = self.build()

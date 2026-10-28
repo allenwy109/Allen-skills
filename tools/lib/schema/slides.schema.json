@@ -48,7 +48,7 @@
       "constraints": {"type": "string", "required": true},
       "success_criteria": {"type": "string", "required": true}}},
      "answer_claim_refs": {"type": "array", "items": {"type": "string", "pattern": "^cl-[0-9]{4,}$"}},
-     "decision_structure": {"type": "object", "required": true, "fields": {
+     "decision_structure": {"type": "object", "fields": {
       "decision_level": {"type": "string", "required": true},
       "decisive_reasons": {"type": "array", "required": true, "min_items": 3, "max_items": 3, "items": {"type": "string"}},
       "largest_upside": {"type": "string", "required": true},
@@ -113,6 +113,7 @@
        "layout": {"type": "string"},
        "layout_reason": {"type": "string"},
        "repetition_reason": {"type": "string"},
+       "repetition_approved": {"type": "boolean"},
        "semantic_type": {"type": "string"}}},
       "chart_spec_file": {"type": "string", "pattern": "^charts/[A-Za-z0-9_.-]+\\.json$"},
       "block_ids": {"type": "array", "items": {"type": "string"}},

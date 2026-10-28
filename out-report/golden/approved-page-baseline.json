@@ -2,8 +2,9 @@
   "schemaVersion": "1.0",
   "status": "approved",
   "approvedBy": "codex-visual-review",
-  "approvedAt": "2026-10-28T11:33:44+10:30",
-  "changeReason": "Task 5 QA closure：A4 字号、方法页、链接、文本一致性与整册视觉复核通过；QA 最弱页 page-014 已检查",
+  "approvedAt": "2026-10-28T17:00:00+10:30",
+  "candidateDigest": "658791735b252b33d95f220e7f30f7cfe2fdaba6edc519d0077ca9279fbd026f",
+  "changeReason": "Task 5 review closure：保留真实空白率计分并核对 QA 最弱页 page-001；页面像素未变化",
   "artifacts": {
     "pagePngSha256": {
       "page-001": "4b8114f8aa7c4f1b0f31deca4666619fe7910c9e6b73afe078af095f20203934",

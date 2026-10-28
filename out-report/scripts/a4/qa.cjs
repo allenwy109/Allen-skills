@@ -76,7 +76,21 @@ function digest(value) {
 }
 
 function textFingerprint(value) {
-  return [...normalizedText(value).replace(/\s+/g, '')].sort().join('');
+  return normalizedText(value).replace(/\s+/g, '');
+}
+
+function extractorEquivalent(left, right) {
+  if (left === right) return true;
+  if ([...left].sort().join('') !== [...right].sort().join('')) return false;
+  let previous = new Array(right.length + 1).fill(0);
+  for (const leftChar of left) {
+    const current = [0];
+    for (let index = 1; index <= right.length; index += 1) {
+      current[index] = leftChar === right[index - 1] ? previous[index - 1] + 1 : Math.max(previous[index], current[index - 1]);
+    }
+    previous = current;
+  }
+  return previous[right.length] / Math.max(left.length, right.length) >= .5;
 }
 
 function canonicalJson(value) {
@@ -258,6 +272,7 @@ function evaluate(evidence) {
   blocking.push(...evidenceErrors(evidence));
 
   const maximumUnusedRatio = finiteNumber(pagination.maximumUnusedRatio) ? pagination.maximumUnusedRatio : 0.56;
+  const whitespaceRoles = new Set(['cover', 'toc', 'chapter-close']);
 
   for (const page of paginationPages) {
     if (finiteNumber(page.usedHeightPx) && finiteNumber(page.contentHeightPx) && page.usedHeightPx > page.contentHeightPx + 1) {
@@ -265,7 +280,8 @@ function evaluate(evidence) {
     }
     const unusedRatio = finiteNumber(page.usedHeightPx) && finiteNumber(page.contentHeightPx) && page.contentHeightPx > 0
       ? Math.max(0, 1 - page.usedHeightPx / page.contentHeightPx) : 0;
-    if (!page.intentionalBlank && unusedRatio > maximumUnusedRatio && String(page.whitespaceReason || '').trim().length < 24) {
+    const justifiedWhitespace = whitespaceRoles.has(page.whitespaceRole) && String(page.whitespaceReason || '').trim().length >= 24 && unusedRatio <= .8;
+    if (!page.intentionalBlank && unusedRatio > maximumUnusedRatio && !justifiedWhitespace) {
       blocking.push(issue('REPORT_NONFUNCTIONAL_WHITESPACE', page.id, `${Math.round(unusedRatio * 100)}% unused exceeds ${Math.round(maximumUnusedRatio * 100)}%`, { unusedRatio, maximumUnusedRatio }));
     }
   }
@@ -331,7 +347,7 @@ function evaluate(evidence) {
   }
   const htmlText = htmlPages.map(page => ({ id: page.id, text: normalizedText(page.text), digest: digest(textFingerprint(page.text)) }));
   const pdfText = pdfPages.map(page => ({ id: page.id, text: normalizedText(page.text), digest: digest(textFingerprint(page.text)) }));
-  if (JSON.stringify(htmlText.map(({ id, digest: value }) => ({ id, digest: value }))) !== JSON.stringify(pdfText.map(({ id, digest: value }) => ({ id, digest: value })))) {
+  if (htmlText.length !== pdfText.length || htmlText.some((page, index) => page.id !== pdfText[index].id || !extractorEquivalent(textFingerprint(page.text), textFingerprint(pdfText[index].text)))) {
     blocking.push(issue('REPORT_TEXT_MISMATCH', 'media', 'HTML and PDF page text manifests differ'));
   }
   if (htmlPages.length !== paginationPages.length || pdfPages.length !== paginationPages.length) {
@@ -367,8 +383,7 @@ function evaluate(evidence) {
   const pageScores = paginationPages.map(page => {
     const issues = [...blocking, ...warnings].filter(item => item.location === page.id);
     const measuredUnusedRatio = finiteNumber(page.usedHeightPx) && finiteNumber(page.contentHeightPx) && page.contentHeightPx > 0 ? Math.max(0, 1 - page.usedHeightPx / page.contentHeightPx) : 0;
-    const unusedRatio = String(page.whitespaceReason || '').trim().length >= 24 ? 0 : measuredUnusedRatio;
-    return { id: page.id, score: issues.length * 100 + Math.round(unusedRatio * 1000) / 1000, issueCodes: issues.map(item => item.code).sort(), unusedRatio: Math.round(measuredUnusedRatio * 1000) / 1000 };
+    return { id: page.id, score: issues.length * 100 + Math.round(measuredUnusedRatio * 1000) / 1000, issueCodes: issues.map(item => item.code).sort(), unusedRatio: Math.round(measuredUnusedRatio * 1000) / 1000 };
   }).sort((left, right) => right.score - left.score || left.id.localeCompare(right.id));
   return {
     schemaVersion: '1.0',
@@ -393,4 +408,4 @@ if (require.main === module) {
   try { main(); } catch (error) { process.stderr.write(`${error.code || 'REPORT_QA_FAILED'}: ${error.message}\n`); process.exit(1); }
 }
 
-module.exports = { A4, COVERAGE_SETS, MEDIA_TOLERANCE_MM, evaluate, evidenceErrors, deriveDifferences, validateExhibitDeclaration, renderedExhibitIssues, normalizedText, textFingerprint };
+module.exports = { A4, COVERAGE_SETS, MEDIA_TOLERANCE_MM, evaluate, evidenceErrors, deriveDifferences, validateExhibitDeclaration, renderedExhibitIssues, normalizedText, textFingerprint, extractorEquivalent };

@@ -42,6 +42,7 @@ class GoldenReportContractTest(unittest.TestCase):
         fixture = json.loads(EXHIBIT_GOLDEN.read_text())
         for component in fixture["components"][1:]:
             component["payload"]["repeat_reason"] = "Adjacent golden exhibits deliberately compare distinct native semantic forms"
+            component["payload"]["repeat_approved"] = True
         expected = {"executive-summary", "answer-and-reasons", "pain-comparison", "competitor-matrix", "decision-tree", "mechanism-process", "paired-scenarios", "30-60-90-roadmap", "methods-limitations"}
         kinds = {block["content"]["exhibit"]["kind"] for component in fixture["components"] for block in component["payload"]["blocks"]}
         self.assertEqual(expected, kinds)
@@ -147,8 +148,8 @@ class GoldenReportContractTest(unittest.TestCase):
         self.assertNotIn("批准日期：2026-10-27", visible)
         self.assertNotIn("current digest: needs-reapproval", visible)
         self.assertEqual(self.baseline["status"], "approved")
-        self.assertEqual(self.baseline["candidateDigest"], "b7898b149b27d18a103d84f0036d85423763b77d8f2af30f68f5f4e96908d316")
-        self.assertEqual(self.baseline["qaWorstPage"], "page-014")
+        self.assertEqual(self.baseline["candidateDigest"], "658791735b252b33d95f220e7f30f7cfe2fdaba6edc519d0077ca9279fbd026f")
+        self.assertEqual(self.baseline["qaWorstPage"], "page-001")
         self.assertEqual(self.baseline["auditTrail"][-1]["candidateDigest"], self.baseline["candidateDigest"])
 
     def test_approval_record_is_separate_and_records_user_approval(self):
@@ -169,7 +170,15 @@ class GoldenReportContractTest(unittest.TestCase):
         classification = next(event for event in reversed(self.baseline["auditTrail"])
                               if event["type"] == "policy-classification")
         self.assertEqual(approval["reason"], self.baseline["changeReason"])
-        self.assertEqual(approval["observedPages"], ["p01-p16 whole-book contact sheet", "page-014 QA-selected worst page", "p15 bibliography", "p16 methods and limitations"])
+        self.assertEqual(approval["approvedBy"], self.baseline["approvedBy"])
+        self.assertEqual(approval["approvedAt"], self.baseline["approvedAt"])
+        self.assertEqual(approval["candidateDigest"], self.baseline["candidateDigest"])
+        page_approval = json.loads((GOLDEN / "approved-page-baseline.json").read_text())
+        self.assertEqual(approval["approvedBy"], page_approval["approvedBy"])
+        self.assertEqual(approval["approvedAt"], page_approval["approvedAt"])
+        self.assertEqual(approval["candidateDigest"], page_approval["candidateDigest"])
+        self.assertEqual(approval["reason"], page_approval["changeReason"])
+        self.assertEqual(approval["observedPages"], ["p01-p16 whole-book contact sheet", "page-001 QA-selected worst page", "p14 roadmap", "p16 methods and limitations"])
         self.assertRegex(classification["candidateDigest"], r"^[0-9a-f]{64}$")
         self.assertIn("explicit full-bibliography", classification["reason"])
         self.assertNotIn("artifacts", self.baseline); self.assertNotIn("environment", self.baseline)

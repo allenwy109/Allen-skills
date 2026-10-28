@@ -117,7 +117,7 @@ class A4PaginationTest(unittest.TestCase):
         self.assertIn('data-cross-reference="finding">1</span>', result["html"])
 
     def test_boundary_places_next_component_on_new_page_without_overflow(self):
-        components = [component(f"c-{index}", repeat_reason="Repeated evidence cards exercise the physical page boundary only") for index in range(1, 9)]
+        components = [component(f"c-{index}", repeat_reason="Repeated evidence cards exercise the physical page boundary only", repeat_approved=True) for index in range(1, 9)]
         result = render({"title": "Boundary", "components": components})
         self.assertGreater(result["manifest"]["pageCount"], 1)
         self.assertTrue(all(page["usedHeightPx"] <= page["contentHeightPx"] + 1 for page in result["manifest"]["pages"]))
@@ -254,7 +254,17 @@ class A4PaginationTest(unittest.TestCase):
         self.assertIn("REPORT_REPEATED_PRIMARY_STRUCTURE", process.stderr)
 
         repeated[1]["payload"]["repeat_reason"] = "Same decision matrix continued across a semantic table boundary"
+        repeated[1]["payload"]["repeat_approved"] = True
         self.assertEqual(1, render({"title": "Approved repeat", "components": repeated})["manifest"]["pageCount"])
+
+        non_adjacent = [component("one"), component("middle", "risk-boundary", layout_id="decision-matrix",
+                        risks=[{"name": "Cash", "priority": "P1"}]), component("three")]
+        process = subprocess.run(
+            ["node", str(RENDER)], cwd=ROOT, input=json.dumps({"title": "A-B-A", "components": non_adjacent}),
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(0, process.returncode)
+        self.assertIn("REPORT_REPEATED_PRIMARY_STRUCTURE", process.stderr)
 
     def test_file_mode_writes_html_and_pagination_manifest(self):
         doc = {"title": "Artifacts", "components": [component("finding")]}
